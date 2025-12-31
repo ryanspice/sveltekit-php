@@ -68,11 +68,26 @@ function sk_apply_loads(string $routeid, array $loadFns, array &$payload, string
 		if (!function_exists($fn)) {
 			continue;
 		}
+		
+		// Prepare URL object to match dev environment
+		$searchParams = (object)$_GET;
+		
 		$res = $fn([
+			'params' => [], // TODO: Extract route params if possible
+			'url' => (object)[
+				'searchParams' => $searchParams,
+				'pathname' => $_SERVER['REQUEST_URI'] ?? ''
+			],
+			'request' => (object)[
+				'headers' => (object)[
+					'cookie' => $_SERVER['HTTP_COOKIE'] ?? ''
+				]
+			],
+			'cookies' => $_COOKIE,
 			'routeid' => $routeid,
 			'parentdata' => $base,
 			'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
-			'query' => $_GET,
+			'query' => $_GET, // Keep legacy support
 			'server' => $_SERVER
 		]);
 
