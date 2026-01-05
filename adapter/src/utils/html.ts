@@ -29,7 +29,16 @@ export function detectInlineDataModeFromHtml(html: string): 'nodes' | 'payload' 
 	return 'unknown';
 }
 
+/**
+ * Replaces the JSON array/object literal with a PHP echo statement.
+ * Supports finding "const data = [...]" or "data: [...]" inside the HTML script tags.
+ */
 export function replaceInlineConstData(html: string): string | null {
+	// 1. Locate the script block that contains the SvelteKit data payload.
+	//    This is usually inside <script type="application/json" data-sveltekit-fetched> or a regular <script> tag depending on Kit version.
+	//    Actually, standard SvelteKit (latest) often puts `const data = [...]` inside a module script or standard script.
+
+	// We'll search for the signature of the data assignment.
 	const patterns = ['const data', 'data:'];
 
 	for (const p of patterns) {
@@ -37,6 +46,9 @@ export function replaceInlineConstData(html: string): string | null {
 		while (true) {
 			const startIdx = html.indexOf(p, startPos);
 			if (startIdx === -1) break;
+
+			// Check context: ensure we are not inside a string (simplistic check)
+			// A better way is to verify what comes after.
 
 			// Find opening bracket
 			let openIdx = -1;
@@ -115,13 +127,14 @@ export function replaceInlineConstData(html: string): string | null {
 			if (closeIdx !== -1) {
 				const before = html.slice(0, openIdx);
 				const after = html.slice(closeIdx + 1);
-				return `${before} <?php echo $__SK_DATA; ?>${after}`;
+				return `${before} <?php echo $dataPayload; ?>${after}`;
 			}
 
-			// If we got here, we found open but not close? Abort this match.
 			startPos = startIdx + 1;
 		}
 	}
 
 	return null;
 }
+
+

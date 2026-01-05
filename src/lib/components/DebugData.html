@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>SvelteKit PHP Inspector</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<style>
+		/* Custom Tailwind Configuration for darker background and subtle accents */
+		:root {
+			--bg-dark-base: #0f172a;
+			/* slate-900 */
+			--bg-panel: #1e293b;
+			/* slate-800 */
+			--bg-content: #111827;
+			/* gray-900 */
+			--border-low: #334155;
+			/* slate-700 */
+			--text-high: #e2e8f0;
+			/* slate-200 */
+			--text-low: #94a3b8;
+			/* slate-400 */
+			--accent-main: #38bdf8;
+			/* sky-400 */
+			--accent-active-bg: rgba(56, 189, 248, 0.15);
+			/* sky-400 opacity */
+		}
+
+		/* Set up the dark mode look */
+		body {
+			background-color: var(--bg-dark-base);
+			color: var(--text-high);
+			font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+			overflow: hidden;
+		}
+
+		/* Custom scrollbar styling for DevTools feel */
+		::-webkit-scrollbar {
+			width: 8px;
+			height: 8px;
+		}
+
+		::-webkit-scrollbar-thumb {
+			background-color: var(--border-low);
+			border-radius: 4px;
+		}
+
+		::-webkit-scrollbar-track {
+			background-color: var(--bg-content);
+		}
+
+		/* DevTools specific utilities */
+		.devtools-panel {
+			background-color: var(--bg-panel);
+			border: 1px solid var(--border-low);
+			border-radius: 6px;
+			overflow: hidden;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		}
+
+		.devtools-header {
+			background-color: #1a2333;
+			/* Slightly darker header */
+			border-bottom: 1px solid var(--border-low);
+		}
+
+		/* Monospace font for data */
+		.font-mono-data {
+			font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+		}
+
+		/* Tab Interaction */
+		.tab-btn {
+			border-bottom-width: 2px;
+			transition: color 0.15s, border-color 0.15s;
+		}
+
+		/* Tree View Styling */
+		.tree-row {
+			transition: background-color 0.15s ease;
+			cursor: pointer;
+			padding: 2px 4px;
+			border-radius: 2px;
+		}
+
+		.tree-row:hover {
+			background-color: rgba(56, 189, 248, 0.08);
+		}
+
+		.tree-row.active {
+			background-color: var(--accent-active-bg);
+			border-left: 2px solid var(--accent-main);
+			margin-left: -2px;
+			padding-left: 6px;
+		}
+
+		/* Diff Colors */
+		.diff-added {
+			background-color: rgba(16, 185, 129, 0.15);
+		}
+
+		/* Green */
+		.diff-removed {
+			background-color: rgba(239, 68, 68, 0.15);
+		}
+
+		/* Red */
+		.diff-changed {
+			background-color: rgba(251, 191, 36, 0.15);
+		}
+
+		/* Yellow */
+
+		/* Responsive Grid Adjustments */
+		@media (max-width: 1024px) {
+			.lg\:grid-cols-3 {
+				grid-template-columns: 1fr;
+			}
+		}
+	</style>
+	<!-- We are not using a specific icon library CDN for this complexity, using inline SVG paths for robustness -->
+</head>
+
+<body class="p-4 h-screen max-h-screen flex flex-col antialiased">
+
+	<!-- Main DevTools Container -->
+	<div id="inspector-app" class="flex flex-col w-full h-full devtools-panel bg-slate-900 border-slate-700">
+
+		<!-- Header / Top Bar -->
+		<header class="flex items-center justify-between px-3 devtools-header h-12 flex-shrink-0">
+
+			<!-- Left Section: Title and Tabs -->
+			<div class="flex items-center space-x-4 h-full">
+				<div class="flex items-center text-sm font-semibold text-slate-400 tracking-wide select-none">
+					<span class="mr-1 transform rotate-90 text-slate-500">
+						<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+							</path>
+						</svg>
+					</span>
+					SvelteKit PHP
+				</div>
+
+				<!-- Tabs -->
+				<nav class="flex h-full text-xs font-medium">
+					<button data-tab="overview"
+						class="tab-btn flex items-center px-3 border-b-2 border-sky-400 text-sky-400 h-full">OVERVIEW</button>
+					<button data-tab="structured"
+						class="tab-btn flex items-center px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 h-full">STRUCTURED</button>
+					<button data-tab="raw"
+						class="tab-btn flex items-center px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 h-full">RAW</button>
+					<button data-tab="paths"
+						class="tab-btn flex items-center px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 h-full">PATHS</button>
+					<button data-tab="diff"
+						class="tab-btn flex items-center px-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 h-full">DIFF</button>
+				</nav>
+			</div>
+
+			<!-- Right Section: Search and Actions -->
+			<div class="flex items-center space-x-2">
+
+				<!-- Search Input -->
+				<div class="relative">
+					<input id="filter-input" type="text" placeholder="Filter keys (Ctrl+F)..."
+						class="w-48 p-1.5 pl-8 text-xs bg-slate-800 border border-slate-700 rounded-md focus:ring-sky-500 focus:border-sky-500 transition font-mono-data text-slate-200 placeholder-slate-500">
+					<svg class="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-slate-500" fill="none"
+						stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+					</svg>
+					<span id="filter-hint"
+						class="hidden absolute right-1 top-1/2 transform -translate-y-1/2 px-1 text-xs text-slate-500 bg-slate-700 rounded pointer-events-none">Esc</span>
+				</div>
+
+				<!-- Actions -->
+				<div class="flex space-x-1">
+					<button class="action-btn p-1.5 rounded-md hover:bg-slate-700 transition-colors group"
+						title="Toggle Raw Viewer">
+						<!-- Raw Icon -->
+						<svg class="w-4 h-4 text-slate-400 group-hover:text-sky-400" fill="none" stroke="currentColor"
+							viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M10 20l4-16m4 4l4 4-4 4M6 4l-4 4 4 4"></path>
+						</svg>
+					</button>
+					<button class="action-btn p-1.5 rounded-md hover:bg-slate-700 transition-colors group"
+						title="Save Snapshot (Export)">
+						<!-- Save Icon -->
+						<svg class="w-4 h-4 text-slate-400 group-hover:text-sky-400" fill="none" stroke="currentColor"
+							viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M8 7H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12">
+							</path>
+						</svg>
+					</button>
+					<button class="action-btn p-1.5 rounded-md hover:bg-slate-700 transition-colors group"
+						title="Toggle Theme (Current: Dark)">
+						<!-- Moon Icon -->
+						<svg class="w-4 h-4 text-slate-400 group-hover:text-sky-400" fill="none" stroke="currentColor"
+							viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+								d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+							</path>
+						</svg>
+					</button>
+				</div>
+			</div>
+		</header>
+
+		<!-- Main Content Area -->
+		<main class="flex-grow p-3 overflow-y-auto bg-[var(--bg-content)]">
+
+			<!-- Tab Contents Wrapper -->
+			<div id="tab-contents" class="h-full">
+
+				<!-- 1. OVERVIEW Tab (Active by default) -->
+				<div data-tab-content="overview" class="grid grid-cols-1 lg:grid-cols-3 gap-3 h-full overflow-y-auto">
+
+					<!-- Left Column: APPLICATION & CURRENT REQUEST -->
+					<div class="lg:col-span-2 space-y-3 flex flex-col">
+
+						<!-- Panel: APPLICATION -->
+						<div class="devtools-panel p-4 flex-shrink-0">
+							<h2
+								class="text-xs font-semibold uppercase text-slate-400 mb-3 border-b border-slate-700/50 pb-1">
+								APPLICATION</h2>
+							<div class="space-y-1 text-sm">
+								<div class="flex justify-between items-center py-0.5">
+									<span class="text-slate-400">Name:</span>
+									<span class="font-mono-data text-sky-300">SvelteKit PHP Starter</span>
+								</div>
+								<div class="flex justify-between items-center py-0.5">
+									<span class="text-slate-400">Version:</span>
+									<span class="font-mono-data text-slate-200">1.2.0-beta</span>
+								</div>
+								<div class="flex justify-between items-center py-0.5">
+									<span class="text-slate-400">Engine:</span>
+									<span class="font-mono-data text-slate-200">PHP 8.2 (FPM)</span>
+								</div>
+							</div>
+						</div>
+
+						<!-- Panel: CURRENT REQUEST -->
+						<div class="devtools-panel p-4 flex-grow min-h-[120px]">
+							<h2
+								class="text-xs font-semibold uppercase text-slate-400 mb-3 border-b border-slate-700/50 pb-1">
+								CURRENT REQUEST</h2>
+							<div class="space-y-1 text-sm">
+								<div class="flex justify-between items-center py-0.5">
+									<span class="text-slate-400">URL:</span>
+									<span
+										class="font-mono-data text-amber-300 truncate max-w-[70%] text-right">/api/data?user=123&cache=true</span>
+								</div>
+								<div class="flex justify-between items-center py-0.5">
+									<span class="text-slate-400">Method:</span>
+									<span class="font-mono-data text-green-400">POST</span>
+								</div>
+								<div class="flex justify-between items-center py-0.5">
+									<span class="text-slate-400">Timestamp:</span>
+									<span class="font-mono-data text-slate-200">2023-10-27 20:31:02</span>
+								</div>
+								<div class="flex justify-between items-center py-0.5">
+									<span class="text-slate-400">Memory:</span>
+									<span class="font-mono-data text-slate-200">1.2 MB (1,258,291 bytes)</span>
+								</div>
+								<div class="flex justify-between items-center py-0.5">
+									<span class="text-slate-400">Duration:</span>
+									<span class="font-mono-data text-green-400">45ms</span>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Right Column: HISTORY -->
+					<div class="lg:col-span-1 flex flex-col space-y-3">
+						<div class="devtools-panel p-0 flex-grow max-h-[500px] lg:max-h-full flex flex-col">
+							<h2
+								class="text-xs font-semibold uppercase text-slate-400 p-3 border-b border-slate-700/50 flex-shrink-0">
+								HISTORY (4)</h2>
+
+							<div class="flex flex-col overflow-y-auto text-sm">
+
+								<!-- History Item (Selected) -->
+								<div
+									class="history-row flex justify-between items-center p-3 cursor-pointer border-l-4 border-sky-500 bg-sky-700/20 text-slate-50">
+									<div class="truncate">
+										<span class="font-mono-data text-xs text-slate-400 mr-2">20:31:02</span>
+										<span
+											class="font-mono-data text-white truncate max-w-[75%] inline-block">/api/data?user=123...</span>
+									</div>
+									<input type="checkbox"
+										class="form-checkbox text-sky-500 bg-slate-700 border-slate-600 rounded cursor-pointer ml-2"
+										checked>
+								</div>
+
+								<!-- History Item -->
+								<div
+									class="history-row flex justify-between items-center p-3 cursor-pointer border-l-4 border-transparent hover:bg-slate-700/50">
+									<div class="truncate">
+										<span class="font-mono-data text-xs text-slate-400 mr-2">20:30:45</span>
+										<span
+											class="font-mono-data text-slate-200 truncate max-w-[75%] inline-block">/dashboard/analytics</span>
+									</div>
+									<input type="checkbox"
+										class="form-checkbox text-sky-500 bg-slate-700 border-slate-600 rounded cursor-pointer ml-2">
+								</div>
+
+								<!-- History Item (Selected for Diff) -->
+								<div
+									class="history-row flex justify-between items-center p-3 cursor-pointer border-l-4 border-sky-500 bg-sky-700/20 text-slate-50">
+									<div class="truncate">
+										<span class="font-mono-data text-xs text-slate-400 mr-2">20:29:34</span>
+										<span
+											class="font-mono-data text-white truncate max-w-[75%] inline-block">/</span>
+									</div>
+									<input type="checkbox"
+										class="form-checkbox text-sky-500 bg-slate-700 border-slate-600 rounded cursor-pointer ml-2"
+										checked>
+								</div>
+
+								<!-- Placeholder: Older item -->
+								<div
+									class="history-row flex justify-between items-center p-3 cursor-pointer border-l-4 border-transparent hover:bg-slate-700/50 opacity-60">
+									<div class="truncate">
+										<span class="font-mono-data text-xs text-slate-500 mr-2">20:28:11</span>
+										<span
+											class="font-mono-data text-slate-400 truncate max-w-[75%] inline-block">/login</span>
+									</div>
+									<input type="checkbox"
+										class="form-checkbox text-sky-500 bg-slate-700 border-slate-600 rounded cursor-pointer ml-2">
+								</div>
+
+								<!-- Empty History State (Hidden) -->
+								<div id="history-empty" class="p-6 text-center text-slate-500 hidden">
+									<p class="text-sm">No requests captured yet.</p>
+								</div>
+							</div>
+						</div>
+					</div>
+
+				</div>
+
+				<!-- 2. STRUCTURED Tab (Hidden) -->
+				<div data-tab-content="structured" class="h-full hidden flex">
+					<div class="devtools-panel h-full flex flex-col w-full">
+
+						<!-- Tree Controls -->
+						<div class="flex items-center p-2 border-b border-slate-700/50 text-xs flex-shrink-0">
+							<span class="text-slate-400 mr-3 select-none">Current Payload: Request Data</span>
+							<button class="text-sky-400 hover:text-sky-300 mr-3">Expand All</button>
+							<button class="text-sky-400 hover:text-sky-300">Collapse All</button>
+						</div>
+
+						<!-- Tree Viewer Area -->
+						<div class="p-2 flex-grow overflow-y-auto font-mono-data text-sm">
+
+							<!-- Recursive Tree Structure Simulation -->
+							<div id="tree-viewer" class="select-none">
+
+								<!-- Node 1: Root Object (Collapsed) -->
+								<div class="tree-row flex items-center space-x-2">
+									<span class="text-slate-500">▶</span>
+									<span class="font-semibold text-sky-300">request</span>
+									<span class="text-xs px-1 bg-blue-900/50 text-blue-300 rounded">object (4)</span>
+									<span class="text-slate-500 truncate max-w-sm">{"method":"POST", "url":"/api/data",
+										...}</span>
+								</div>
+
+								<!-- Node 2: Expanded Array -->
+								<div class="ml-4">
+									<div class="tree-row flex items-center space-x-2">
+										<span class="text-slate-500">▼</span>
+										<span class="font-semibold text-green-400">headers</span>
+										<span class="text-xs px-1 bg-green-900/50 text-green-300 rounded">array
+											(2)</span>
+										<span class="text-slate-500">[{"accept":"application/json"}, ...]</span>
+									</div>
+									<!-- Child 1 (String) -->
+									<div class="ml-4 tree-row flex items-center space-x-2">
+										<span class="text-slate-500">·</span>
+										<span class="text-slate-400">0</span>
+										<span
+											class="text-xs px-1 bg-yellow-900/50 text-yellow-300 rounded">string</span>
+										<span class="text-slate-200 truncate">"Content-Type: application/json"</span>
+									</div>
+									<!-- Child 2 (String - Long value simulation) -->
+									<div class="ml-4 tree-row active flex items-center space-x-2">
+										<span class="text-slate-500">·</span>
+										<span class="text-slate-400">user_agent</span>
+										<span
+											class="text-xs px-1 bg-yellow-900/50 text-yellow-300 rounded">string</span>
+										<span class="text-slate-200 truncate max-w-lg">"Mozilla/5.0 (Macintosh; Intel
+											Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0
+											Safari/537.36"</span>
+									</div>
+								</div>
+
+								<!-- Node 3: Collapsed Object -->
+								<div class="tree-row flex items-center space-x-2 mt-1">
+									<span class="text-slate-500">▶</span>
+									<span class="font-semibold text-sky-300">response</span>
+									<span class="text-xs px-1 bg-blue-900/50 text-blue-300 rounded">object (3)</span>
+									<span class="text-slate-500">{status: 200, users: [..], metadata: {...}}</span>
+								</div>
+
+								<!-- Node 4: Simple Boolean Value -->
+								<div class="tree-row flex items-center space-x-2 mt-1">
+									<span class="text-slate-500">·</span>
+									<span class="font-semibold text-slate-400">is_production</span>
+									<span class="text-xs px-1 bg-red-900/50 text-red-300 rounded">boolean</span>
+									<span class="text-red-300">false</span>
+								</div>
+
+								<!-- Node 5: Null Value -->
+								<div class="tree-row flex items-center space-x-2 mt-1">
+									<span class="text-slate-500">·</span>
+									<span class="font-semibold text-slate-400">session_token</span>
+									<span class="text-xs px-1 bg-slate-700/50 text-slate-300 rounded">null</span>
+									<span class="text-slate-500">null</span>
+								</div>
+							</div>
+
+							<div id="filter-empty-structured" class="hidden p-6 text-center text-slate-500">
+								<p class="text-sm">No results found matching the filter criteria.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- 3. RAW Tab (Hidden) -->
+				<div data-tab-content="raw" class="h-full hidden flex">
+					<div class="devtools-panel h-full flex flex-col w-full font-mono-data text-sm bg-gray-950">
+
+						<!-- Raw Controls -->
+						<div
+							class="flex items-center p-2 border-b border-slate-700/50 text-xs bg-slate-900/50 justify-between flex-shrink-0">
+							<div class="text-slate-400">Raw JSON Payload (263,000 bytes)</div>
+							<div class="flex space-x-3">
+								<button class="text-sky-400 hover:text-sky-300 text-xs">Pretty Print</button>
+								<button class="text-sky-400 hover:text-sky-300 text-xs">Wrap Text</button>
+								<button class="text-sky-400 hover:text-sky-300 text-xs flex items-center"
+									title="Copy Raw Data">
+									<svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+											d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-7 4h7m-7 3h7m-7 3h7">
+										</path>
+									</svg>
+									Copy
+								</button>
+							</div>
+						</div>
+
+						<!-- Code Viewer -->
+						<div class="flex flex-grow overflow-hidden">
+							<!-- Line Numbers -->
+							<div
+								class="w-8 flex-shrink-0 text-right pr-2 text-slate-600 bg-slate-900 pt-2 overflow-hidden select-none">
+								<div class="leading-relaxed">1</div>
+								<div class="leading-relaxed">2</div>
+								<div class="leading-relaxed">3</div>
+								<div class="leading-relaxed">4</div>
+								<div class="leading-relaxed">5</div>
+								<div class="leading-relaxed">6</div>
+								<div class="leading-relaxed">7</div>
+								<div class="leading-relaxed">8</div>
+							</div>
+							<!-- Content -->
+							<pre
+								class="flex-grow p-2 overflow-scroll whitespace-pre-wrap text-slate-200 leading-relaxed pt-2">
+{
+  <span class="text-sky-400">"request_id"</span>: <span class="text-amber-300">"a1b2c3d4e5f6"</span>,
+  <span class="text-sky-400">"timestamp"</span>: <span class="text-amber-300">"2023-10-27T20:31:02.456Z"</span>,
+  <span class="text-sky-400">"data"</span>: {
+    <span class="text-sky-400">"user_count"</span>: <span class="text-purple-300">1450</span>, <span class="text-sky-400">"status"</span>: <span class="bg-yellow-800/50 px-1 rounded">"FILTER_MATCH"</span>,
+    <span class="text-sky-400">"users"</span>: [
+      { <span class="text-sky-400">"id"</span>: <span class="text-purple-300">1</span>, <span class="text-sky-400">"name"</span>: <span class="text-amber-300">"Alice"</span> },
+      ...
+    ]
+  }
+}
+                            </pre>
+						</div>
+					</div>
+				</div>
+
+				<!-- 4. PATHS Tab (Hidden) -->
+				<div data-tab-content="paths" class="h-full hidden flex">
+					<div class="devtools-panel h-full flex flex-col p-0 w-full">
+						<div class="overflow-y-auto flex-grow">
+							<table class="w-full text-sm font-mono-data table-fixed">
+								<thead
+									class="sticky top-0 bg-slate-800/90 backdrop-blur-sm z-10 border-b border-slate-700 select-none">
+									<tr>
+										<th
+											class="py-2 px-3 text-left text-xs uppercase text-slate-400 font-medium w-2/5">
+											Path</th>
+										<th
+											class="py-2 px-3 text-left text-xs uppercase text-slate-400 font-medium w-2/5">
+											Value Preview</th>
+										<th
+											class="py-2 px-3 text-left text-xs uppercase text-slate-400 font-medium w-16">
+											Type</th>
+										<th
+											class="py-2 px-3 text-center text-xs uppercase text-slate-400 font-medium w-12">
+											Copy</th>
+									</tr>
+								</thead>
+								<tbody>
+									<!-- Path Row 1 -->
+									<tr
+										class="border-b border-slate-800 hover:bg-slate-700/30 transition duration-100 cursor-pointer">
+										<td class="py-2 px-3 text-sky-400 truncate">request.method</td>
+										<td class="py-2 px-3 text-slate-200 truncate">"POST"</td>
+										<td class="py-2 px-3 text-yellow-300">string</td>
+										<td class="py-2 px-3 text-center">
+											<button title="Copy Path" class="text-slate-500 hover:text-sky-400">
+												<svg class="w-3 h-3" fill="none" stroke="currentColor"
+													viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2"
+														d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-7 4h7m-7 3h7m-7 3h7">
+													</path>
+												</svg>
+											</button>
+										</td>
+									</tr>
+									<!-- Path Row 2 (Object/Array) -->
+									<tr
+										class="border-b border-slate-800 hover:bg-slate-700/30 transition duration-100 cursor-pointer">
+										<td class="py-2 px-3 text-sky-400 truncate">response.data.users[0].name</td>
+										<td class="py-2 px-3 text-slate-500 truncate">"Alice"</td>
+										<td class="py-2 px-3 text-yellow-300">string</td>
+										<td class="py-2 px-3 text-center">
+											<button title="Copy Path" class="text-slate-500 hover:text-sky-400">
+												<svg class="w-3 h-3" fill="none" stroke="currentColor"
+													viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2"
+														d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-7 4h7m-7 3h7m-7 3h7">
+													</path>
+												</svg>
+											</button>
+										</td>
+									</tr>
+									<!-- Path Row 3 -->
+									<tr
+										class="border-b border-slate-800 hover:bg-slate-700/30 transition duration-100 cursor-pointer">
+										<td class="py-2 px-3 text-sky-400 truncate">response.data.user_count</td>
+										<td class="py-2 px-3 text-purple-300 truncate">1450</td>
+										<td class="py-2 px-3 text-purple-300">number</td>
+										<td class="py-2 px-3 text-center">
+											<button title="Copy Path" class="text-slate-500 hover:text-sky-400">
+												<svg class="w-3 h-3" fill="none" stroke="currentColor"
+													viewBox="0 0 24 24">
+													<path stroke-linecap="round" stroke-linejoin="round"
+														stroke-width="2"
+														d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m-7 4h7m-7 3h7m-7 3h7">
+													</path>
+												</svg>
+											</button>
+										</td>
+									</tr>
+								</tbody>
+							</table>
+						</div>
+					</div>
+				</div>
+
+				<!-- 5. DIFF Tab (Hidden) -->
+				<div data-tab-content="diff" class="h-full hidden flex">
+					<div class="devtools-panel h-full flex flex-col p-0 w-full">
+
+						<!-- Diff Summary -->
+						<div
+							class="p-3 border-b border-slate-700/50 text-sm flex justify-between items-center bg-slate-800 flex-shrink-0 select-none">
+							<div class="text-xs">
+								<span class="text-slate-400 mr-4">Comparing: <code
+										class="font-mono-data text-sky-300">20:31:02</code> (Left) vs <code
+										class="font-mono-data text-sky-300">20:29:34</code> (Right)</span>
+								<span class="text-green-400 ml-4">2 Added</span> ·
+								<span class="text-amber-400">3 Changed</span> ·
+								<span class="text-red-400">1 Removed</span>
+							</div>
+							<button class="text-sky-400 hover:text-sky-300 text-xs">Toggle Unified View</button>
+						</div>
+
+						<!-- Side-by-Side Diff Viewer -->
+						<div class="flex flex-grow overflow-hidden font-mono-data text-sm">
+							<!-- Left Panel (Base) -->
+							<div class="w-1/2 overflow-y-auto border-r border-slate-700">
+								<div class="p-2">
+									<div class="py-1 px-2 diff-changed">
+										<span class="text-slate-400">request.method:</span>
+										<span class="text-red-300 line-through">"GET"</span>
+									</div>
+									<div class="py-1 px-2 diff-removed">
+										<span class="text-slate-400">payload.old_key:</span>
+										<span class="text-red-300">"value_removed"</span>
+									</div>
+									<div class="py-1 px-2">
+										<span class="text-slate-400">request.url:</span>
+										<span class="text-slate-200">"/dashboard"</span>
+									</div>
+									<div class="py-1 px-2 text-transparent select-none">
+										<!-- Placeholder for added line alignment -->
+										&nbsp;
+									</div>
+								</div>
+							</div>
+
+							<!-- Right Panel (Comparison) -->
+							<div class="w-1/2 overflow-y-auto">
+								<div class="p-2">
+									<div class="py-1 px-2 diff-changed">
+										<span class="text-slate-400">request.method:</span>
+										<span class="text-green-400">"POST"</span>
+									</div>
+									<div class="py-1 px-2 text-transparent select-none">
+										<!-- Placeholder for removed line alignment -->
+										&nbsp;
+									</div>
+									<div class="py-1 px-2">
+										<span class="text-slate-400">request.url:</span>
+										<span class="text-slate-200">"/dashboard"</span>
+									</div>
+									<div class="py-1 px-2 diff-added">
+										<span class="text-slate-400">payload.new_key:</span>
+										<span class="text-green-300">"new_data_added"</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+			</div>
+		</main>
+
+		<!-- Footer / Status Bar -->
+		<footer
+			class="flex items-center justify-between p-1.5 devtools-header h-8 text-xs text-slate-500 border-t border-slate-700 flex-shrink-0 select-none">
+			<div class="flex space-x-4 ml-2">
+				<span id="status-keys">Keys: 145</span>
+				<span id="status-size">Size: ~263.00 KB</span>
+			</div>
+			<div class="mr-2">
+				SvelteKit PHP Adapter <span class="text-sky-400 ml-1">v0.9</span>
+			</div>
+		</footer>
+
+	</div>
+
+	<script>
+		document.addEventListener('DOMContentLoaded', () => {
+			const tabButtons = document.querySelectorAll('.tab-btn');
+			const tabContents = document.querySelectorAll('[data-tab-content]');
+			const filterInput = document.getElementById('filter-input');
+			const filterHint = document.getElementById('filter-hint');
+			const historyRows = document.querySelectorAll('.history-row');
+			const treeRows = document.querySelectorAll('#tree-viewer .tree-row');
+
+			// --- 1. Tab Switching Logic ---
+			const switchTab = (targetTab) => {
+				tabButtons.forEach(btn => {
+					const isActive = btn.getAttribute('data-tab') === targetTab;
+					btn.classList.toggle('text-sky-400', isActive);
+					btn.classList.toggle('border-sky-400', isActive);
+					btn.classList.toggle('text-slate-400', !isActive);
+					btn.classList.toggle('border-transparent', !isActive);
+				});
+
+				tabContents.forEach(content => {
+					const isTarget = content.getAttribute('data-tab-content') === targetTab;
+					content.classList.toggle('hidden', !isTarget);
+					// Handle responsive layout based on tab content type
+					if (isTarget) {
+						if (targetTab === 'overview') {
+							content.classList.remove('flex');
+							content.classList.add('grid');
+						} else {
+							content.classList.remove('grid');
+							content.classList.add('flex');
+						}
+					}
+				});
+			};
+
+			tabButtons.forEach(btn => {
+				btn.addEventListener('click', (e) => {
+					switchTab(e.currentTarget.getAttribute('data-tab'));
+				});
+			});
+
+			// Set initial tab state
+			switchTab('overview');
+
+			// --- 2. Filter/Search Input Interactions ---
+
+			// Ctrl+F or Cmd+F focuses the filter input
+			document.addEventListener('keydown', (e) => {
+				if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+					e.preventDefault();
+					filterInput.focus();
+				}
+			});
+
+			filterInput.addEventListener('focus', () => {
+				filterHint.classList.remove('hidden');
+				filterInput.classList.add('pr-[40px]'); // Adjust padding for hint
+			});
+
+			filterInput.addEventListener('blur', () => {
+				if (filterInput.value === '') {
+					filterHint.classList.add('hidden');
+					filterInput.classList.remove('pr-[40px]');
+				}
+			});
+
+			filterInput.addEventListener('keydown', (e) => {
+				if (e.key === 'Escape') {
+					filterInput.value = '';
+					filterInput.blur();
+				}
+			});
+
+			// --- 3. History Row Selection Simulation (for Diff mode) ---
+			historyRows.forEach(row => {
+				const checkbox = row.querySelector('input[type="checkbox"]');
+
+				// Initial styling based on checked status
+				const applyStyle = (isChecked) => {
+					row.classList.toggle('border-sky-500', isChecked);
+					row.classList.toggle('bg-sky-700/20', isChecked);
+					row.classList.toggle('text-slate-50', isChecked);
+					row.classList.toggle('border-transparent', !isChecked);
+					row.classList.toggle('hover:bg-slate-700/50', !isChecked);
+				};
+
+				applyStyle(checkbox.checked);
+
+				row.addEventListener('click', (e) => {
+					// Prevent propagation if clicking explicitly on the checkbox
+					if (e.target === checkbox) {
+						applyStyle(checkbox.checked);
+						return;
+					}
+
+					e.preventDefault();
+
+					const isChecked = !checkbox.checked;
+
+					// Simple selection logic for demonstration
+					if (!e.ctrlKey && !e.metaKey) {
+						// If Ctrl/Cmd is not held, deselect all others first
+						historyRows.forEach(r => {
+							const c = r.querySelector('input[type="checkbox"]');
+							if (r !== row && c.checked) {
+								c.checked = false;
+								applyStyle(false);
+							}
+						});
+						checkbox.checked = true; // Ensure the clicked item is selected
+					} else {
+						checkbox.checked = isChecked; // Toggle if Ctrl/Cmd is held
+					}
+
+					applyStyle(checkbox.checked);
+				});
+			});
+
+			// --- 4. Structured Tree Node Interaction Simulation ---
+			treeRows.forEach(row => {
+				row.addEventListener('click', (e) => {
+					// Ignore clicks on caret/disclosure icons if added
+					if (e.target.classList.contains('text-slate-500') && e.target.textContent.trim() === '▶') return;
+
+					// Clear existing active states on siblings/other nodes
+					treeRows.forEach(r => r.classList.remove('active'));
+
+					// Set active state
+					row.classList.add('active');
+
+					// In a real application, this would scroll the Paths view or Raw view to highlight the corresponding path/line.
+				});
+			});
+
+
+		});
+	</script>
+</body>
+
+</html>

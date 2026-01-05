@@ -1,4 +1,5 @@
 export interface AdapterOptions {
+	mode?: 'php-static' | 'node-ssr';
 	ssr?: boolean;
 	out?: string;
 	assets?: string;

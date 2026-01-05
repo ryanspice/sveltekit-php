@@ -9,5 +9,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"outDir": "."
 	},
-	"include": ["src/**/*.ts"]
+	"include": [
+		"src/**/*.ts"
+	]
 }

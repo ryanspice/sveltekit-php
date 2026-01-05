@@ -13,7 +13,7 @@ const config = {
 			ssr: true,
 			out: 'build',
 			assets: 'build',
-			precompress: false,
+			precompress: process.env.PRECOMPRESS === 'true',
 			fallback: false,
 			strict: true
 		}),
