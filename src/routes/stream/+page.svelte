@@ -1,20 +1,15 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 
-	let { data } = $props();
-	let serverData = $state(data);
-
-	$effect(() => {
-		if (data) serverData = data;
-	});
+	let props = $props();
+	let serverData = $derived(props.data) as any;
 </script>
 
 <div class="container">
 	<h1>Streaming Response</h1>
 	<p>Step 1: <strong>{serverData?.step1}</strong></p>
 
-	<p>
+	<div>
 		Step 2:
 		{#if serverData?.step2}
 			{#await serverData.step2}
@@ -27,10 +22,10 @@
 		{:else}
 			<strong>No Data (Expected during build)</strong>
 			{#if browser}
-				<p style="font-size: 0.8em; color: #666;">Waiting for data hydration...</p>
+				<small style="font-size: 0.8em; color: #666;">Waiting for data hydration...</small>
 			{/if}
 		{/if}
-	</p>
+	</div>
 
 	<a href="/">Back to Home</a>
 </div>

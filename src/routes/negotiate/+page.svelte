@@ -1,5 +1,4 @@
 <script>
-    export let data;
 </script>
 
 <h1>Negotiated Page</h1>

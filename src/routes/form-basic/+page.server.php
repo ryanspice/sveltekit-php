@@ -10,6 +10,9 @@ function action_default($params) {
     if ($val === 'fail') {
         return sk_fail(400, ['error' => 'invalid']);
     }
-    return ['success' => true, 'echo' => $val];
+    return [
+        'type' => 'success',
+        'data' => ['success' => true, 'echo' => $val]
+    ];
 }
 ?>

@@ -28,6 +28,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			const tmpDir = builder.getBuildDirectory('sveltekit-php');
 
 			builder.log.minor(`Adapting for mode: ${mode}`);
+			console.log('--- USING UPDATED ADAPTER ---');
 			builder.log.minor('Cleaning output/temp');
 			builder.rimraf(outDir);
 			builder.rimraf(assetsDir);
@@ -467,12 +468,17 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					const pageDep = deps.find((d) => d.includes('+page.server'));
 					const pagePrefix = pageDep ? fnPrefixMap.get(pageDep) : null;
 
+					// Detect SvelteKit app hash early (needed for streaming Promise glue)
+					const appHashMatch = html.match(/__sveltekit_(\w+)/);
+					const appHash = appHashMatch ? `__sveltekit_${appHashMatch[1]}` : '__sveltekit_unknown';
+
 					// Generate PHP content
 					const dataPhp = getDataPhp(includes, builder.config.kit.paths.base)
 						.replace('PLACEHOLDER_ROUTE_ID', JSON.stringify(navPath))
 						.replace('PLACEHOLDER_TEMPLATE_JSON', templateJson)
 						.replace('PLACEHOLDER_LOAD_FNS', loadFnsPhp)
-						.replace('PLACEHOLDER_INLINE_MODE', JSON.stringify(inlineMode));
+						.replace('PLACEHOLDER_INLINE_MODE', JSON.stringify(inlineMode))
+						.replaceAll('PLACEHOLDER_APP_ID', appHash);
 
 					const actionPhp = getActionPhp(includes, navPath, pagePrefix ?? null);
 
@@ -505,9 +511,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 							html = replaced;
 
-							// Detect SvelteKit app hash for streaming support
-							const appHashMatch = html.match(/__sveltekit_(\w+)/);
-							const appHash = appHashMatch ? `__sveltekit_${appHashMatch[1]}` : '__sveltekit_unknown';
+							html = html.replace(/<script>__sveltekit_[A-Za-z0-9_]+\.resolve\([\s\S]*?<\/script>\s*/g, '');
 							const bootstrap = getBootstrapPhp(navPath, loadFnsPhp, templateJson, inlineMode, requirePrefix)
 								.replace('PLACEHOLDER_APP_ID', appHash);
 							const footer = getFooterPhp(appHash);
@@ -542,6 +546,109 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 							await rename(htmlFs, phpFs);
 						}
 					}
+				}
+
+				// 4.25) Generate runtime shims for non-prerendered pages with +page.server.php
+				// This prevents 404s for prerender=false pages in php-static mode and allows PHP-only redirects.
+				builder.log.minor('Generating runtime shims for non-prerendered pages');
+				for (const r of builder.routes) {
+					if (r.prerender === true) continue;
+
+					const routeId = r.id.startsWith('/') ? r.id : '/' + r.id;
+					if (routeId === '/' || routeId === '') continue;
+					if (routeId === '/api' || routeId.startsWith('/api/')) continue;
+
+					const pageServerRel = routeId + '/+page.server.php';
+					if (!allServerRelPosix.has(pageServerRel)) continue;
+
+					const outDirForRoute = path.join(prerenderedRoot, stripLeadingSlash(routeId));
+					const outIndexPhp = path.join(outDirForRoute, 'index.php');
+					const outSiblingPhp = outDirForRoute + '.php';
+					const outSiblingHtml = outDirForRoute + '.html';
+
+					if (await exists(outIndexPhp)) continue;
+					if (await exists(outSiblingPhp)) continue;
+					if (await exists(outSiblingHtml)) continue;
+
+					const { files: deps, loadMapItems } = getRouteDeps(routeId);
+					for (const d of deps) usedServerFiles.add(d);
+
+					const fsPath = routeId.endsWith('/') ? routeId : routeId + '/';
+					const relToRoot = phpRelToRootFromNav(fsPath);
+					const includes = deps
+						.map((d) => {
+							const protectedRel = protectedMap.get(d);
+							return protectedRel
+								? 'require_once __DIR__ . \'/' + relToRoot + protectedRel.replace(/^\//, '') + '\';'
+								: '';
+						})
+						.filter(Boolean);
+
+					const loadFnList = loadMapItems.map((i) => i.fn);
+					const loadFnsPhp = '[' + loadFnList.map((fn) => `'${fn}'`).join(', ') + ']';
+
+					const shimPhp = `<?php
+declare(strict_types = 1);
+
+if (!defined('SK_BASE_PATH')) {
+	define('SK_BASE_PATH', ${JSON.stringify(builder.config.kit.paths.base || '')});
+}
+
+${includes.join('\n')}
+
+$loadFns = ${loadFnsPhp};
+$routeid = ${JSON.stringify(routeId)};
+
+$base = [];
+foreach ($loadFns as $fn) {
+	if (!function_exists($fn)) continue;
+
+	$event = [
+		'params' => [],
+		'url' => (object)[
+			'searchParams' => (object)$_GET,
+			'pathname' => parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH)
+		],
+		'request' => (object)[
+			'headers' => (object)[
+				'cookie' => $_SERVER['HTTP_COOKIE'] ?? ''
+			]
+		],
+		'cookies' => $_COOKIE,
+		'routeid' => $routeid,
+		'parentdata' => $base,
+		'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
+		'query' => $_GET,
+		'server' => $_SERVER
+	];
+
+	$res = $fn($event);
+	if (is_array($res)) {
+		$base = array_merge($base, $res);
+	}
+}
+
+$fallback_php = __DIR__ . '/${relToRoot.replace(/^\.\//, '')}index.php';
+$fallback_html = __DIR__ . '/${relToRoot.replace(/^\.\//, '')}index.html';
+
+if (is_file($fallback_php)) {
+	$_SERVER['SCRIPT_FILENAME'] = realpath($fallback_php);
+	require $fallback_php;
+	exit;
+}
+
+if (is_file($fallback_html)) {
+	header('content-type: text/html; charset=utf-8');
+	readfile($fallback_html);
+	exit;
+}
+
+http_response_code(404);
+echo '404 Not Found (PHP Router)';
+`;
+
+					builder.mkdirp(outDirForRoute);
+					await writeFile(outIndexPhp, shimPhp, 'utf8');
 				}
 
 				// 4.5) Handle API endpoints (+server.php)

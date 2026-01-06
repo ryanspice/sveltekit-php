@@ -4,7 +4,7 @@
 	import { browser } from '$app/environment';
 
 	let { data } = $props();
-	let serverData = $state(data);
+	let serverData: any = $state();
 
 	$effect(() => {
 		if (data) serverData = data;

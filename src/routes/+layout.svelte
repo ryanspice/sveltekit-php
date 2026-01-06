@@ -1,8 +1,6 @@
 <script>
 	import DebugData from '$lib/components/DebugData.svelte';
 	import favicon from '$lib/assets/favicon.svg';
-
-	export let data;
 </script>
 
 <svelte:head>

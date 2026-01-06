@@ -16,7 +16,7 @@ test.describe('SSR Data Hydration', () => {
     console.log('Page Content:', content);
 
     // Check window.sk_hydration_data
-    const windowData = await page.evaluate(() => window.sk_hydration_data);
+    const windowData = await page.evaluate(() => (window as any).sk_hydration_data);
     console.log('Window Data:', JSON.stringify(windowData, null, 2));
 
     const pageText = await page.evaluate(() => document.body.innerText);

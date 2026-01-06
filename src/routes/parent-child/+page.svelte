@@ -5,7 +5,7 @@
 
 	let { data } = $props();
 
-	let serverData = $state(data);
+	let serverData: any = $state();
 
 	// Sync data when props change (initial load + navigation)
 	$effect(() => {

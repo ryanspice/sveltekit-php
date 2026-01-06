@@ -4,6 +4,11 @@ export async function handle({ event, resolve }) {
 
 	// Intercept 404 and 500 errors
 	if (response.status === 404 || response.status === 500) {
+		// Do not redirect API requests (let them 404 naturally)
+		if (event.url.pathname.startsWith('/api/')) {
+			return response;
+		}
+
 		// Ignore favicon.ico
 		if (event.url.pathname === '/favicon.ico') {
 			return new Response(null, { status: 404 });
@@ -42,8 +47,8 @@ export async function handle({ event, resolve }) {
 	return response;
 }
 
-/** @type {import('@sveltejs/kit').HandleError} */
-export async function handleError({ error, event }) {
+/** @type {import('@sveltejs/kit').HandleServerError} */
+export function handleError({ error, event }) {
 	console.error('[Server Error]', error);
 
 	// We can't return a redirect here, but we've handled the redirect in 'handle'

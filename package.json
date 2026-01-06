@@ -8,7 +8,7 @@
     "dev": "node scripts/dev-php.mjs",
     "build": "vite build",
     "serve:php": "php -S 127.0.0.1:8080 -t build router.php",
-    "prod": "bun run build && bun run serve:php",
+    "prod": "bun run build:adapter && bun run build && bun run serve:php",
     "preview": "vite preview",
     "prepare": "svelte-kit sync || echo ''",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
