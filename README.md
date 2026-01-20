@@ -18,7 +18,7 @@ This project implements a **SvelteKit adapter for PHP**, allowing you to deploy 
 ### Prerequisites
 
 -   **Node.js** (or Bun)
--   **PHP 8.1+** (Available in your system PATH)
+-   **PHP 7.4+** (Available in your system PATH; PHP 8+ uses faster built-ins)
 
 ### Installation
 
