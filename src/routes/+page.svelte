@@ -1,7 +1,11 @@
-<script>
-    import { base } from '$app/paths';
-	export let data;
+<script lang="ts">
+	import { base } from '$app/paths';
+	export let data: { title?: string; description?: string; app_name?: string };
 </script>
+
+<svelte:head>
+	<title>{data?.app_name ?? data?.title ?? 'SvelteKit PHP Demo'}</title>
+</svelte:head>
 
 <div class="hero">
 	<h1>{data?.title ?? 'SvelteKit PHP Adapter'}</h1>
@@ -17,14 +21,16 @@
 			<li><a href="{base}/form-basic">Form Actions (POST)</a></li>
 			<li><a href="{base}/form-multipart">File Uploads</a></li>
 			<li><a href="{base}/client-side">Client-Side Rendering (Hydration)</a></li>
-			<li><a href="{base}/preload" data-sveltekit-preload-data="hover">Preload Data (Hover me)</a></li>
+			<li>
+				<a href="{base}/preload" data-sveltekit-preload-data="hover">Preload Data (Hover me)</a>
+			</li>
 			<li><a href="{base}/api/ping" target="_blank">API Ping (JSON)</a></li>
 			<li><a href="{base}/redirect-me">Redirect Test</a></li>
 			<li><a href="{base}/status?code=404">404 Page</a></li>
-            <li><a href="{base}/matrix/ssr-on">Matrix: SSR On</a></li>
-            <li><a href="{base}/matrix/ssr-off">Matrix: SSR Off</a></li>
-            <li><a href="{base}/matrix/dynamic-ssr">Matrix: Dynamic SSR</a></li>
-            <li><a href="{base}/negotiate">Negotiation</a></li>
+			<li><a href="{base}/matrix/ssr-on">Matrix: SSR On</a></li>
+			<li><a href="{base}/matrix/ssr-off">Matrix: SSR Off</a></li>
+			<li><a href="{base}/matrix/dynamic-ssr">Matrix: Dynamic SSR</a></li>
+			<li><a href="{base}/negotiate">Negotiation</a></li>
 		</ul>
 	</div>
 </div>

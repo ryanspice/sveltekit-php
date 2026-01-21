@@ -11,6 +11,15 @@ import svelteConfig from './svelte.config.js';
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
 export default defineConfig(
+	{
+		ignores: [
+			'build/**',
+			'.svelte-kit/**',
+			'adapter/index.js',
+			'adapter/src/runtime/php-templates.ts',
+			'docs/**/*.md'
+		]
+	},
 	includeIgnoreFile(gitignorePath),
 	js.configs.recommended,
 	...ts.configs.recommended,
@@ -36,6 +45,27 @@ export default defineConfig(
 				parser: ts.parser,
 				svelteConfig
 			}
+		}
+	},
+	{
+		files: ['src/routes/**/*.svelte'],
+		rules: {
+			'svelte/no-navigation-without-resolve': 'off'
+		}
+	},
+	{
+		files: ['src/lib/components/DebugData.svelte'],
+		rules: {
+			'@typescript-eslint/no-explicit-any': 'off',
+			'@typescript-eslint/no-unused-vars': 'off',
+			'svelte/prefer-svelte-reactivity': 'off',
+			'svelte/require-each-key': 'off'
+		}
+	},
+	{
+		files: ['src/lib/devtools/**/*.{ts,js}', 'src/lib/server/php-dev.ts'],
+		rules: {
+			'@typescript-eslint/no-explicit-any': 'off'
 		}
 	}
 );

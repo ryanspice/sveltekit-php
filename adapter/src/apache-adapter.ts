@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { writeFile, mkdir } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import type { AdapterOptions, Builder } from './types.js';
 
 /**
@@ -7,13 +7,7 @@ import type { AdapterOptions, Builder } from './types.js';
  * Generates .htaccess files and optimized PHP for Apache servers
  */
 export default function sveltekitApacheAdapter(options: AdapterOptions = {}) {
-	const {
-		ssr = true,
-		out = './build',
-		assets = './build',
-		precompress = false,
-		strict = true
-	} = options;
+	const { ssr = true, out = './build', assets = './build', strict = true } = options;
 
 	return {
 		name: '@ryanspice/sveltekit-adapter-php-apache',
@@ -27,10 +21,12 @@ export default function sveltekitApacheAdapter(options: AdapterOptions = {}) {
 			builder.log.minor('Writing client assets');
 			const writtenClientFiles = builder.writeClient(assetsDir);
 
+			let writtenServerFiles = 0;
+
 			// 2) Server-side rendering
 			if (ssr) {
 				builder.log.minor('Writing server-side rendering files');
-				const writtenServerFiles = builder.writeServer(outDir);
+				writtenServerFiles = builder.writeServer(outDir);
 
 				// Generate Apache-specific .htaccess
 				const htaccess = generateHtaccess(strict);
@@ -64,6 +60,9 @@ function generateHtaccess(strict: boolean): string {
 
 # Enable rewrite engine
 RewriteEngine On
+
+# Block access to protected runtime files
+RewriteRule ^_protected/ - [F]
 
 # Handle client-side routing
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -158,8 +157,10 @@ function generateDeploymentGuide(outDir: string): string {
 
 ## Prerequisites
 - Apache 2.4+ with mod_rewrite enabled
-- PHP 8.0+ with required extensions
-- mod_deflate and mod_expires (optional but recommended)
+- PHP 7.4+ with required extensions
+- Required modules: mod_rewrite, mod_headers
+- Optional but recommended: mod_deflate, mod_expires
+- Precompression support requires: mod_mime + mod_headers
 
 ## Installation Steps
 
@@ -187,13 +188,26 @@ function generateDeploymentGuide(outDir: string): string {
    <VirtualHost *:80>
        ServerName your-domain.com
        DocumentRoot /var/www/html
-       
+
        <Directory /var/www/html>
            AllowOverride All
            Require all granted
        </Directory>
    </VirtualHost>
    \`\`\`
+
+## Required Rewrites
+
+- Ensure requests for \`__data.json\` are routed to the PHP bridge (the adapter-generated \`.htaccess\` handles this).
+- If you deploy to a subdirectory, set \`BASE_PATH\` during build so paths are correct.
+- Keep \`AllowOverride All\` so the generated \`.htaccess\` is honored.
+
+## Protecting \`_protected/\`
+
+The \`_protected/\` directory contains server-side modules and must not be web-accessible.
+
+- Confirm \`build/_protected/.htaccess\` includes \`Require all denied\`.
+- If your host ignores per-directory \`.htaccess\`, block access in your vhost config.
 
 ## Testing
 

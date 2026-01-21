@@ -1,4 +1,3 @@
-
 import apacheAdapter from './adapter/src/apache-adapter.js';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 

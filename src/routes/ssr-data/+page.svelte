@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 
-	export let data;
+	export let data: { message?: string } | undefined;
 
 	$: console.log('PAGE DATA:', JSON.stringify(data));
 </script>

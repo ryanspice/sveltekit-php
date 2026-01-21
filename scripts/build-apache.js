@@ -2,8 +2,7 @@
 
 import { spawn } from 'child_process';
 import { resolve } from 'path';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { writeFile } from 'fs/promises';
 
 /**
  * Build script for Apache deployment
@@ -35,6 +34,9 @@ buildProcess.on('close', async (code) => {
 
 # Enable rewrite engine
 RewriteEngine On
+
+# Block access to protected runtime files
+RewriteRule ^_protected/ - [F]
 
 # Handle client-side routing
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -80,8 +82,10 @@ php_value error_log error.log
 
 ## Prerequisites
 - Apache 2.4+ with mod_rewrite enabled
-- PHP 8.0+ with required extensions
-- mod_deflate and mod_expires (optional but recommended)
+- PHP 7.4+ with required extensions
+- Required modules: mod_rewrite, mod_headers
+- Optional but recommended: mod_deflate, mod_expires
+- Precompression support requires: mod_mime + mod_headers
 
 ## Quick Deployment
 
@@ -108,6 +112,14 @@ php_value error_log error.log
 - Check that routes work correctly
 - Verify PHP files are executing
 
+## Required Rewrites
+- Ensure requests for \`__data.json\` are routed to the PHP bridge (the generated \`.htaccess\` handles this).
+- If you deploy to a subdirectory, set \`BASE_PATH\` during build so paths are correct.
+
+## Protecting \`_protected/\`
+- Confirm \`build/_protected/.htaccess\` includes \`Require all denied\`.
+- If your host ignores per-directory \`.htaccess\`, block access in your vhost config.
+
 ## Security
 - Keep PHP updated
 - Use HTTPS in production
@@ -121,12 +133,10 @@ php_value error_log error.log
 			console.log('🚀 Apache deployment ready!');
 			console.log('📖 Check build/APACHE_DEPLOYMENT.md for detailed instructions');
 			console.log('📁 Upload all files from build/ to your Apache server');
-
 		} catch (error) {
 			console.error('❌ Failed to create Apache files:', error);
 			process.exit(1);
 		}
-
 	} else {
 		console.error('❌ Build failed with code:', code);
 		process.exit(1);

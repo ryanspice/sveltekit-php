@@ -38,7 +38,7 @@ export async function handle({ event, resolve }) {
 		return new Response(null, {
 			status: 307,
 			headers: {
-				'Location': `${origin}/`,
+				Location: `${origin}/`,
 				'Set-Cookie': `redirected_from=${event.url.pathname}; Path=/; Max-Age=10; SameSite=Lax`
 			}
 		});
@@ -48,7 +48,7 @@ export async function handle({ event, resolve }) {
 }
 
 /** @type {import('@sveltejs/kit').HandleServerError} */
-export function handleError({ error, event }) {
+export function handleError({ error }) {
 	console.error('[Server Error]', error);
 
 	// We can't return a redirect here, but we've handled the redirect in 'handle'

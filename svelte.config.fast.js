@@ -9,14 +9,16 @@ const config = {
 	preprocess: vitePreprocess(),
 	kit: {
 		// Use fast dev adapter for development, full adapter for production
-		adapter: isDev ? devAdapter() : adapter({
-			ssr: true,
-			out: 'build',
-			assets: 'build',
-			precompress: process.env.PRECOMPRESS === 'true',
-			fallback: false,
-			strict: true
-		}),
+		adapter: isDev
+			? devAdapter()
+			: adapter({
+					ssr: true,
+					out: 'build',
+					assets: 'build',
+					precompress: process.env.PRECOMPRESS === 'true',
+					fallback: false,
+					strict: true
+				}),
 		// Optimize for development
 		prerender: {
 			entries: isDev ? ['/'] : undefined // Only prerender home in dev

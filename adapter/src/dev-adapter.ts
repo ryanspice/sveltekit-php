@@ -6,11 +6,7 @@ import type { AdapterOptions, Builder } from './types.js';
  * Lightweight development adapter that skips prerendering for faster builds
  */
 export default function sveltekitPhpDevAdapter(options: AdapterOptions = {}) {
-	const {
-		ssr = true,
-		out = './build',
-		assets = './build',
-	} = options;
+	const { ssr = true, out = './build', assets = './build' } = options;
 
 	return {
 		name: '@ryanspice/sveltekit-adapter-php-dev',
@@ -22,7 +18,7 @@ export default function sveltekitPhpDevAdapter(options: AdapterOptions = {}) {
 
 			// 1) Client assets only (much faster)
 			builder.log.minor('Writing client assets');
-			const writtenClientFiles = builder.writeClient(assetsDir);
+			builder.writeClient(assetsDir);
 
 			// 2) Create minimal PHP entry point for development
 			if (ssr) {

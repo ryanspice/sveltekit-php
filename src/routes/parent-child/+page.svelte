@@ -1,11 +1,15 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 
-	let { data } = $props();
+	type ServerData = {
+		parent?: string;
+		child?: string;
+	};
 
-	let serverData: any = $state();
+	let { data } = $props<{ data?: ServerData }>();
+
+	let serverData: ServerData | undefined = $state();
 
 	// Sync data when props change (initial load + navigation)
 	$effect(() => {

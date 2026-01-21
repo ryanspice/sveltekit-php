@@ -136,5 +136,3 @@ export function replaceInlineConstData(html: string): string | null {
 
 	return null;
 }
-
-

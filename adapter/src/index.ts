@@ -1,12 +1,35 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import glob from 'tiny-glob';
 import { readFile, writeFile, rename } from 'node:fs/promises';
-import { posixify, stripLeadingSlash, fnPrefixForServerFile, phpRelToRootFromNav } from './utils/paths.js';
-import { findRouteForNavPath, buildLayoutChainCandidates } from './utils/routing.js';
+import {
+	posixify,
+	stripLeadingSlash,
+	fnPrefixForServerFile,
+	phpRelToRootFromNav
+} from './utils/paths.js';
+import {
+	findRouteForNavPath,
+	buildLayoutChainCandidates,
+	compilePhpRouteMatcher
+} from './utils/routing.js';
 import { detectInlineDataModeFromHtml, replaceInlineConstData } from './utils/html.js';
 import { exists } from './utils/fs.js';
-import { getDataPhp, getActionPhp, getBootstrapPhp, getMinimalBootstrapPhp, getApiPhp, getRouterPhp, getFooterPhp } from './runtime/php-templates.js';
-import { getNodeHandlerMjs, getPhpProxy, getHtaccess, getStandaloneApiPhp } from './runtime/node-ssr-templates.js';
+import {
+	getDataPhp,
+	getActionPhp,
+	getBootstrapPhp,
+	getMinimalBootstrapPhp,
+	getApiPhp,
+	getRouterPhp,
+	getFooterPhp
+} from './runtime/php-templates.js';
+import {
+	getNodeHandlerMjs,
+	getPhpProxy,
+	getHtaccess,
+	getStandaloneApiPhp
+} from './runtime/node-ssr-templates.js';
 import type { AdapterOptions, Builder } from './types.js';
 
 export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
@@ -26,6 +49,28 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			const outDir = path.resolve(out);
 			const assetsDir = path.resolve(assets);
 			const tmpDir = builder.getBuildDirectory('sveltekit-php');
+			const compatSource = fileURLToPath(new URL('./src/runtime/php-compat.php', import.meta.url));
+			const compatPhp = await readFile(compatSource, 'utf8');
+			const assertPhp74Safe = (php: string, label: string) => {
+				const banned: Array<[RegExp, string]> = [
+					[/\b__construct\s*\(\s*(public|protected|private)\s+/i, 'constructor property promotion'],
+					[/\(\s*mixed\s+\$/i, 'mixed type param'],
+					[/:\\s*mixed\\b/i, 'mixed return type'],
+					[/\bmatch\s*\(/i, 'match expression'],
+					[/\?->/i, 'nullsafe operator'],
+					[/\breadonly\b/i, 'readonly'],
+					[/#\[/, 'attributes']
+				];
+				for (const [re, name] of banned) {
+					if (re.test(php)) {
+						throw new Error(`Generated PHP is not PHP 7.4-safe (${name}) in ${label}`);
+					}
+				}
+			};
+			const isDevProxyServerFile = async (abs: string) => {
+				const code = await readFile(abs, 'utf8');
+				return code.includes('getPhpData') && code.includes('php-dev');
+			};
 
 			builder.log.minor(`Adapting for mode: ${mode}`);
 			console.log('--- USING UPDATED ADAPTER ---');
@@ -40,7 +85,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 			// 1) Client assets (Common)
 			builder.log.minor('Writing client assets');
-			const writtenClientFiles = builder.writeClient(assetsDir);
+			builder.writeClient(assetsDir);
 
 			// 2) Prerendered output (Common, but optional for node-ssr)
 			builder.log.minor('Prerendering pages');
@@ -56,6 +101,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				// This ensures Apache/PHP serves them directly (performance) and handles negotiation logic.
 				// Previously we copied to 'prerendered' subdir but that made them inaccessible to the router.
 				builder.copy(prerenderedRoot, outDir);
+				builder.mkdirp(path.join(outDir, '_runtime'));
+				await writeFile(path.join(outDir, '_runtime', 'compat.php'), compatPhp, 'utf8');
 
 				// Generate Server Bundle
 				const serverDir = path.join(outDir, 'server');
@@ -65,7 +112,10 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				// Generate Manifest
 				// We need the manifest to be importable by handler.mjs which is in server/
 				const manifest = builder.generateManifest({ relativePath: '.' }); // . because handler is in same dir as index.js
-				await writeFile(path.join(serverDir, 'manifest.js'), `export const manifest = ${manifest};\n`);
+				await writeFile(
+					path.join(serverDir, 'manifest.js'),
+					`export const manifest = ${manifest};\n`
+				);
 
 				// Generate Handler
 				const handler = getNodeHandlerMjs(builder.config.kit.paths.base);
@@ -80,13 +130,90 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				await writeFile(path.join(outDir, 'index.php'), proxy);
 
 				// Generate .htaccess
-				const htaccess = getHtaccess('node-ssr', builder.config.kit.paths.base, precompress);
+				const htaccess = getHtaccess('node-ssr', precompress);
 				await writeFile(path.join(outDir, '.htaccess'), htaccess.trim());
 
 				// Copy PHP API endpoints (+server.php)
 				// In Mode B, PHP is the entrypoint. We want +server.php to be served by PHP directly.
 				// We map src/routes/path/to/+server.php -> out/path/to/index.php
 				const routesBaseFs = path.resolve(builder.config.kit.files.routes);
+				const routesBasePosix = posixify(routesBaseFs);
+				const phpServerFilesAll = await glob('**/+*.server.php', {
+					cwd: routesBaseFs,
+					absolute: true
+				});
+				const phpEndpointFilesAll = await glob('**/+server.php', {
+					cwd: routesBaseFs,
+					absolute: true
+				});
+				const allPhpRel = new Set(
+					[...phpServerFilesAll, ...phpEndpointFilesAll].map(posixify).map((abs) => {
+						const rel = abs.startsWith(routesBasePosix) ? abs.slice(routesBasePosix.length) : abs;
+						return rel.startsWith('/') ? rel : '/' + rel;
+					})
+				);
+
+				const tsServerFilesAll = await glob('**/+*.server.{js,ts}', {
+					cwd: routesBaseFs,
+					absolute: true
+				});
+				const tsEndpointFilesAll = await glob('**/+server.{js,ts}', {
+					cwd: routesBaseFs,
+					absolute: true
+				});
+				const tsEntries = await Promise.all(
+					[...tsServerFilesAll, ...tsEndpointFilesAll].map(async (abs) => {
+						const rel = posixify(abs);
+						const sliced = rel.startsWith(routesBasePosix)
+							? rel.slice(routesBasePosix.length)
+							: rel;
+						const normalized = sliced.startsWith('/') ? sliced : '/' + sliced;
+						return {
+							rel: normalized,
+							isDevProxy: await isDevProxyServerFile(abs)
+						};
+					})
+				);
+				const allTsRel = new Set(tsEntries.filter((e) => !e.isDevProxy).map((e) => e.rel));
+
+				const normalizeServerRel = (rel: string) => {
+					if (rel.endsWith('/+page.server@.php'))
+						return rel.replace('/+page.server@.php', '/+page@.server.php');
+					if (rel.endsWith('/+layout.server@.php'))
+						return rel.replace('/+layout.server@.php', '/+layout@.server.php');
+					return rel;
+				};
+				const serverKey = (rel: string) => {
+					const normalized = normalizeServerRel(rel);
+					const lastSlash = normalized.lastIndexOf('/');
+					const dir = lastSlash === -1 ? '' : normalized.slice(0, lastSlash);
+					const file = lastSlash === -1 ? normalized : normalized.slice(lastSlash + 1);
+					let kind = 'server';
+					if (file.startsWith('+page')) kind = 'page';
+					if (file.startsWith('+layout')) kind = 'layout';
+					return `${dir}:${kind}`;
+				};
+
+				const conflicts: string[] = [];
+				for (const rel of allPhpRel) {
+					const key = serverKey(rel);
+					for (const tsRel of allTsRel) {
+						if (serverKey(tsRel) === key) {
+							conflicts.push(`${rel} <-> ${tsRel}`);
+							break;
+						}
+					}
+				}
+
+				if (conflicts.length) {
+					const prefix = path.relative('.', builder.config.kit.files.routes);
+					const errorLines = [
+						'Conflicting PHP and TS/JS server modules detected:',
+						...conflicts.map((c) => '- ' + path.posix.join(prefix, c))
+					];
+					builder.log.error(errorLines.join('\n'));
+					throw new Error('Conflicting server modules detected');
+				}
 				const phpApiFiles = await glob('**/+server.php', { cwd: routesBaseFs });
 
 				for (const file of phpApiFiles) {
@@ -106,7 +233,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 						path.join(routesBaseFs, routeDir, '+page.js'),
 						path.join(routesBaseFs, routeDir, '+page.ts'),
 						path.join(routesBaseFs, routeDir, '+page.server.js'),
-						path.join(routesBaseFs, routeDir, '+page.server.ts'),
+						path.join(routesBaseFs, routeDir, '+page.server.ts')
 					];
 
 					let hasSiblingPage = false;
@@ -123,13 +250,18 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					// e.g. build/negotiate.html when we are in build/negotiate/
 					const possibleHtml = destDir + '.html';
 					if (await exists(possibleHtml)) {
-						builder.log.minor(`Moving conflicting prerendered file ${possibleHtml} to ${path.join(destDir, 'index.html')}`);
+						builder.log.minor(
+							`Moving conflicting prerendered file ${possibleHtml} to ${path.join(destDir, 'index.html')}`
+						);
 						await rename(possibleHtml, path.join(destDir, 'index.html'));
 						hasSiblingPage = true; // Ensure negotiation logic is enabled
 					}
 
 					// Generate wrapper index.php
-					const wrapper = getStandaloneApiPhp('_server.php', hasSiblingPage ? relToRoot : undefined);
+					const wrapper = getStandaloneApiPhp(
+						'_server.php',
+						hasSiblingPage ? relToRoot : undefined
+					);
 					await writeFile(path.join(destDir, 'index.php'), wrapper);
 				}
 
@@ -147,8 +279,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				// Generate router.php for PHP built-in server (Proxy Mode)
 				builder.log.minor('Generating router.php');
 				const router = getRouterPhp(builder.config.kit.paths.base, 'node-ssr');
+				assertPhp74Safe(router, 'router.php (node-ssr)');
 				await writeFile(path.join(outDir, 'router.php'), router, 'utf8');
-
 			} else {
 				// --- Mode A: PHP Static ---
 
@@ -159,40 +291,122 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				const files1 = await glob('**/+*.server.php', { cwd: routesBaseFs, absolute: true });
 				const files2 = await glob('**/+server.php', { cwd: routesBaseFs, absolute: true });
 				const allServerPhpFs = [...files1, ...files2];
+				const normalizeServerRel = (rel: string) => {
+					if (rel.endsWith('/+page.server@.php'))
+						return rel.replace('/+page.server@.php', '/+page@.server.php');
+					if (rel.endsWith('/+layout.server@.php'))
+						return rel.replace('/+layout.server@.php', '/+layout@.server.php');
+					return rel;
+				};
 				const allServerRelPosix = new Set(
 					allServerPhpFs.map(posixify).map((abs) => {
 						const rel = abs.startsWith(routesBasePosix) ? abs.slice(routesBasePosix.length) : abs;
-						return rel.startsWith('/') ? rel : '/' + rel;
+						return normalizeServerRel(rel.startsWith('/') ? rel : '/' + rel);
 					})
 				);
 
+				const tsServerFiles = await glob('**/+*.server.{js,ts}', {
+					cwd: routesBaseFs,
+					absolute: true
+				});
+				const tsEndpointFiles = await glob('**/+server.{js,ts}', {
+					cwd: routesBaseFs,
+					absolute: true
+				});
+				const allServerTsJsFs = [...tsServerFiles, ...tsEndpointFiles];
+				const tsEntries = await Promise.all(
+					allServerTsJsFs.map(async (abs) => {
+						const rel = posixify(abs);
+						const sliced = rel.startsWith(routesBasePosix)
+							? rel.slice(routesBasePosix.length)
+							: rel;
+						const normalized = sliced.startsWith('/') ? sliced : '/' + sliced;
+						return {
+							rel: normalized,
+							isDevProxy: await isDevProxyServerFile(abs)
+						};
+					})
+				);
+				const allServerTsJsRel = new Set(tsEntries.filter((e) => !e.isDevProxy).map((e) => e.rel));
+
+				const serverKey = (rel: string) => {
+					const normalized = normalizeServerRel(rel);
+					const lastSlash = normalized.lastIndexOf('/');
+					const dir = lastSlash === -1 ? '' : normalized.slice(0, lastSlash);
+					const file = lastSlash === -1 ? normalized : normalized.slice(lastSlash + 1);
+					let kind = 'server';
+					if (file.startsWith('+page')) kind = 'page';
+					if (file.startsWith('+layout')) kind = 'layout';
+					return `${dir}:${kind}`;
+				};
+
+				const phpKeys = new Map<string, string>();
+				for (const rel of allServerRelPosix) {
+					phpKeys.set(serverKey(rel), rel);
+				}
+
+				const tsKeys = new Map<string, string>();
+				for (const rel of allServerTsJsRel) {
+					tsKeys.set(serverKey(rel), rel);
+				}
+
+				const conflicts: string[] = [];
+				for (const [key, phpRel] of phpKeys.entries()) {
+					const tsRel = tsKeys.get(key);
+					if (tsRel) conflicts.push(`${phpRel} <-> ${tsRel}`);
+				}
+
+				if (conflicts.length) {
+					const prefix = path.relative('.', builder.config.kit.files.routes);
+					const errorLines = [
+						'Conflicting PHP and TS/JS server modules detected:',
+						...conflicts.map((c) => '- ' + path.posix.join(prefix, c))
+					];
+					builder.log.error(errorLines.join('\n'));
+					throw new Error('Conflicting server modules detected');
+				}
+
 				// Basic prerender safety
-				if (!fallback && strict !== false) {
+				if (strict !== false) {
 					const dynamic = builder.routes.filter((r) => r.prerender !== true);
 					const trulyDynamic = dynamic.filter((r) => {
 						const id = r.id.startsWith('/') ? r.id : '/' + r.id;
-						const candidate = id + '/+server.php';
-						if (allServerRelPosix.has(candidate)) return false;
+						const candidateServer = id + '/+server.php';
+						const candidatePageServer = id + '/+page.server.php';
+						if (
+							allServerRelPosix.has(candidateServer) ||
+							allServerRelPosix.has(candidatePageServer)
+						) {
+							return false;
+						}
 						return true;
 					});
 
 					if (trulyDynamic.length) {
 						const prefix = path.relative('.', builder.config.kit.files.routes);
 						const errorLines = [
-							'All routes must be prerenderable for this adapter output.',
-							'Found non-prerenderable routes:'
+							'Non-prerenderable routes detected:',
+							'This adapter will build, but these routes require a fallback strategy to render at runtime.'
 						];
 						trulyDynamic.forEach((r) => {
 							errorLines.push('- ' + path.posix.join(prefix, r.id));
 						});
-						errorLines.push('Fix: set prerender per-route, or configure SvelteKit prerender entries appropriately, or implement a fallback strategy.');
-						builder.log.error(errorLines.join('\n'));
-						throw new Error('Encountered non-prerenderable routes');
+						if (!fallback) {
+							errorLines.push(
+								'Set kit.prerender.fallback or adapter fallback if you want SPA-style fallback.'
+							);
+						}
+						builder.log.warn(errorLines.join('\n'));
 					}
 				}
 
 				// Log what was actually prerendered for debugging
-				builder.log.minor('Prerendered pages: ' + Array.from(builder.prerendered.pages.entries()).map(([k, v]) => k + ' -> ' + v.file).join(', '));
+				builder.log.minor(
+					'Prerendered pages: ' +
+						Array.from(builder.prerendered.pages.entries())
+							.map(([k, v]) => k + ' -> ' + v.file)
+							.join(', ')
+				);
 
 				// 3) Discover PHP server files (Already done at step 0)
 
@@ -236,7 +450,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 						// Note: Ideally we check .svelte too, but we only indexed .server.php
 						// We'll rely on server files for now.
 
-						const isPage = (seg === chain[0]);
+						const isPage = seg === chain[0];
 						if (isPage) {
 							// Check +page@.server.php
 							const pageResetA = '/' + (rid ? rid + '/' : '') + '+page@.server.php';
@@ -263,7 +477,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					hierarchy.forEach((seg, i) => {
 						const base = seg ? '/' + seg : '';
 						const rid = stripLeadingSlash(seg);
-						const isLast = (i === hierarchy.length - 1);
+						const isLast = i === hierarchy.length - 1;
 
 						// Check Layout
 						const layoutCandidates = [
@@ -271,7 +485,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 							base + '/+layout@.server.php',
 							base + '/+layout.server@.php'
 						];
-						const layoutFound = layoutCandidates.find(c => allServerRelPosix.has(c));
+						const layoutFound = layoutCandidates.find((c) => allServerRelPosix.has(c));
 						if (layoutFound) {
 							files.push(layoutFound);
 							const prefix = fnPrefixMap.get(layoutFound);
@@ -287,7 +501,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 								'/' + (rid ? rid + '/' : '') + '+page@.server.php',
 								'/' + (rid ? rid + '/' : '') + '+page.server@.php'
 							];
-							const pageFound = pageCandidates.find(c => allServerRelPosix.has(c));
+							const pageFound = pageCandidates.find((c) => allServerRelPosix.has(c));
 							if (pageFound) {
 								files.push(pageFound);
 								const prefix = fnPrefixMap.get(pageFound);
@@ -321,6 +535,9 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					if (navPath.includes('matrix')) {
 						console.log(`DEBUG: Route for ${navPath}:`, JSON.stringify(route, null, 2));
 					}
+
+					const { phpRegex: routeRegex, phpMap: routeParamMapPhp } =
+						compilePhpRouteMatcher(routeId);
 
 					const { files: deps, loadMapItems } = getRouteDeps(routeId);
 					for (const d of deps) usedServerFiles.add(d);
@@ -383,7 +600,9 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 									if (Array.isArray(parsed.nodes)) {
 										nodeCount = parsed.nodes.length;
 										templateJson = firstLine; // Use only the first line as template
-										builder.log.minor(`Detected streaming JSON for ${templateJsonFs}, using first line as template.`);
+										builder.log.minor(
+											`Detected streaming JSON for ${templateJsonFs}, using first line as template.`
+										);
 									}
 								} catch (e2) {
 									builder.log.warn(`Failed to parse first line of ${templateJsonFs}: ${e2}`);
@@ -398,7 +617,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 						// We can parse the "node_ids" from the HTML to infer the count.
 						const nodeIdsMatch = html.match(/node_ids:\s*\[([\d,\s]+)\]/);
 						if (nodeIdsMatch) {
-							const ids = nodeIdsMatch[1].split(',').filter(s => s.trim() !== '');
+							const ids = nodeIdsMatch[1].split(',').filter((s) => s.trim() !== '');
 							nodeCount = ids.length;
 						} else {
 							nodeCount = 2; // Fallback: Layout + Page
@@ -423,7 +642,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					if (nodeCount === 0) {
 						const nodeIdsMatch = html.match(/node_ids:\s*\[([\d,\s]+)\]/);
 						if (nodeIdsMatch) {
-							const ids = nodeIdsMatch[1].split(',').filter(s => s.trim() !== '');
+							const ids = nodeIdsMatch[1].split(',').filter((s) => s.trim() !== '');
 							nodeCount = ids.length;
 							// console.log('Detected ' + nodeCount + ' nodes from HTML node_ids for ' + navPath);
 						}
@@ -450,13 +669,13 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 						.map((d) => {
 							const protectedRel = protectedMap.get(d);
 							return protectedRel
-								? 'require_once __DIR__ . \'/' + relToRoot + protectedRel.replace(/^\//, '') + '\';'
+								? "require_once __DIR__ . '/" + relToRoot + protectedRel.replace(/^\//, '') + "';"
 								: '';
 						})
 						.filter(Boolean);
 
 					// Use the load map we generated earlier
-					const loadMapStrings = loadMapItems.map(item => {
+					const loadMapStrings = loadMapItems.map((item) => {
 						let idx = item.index;
 						if (idx === 'PAGE') {
 							idx = nodeCount - 1;
@@ -473,14 +692,20 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					const appHash = appHashMatch ? `__sveltekit_${appHashMatch[1]}` : '__sveltekit_unknown';
 
 					// Generate PHP content
-					const dataPhp = getDataPhp(includes, builder.config.kit.paths.base)
+					const compatRel = relToRoot + '_runtime/compat.php';
+					const dataPhp = getDataPhp(includes, builder.config.kit.paths.base, compatRel)
 						.replace('PLACEHOLDER_ROUTE_ID', JSON.stringify(navPath))
-						.replace('PLACEHOLDER_TEMPLATE_JSON', templateJson)
+						.replace(
+							'PLACEHOLDER_TEMPLATE_B64',
+							Buffer.from(templateJson, 'utf8').toString('base64')
+						)
+						.replace('PLACEHOLDER_ROUTE_REGEX', routeRegex)
+						.replace('PLACEHOLDER_ROUTE_PARAM_MAP', routeParamMapPhp)
 						.replace('PLACEHOLDER_LOAD_FNS', loadFnsPhp)
 						.replace('PLACEHOLDER_INLINE_MODE', JSON.stringify(inlineMode))
 						.replaceAll('PLACEHOLDER_APP_ID', appHash);
 
-					const actionPhp = getActionPhp(includes, navPath, pagePrefix ?? null);
+					const actionPhp = getActionPhp(includes, navPath, pagePrefix ?? null, compatRel);
 
 					// Write __data.php and __action.php
 					// Subdirectory logic for named files
@@ -497,6 +722,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 						requirePrefix = '/' + name;
 					}
 
+					assertPhp74Safe(dataPhp, `__data.php (${navPath})`);
+					assertPhp74Safe(actionPhp, `__action.php (${navPath})`);
 					await writeFile(path.join(dataDir, '__data.php'), dataPhp, 'utf8');
 					await writeFile(path.join(dataDir, '__action.php'), actionPhp, 'utf8');
 
@@ -511,12 +738,25 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 							html = replaced;
 
-							html = html.replace(/<script>__sveltekit_[A-Za-z0-9_]+\.resolve\([\s\S]*?<\/script>\s*/g, '');
-							const bootstrap = getBootstrapPhp(navPath, loadFnsPhp, templateJson, inlineMode, requirePrefix)
-								.replace('PLACEHOLDER_APP_ID', appHash);
+							html = html.replace(
+								/<script>__sveltekit_[A-Za-z0-9_]+\.resolve\([\s\S]*?<\/script>\s*/g,
+								''
+							);
+							const bootstrap = getBootstrapPhp(
+								navPath,
+								loadFnsPhp,
+								templateJson,
+								inlineMode,
+								requirePrefix
+							).replace('PLACEHOLDER_APP_ID', appHash);
 							const footer = getFooterPhp(appHash);
 
 							html = bootstrap + html + footer;
+							const appIdRegex = new RegExp(`${appHash}\\s*=\\s*\\{\\s*base:\\s*([^}]+)\\}`, 'm');
+							html = html.replace(
+								appIdRegex,
+								`${appHash} = { base: $1, defer: (id) => new Promise((resolve) => { ${appHash}._d = ${appHash}._d || {}; const pending = ${appHash}._r && ${appHash}._r[id]; if (pending) { delete ${appHash}._r[id]; resolve(pending()); return; } ${appHash}._d[id] = resolve; }), resolve: (id, fn) => { const r = ${appHash}._d && ${appHash}._d[id]; if (r) { delete ${appHash}._d[id]; r(fn()); return; } ${appHash}._r = ${appHash}._r || {}; ${appHash}._r[id] = fn; } }`
+							);
 						} else {
 							// SSR off (or no data): inject minimal bootstrap (actions only), no data embedding
 							const bootstrap = getMinimalBootstrapPhp(requirePrefix);
@@ -524,8 +764,11 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 						}
 
 						// Remove static __data.json if it exists (using the one we found)
-						if (templateJsonFs && await exists(templateJsonFs)) {
-							await rename(templateJsonFs, path.join(path.dirname(templateJsonFs), '__data.template.json'));
+						if (templateJsonFs && (await exists(templateJsonFs))) {
+							await rename(
+								templateJsonFs,
+								path.join(path.dirname(templateJsonFs), '__data.template.json')
+							);
 						}
 
 						// rename .html -> .php
@@ -541,7 +784,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 						}
 					} else {
 						// Fallback for SPA mode (ssr=false):
-						if (await exists(htmlFs) && htmlFs.endsWith('.html')) {
+						if ((await exists(htmlFs)) && htmlFs.endsWith('.html')) {
 							const phpFs = htmlFs.replace(/\.html$/i, '.php');
 							await rename(htmlFs, phpFs);
 						}
@@ -575,11 +818,12 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 					const fsPath = routeId.endsWith('/') ? routeId : routeId + '/';
 					const relToRoot = phpRelToRootFromNav(fsPath);
+					const compatRel = relToRoot + '_runtime/compat.php';
 					const includes = deps
 						.map((d) => {
 							const protectedRel = protectedMap.get(d);
 							return protectedRel
-								? 'require_once __DIR__ . \'/' + relToRoot + protectedRel.replace(/^\//, '') + '\';'
+								? "require_once __DIR__ . '/" + relToRoot + protectedRel.replace(/^\//, '') + "';"
 								: '';
 						})
 						.filter(Boolean);
@@ -587,26 +831,107 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					const loadFnList = loadMapItems.map((i) => i.fn);
 					const loadFnsPhp = '[' + loadFnList.map((fn) => `'${fn}'`).join(', ') + ']';
 
+					const { phpRegex: routeRegex, phpMap: routeParamMapPhp } =
+						compilePhpRouteMatcher(routeId);
+
 					const shimPhp = `<?php
 declare(strict_types = 1);
 
+require_once __DIR__ . '/${compatRel}';
+
 if (!defined('SK_BASE_PATH')) {
-	define('SK_BASE_PATH', ${JSON.stringify(builder.config.kit.paths.base || '')});
+	define('SK_BASE_PATH', getenv('SK_BASE_PATH') ?: ${JSON.stringify(builder.config.kit.paths.base || '')});
 }
+
+const SK_ROUTE_REGEX = '${routeRegex}';
+const SK_ROUTE_PARAM_MAP = ${routeParamMapPhp};
 
 ${includes.join('\n')}
 
 $loadFns = ${loadFnsPhp};
 $routeid = ${JSON.stringify(routeId)};
 
+final class SK_URLSearchParams {
+	private array $pairs = [];
+
+	public function __construct(string $queryString) {
+		$qs = ltrim($queryString, '?');
+		if ($qs === '') return;
+		foreach (explode('&', $qs) as $part) {
+			if ($part === '') continue;
+			$kv = explode('=', $part, 2);
+			$key = urldecode($kv[0]);
+			$val = urldecode($kv[1] ?? '');
+			if (!array_key_exists($key, $this->pairs)) $this->pairs[$key] = [];
+			$this->pairs[$key][] = $val;
+		}
+	}
+
+	public function get(string $key): ?string {
+		$vals = $this->pairs[$key] ?? null;
+		if (!$vals) return null;
+		return $vals[0] ?? null;
+	}
+
+	public function has(string $key): bool {
+		return array_key_exists($key, $this->pairs);
+	}
+
+	public function __get(string $key): ?string {
+		return $this->get($key);
+	}
+
+	public function __isset(string $key): bool {
+		return $this->has($key);
+	}
+
+	public function all(string $key): array {
+		return $this->pairs[$key] ?? [];
+	}
+
+	public function toString(): string {
+		$out = [];
+		foreach ($this->pairs as $k => $vals) {
+			foreach ($vals as $v) {
+				$out[] = rawurlencode($k) . '=' . rawurlencode($v);
+			}
+		}
+		return implode('&', $out);
+	}
+}
+
+function sk_extract_params(string $request_uri, string $base, string $regex, array $map): array {
+	$path = parse_url($request_uri, PHP_URL_PATH) ?? '';
+	if ($base !== '' && str_starts_with($path, $base)) {
+		$path = substr($path, strlen($base));
+		if ($path === '') $path = '/';
+	}
+	if ($path !== '/' && str_ends_with($path, '/')) $path = rtrim($path, '/');
+	if ($path === '') $path = '/';
+
+	$m = [];
+	if (!preg_match($regex, $path, $m)) return [];
+
+	$params = [];
+	foreach ($map as $idx => $name) {
+		$i = (int)$idx;
+		if (!isset($m[$i])) continue;
+		if ($m[$i] === '') continue;
+		$params[(string)$name] = rawurldecode($m[$i]);
+	}
+	return $params;
+}
+
+$params = sk_extract_params($_SERVER['REQUEST_URI'] ?? '', SK_BASE_PATH, SK_ROUTE_REGEX, SK_ROUTE_PARAM_MAP);
+
 $base = [];
 foreach ($loadFns as $fn) {
 	if (!function_exists($fn)) continue;
 
 	$event = [
-		'params' => [],
+		'params' => $params,
 		'url' => (object)[
-			'searchParams' => (object)$_GET,
+			'searchParams' => new SK_URLSearchParams($_SERVER['QUERY_STRING'] ?? ''),
 			'pathname' => parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH)
 		],
 		'request' => (object)[
@@ -614,7 +939,7 @@ foreach ($loadFns as $fn) {
 				'cookie' => $_SERVER['HTTP_COOKIE'] ?? ''
 			]
 		],
-		'cookies' => $_COOKIE,
+		'cookies' => new SK_Cookies($_COOKIE),
 		'routeid' => $routeid,
 		'parentdata' => $base,
 		'method' => $_SERVER['REQUEST_METHOD'] ?? 'GET',
@@ -643,11 +968,12 @@ if (is_file($fallback_html)) {
 	exit;
 }
 
-http_response_code(404);
-echo '404 Not Found (PHP Router)';
+					http_response_code(404);
+					echo '404 Not Found (PHP Router)';
 `;
 
 					builder.mkdirp(outDirForRoute);
+					assertPhp74Safe(shimPhp, `Route shim index.php (${routeId})`);
 					await writeFile(outIndexPhp, shimPhp, 'utf8');
 				}
 
@@ -667,9 +993,19 @@ echo '404 Not Found (PHP Router)';
 						builder.mkdirp(outDir);
 
 						const relToRoot = phpRelToRootFromNav(routeDir + '/');
-						const include = 'require_once __DIR__ . \'/' + relToRoot + protectedRel.replace(/^\//, '') + '\';';
+						const include =
+							"require_once __DIR__ . '/" + relToRoot + protectedRel.replace(/^\//, '') + "';";
 
-						const apiPhp = getApiPhp([include], prefix);
+						const { phpRegex: routeRegex, phpMap: routeParamMapPhp } =
+							compilePhpRouteMatcher(routeDir);
+						const apiPhp = getApiPhp(
+							[include],
+							prefix,
+							builder.config.kit.paths.base || '',
+							routeRegex,
+							routeParamMapPhp,
+							relToRoot + '_runtime/compat.php'
+						);
 						const indexPhp = path.join(outDir, 'index.php');
 
 						// Check for collision with index.php OR sibling .php (e.g. about.php)
@@ -700,7 +1036,10 @@ echo '404 Not Found (PHP Router)';
 								// Moving sibling file into directory (depth +1)
 								let content = await readFile(pageFile, 'utf8');
 								// Adjust require_once paths to account for deeper location
-								content = content.replace(/require_once __DIR__ \. '\//g, "require_once __DIR__ . '/../");
+								content = content.replace(
+									/require_once __DIR__ \. '\//g,
+									"require_once __DIR__ . '/../"
+								);
 
 								await writeFile(path.join(outDir, '_page.php'), content, 'utf8');
 								// Remove the original file
@@ -717,6 +1056,11 @@ echo '404 Not Found (PHP Router)';
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+
+if (($_SERVER['HTTP_X_SVELTEKIT_ACTION'] ?? '') === 'true') {
+    require __DIR__ . '/_page.php';
+    return;
+}
 
 // 1. Method Precedence
 // SvelteKit rules: PUT/PATCH/DELETE/OPTIONS -> always +server
@@ -743,7 +1087,7 @@ function sk_prefers_html($accept) {
 
         for ($i = 1; $i < count($parts); $i++) {
             $part = trim($parts[$i]);
-            if (str_starts_with($part, 'q=')) {
+            if (strncmp($part, 'q=', 2) === 0) {
                 $q = (float)substr($part, 2);
             }
         }
@@ -764,9 +1108,12 @@ if (sk_prefers_html($accept)) {
     require __DIR__ . '/_server_dispatch.php';
 }
 ?>`;
+							assertPhp74Safe(apiPhp, `API dispatch (${routeDir})`);
+							assertPhp74Safe(negotiationPhp, `Negotiation index.php (${routeDir})`);
 							await writeFile(indexPhp, negotiationPhp, 'utf8');
 						} else {
 							// No collision, just write index.php
+							assertPhp74Safe(apiPhp, `API index.php (${routeDir})`);
 							await writeFile(indexPhp, apiPhp, 'utf8');
 						}
 					}
@@ -776,6 +1123,7 @@ if (sk_prefers_html($accept)) {
 				builder.log.minor('Converting PHP server files');
 				const protectedRoot = path.join(prerenderedRoot, '_protected');
 				builder.mkdirp(protectedRoot);
+				await writeFile(path.join(protectedRoot, '.htaccess'), 'Require all denied\n', 'utf8');
 
 				const conversions = [];
 				for (const relPosix of usedServerFiles) {
@@ -811,15 +1159,18 @@ if (sk_prefers_html($accept)) {
 				// 7) Finalize build output
 				builder.log.minor('Copying build to output');
 				builder.copy(prerenderedRoot, outDir);
+				builder.mkdirp(path.join(outDir, '_runtime'));
+				await writeFile(path.join(outDir, '_runtime', 'compat.php'), compatPhp, 'utf8');
 
 				// 7) Generate .htaccess for Apache rewrites
 				builder.log.minor('Generating .htaccess');
-				const htaccess = getHtaccess('php-static', builder.config.kit.paths.base, precompress);
+				const htaccess = getHtaccess('php-static', precompress);
 				await writeFile(path.join(outDir, '.htaccess'), htaccess.trim(), 'utf8');
 
 				// 8) Generate router.php for PHP built-in server
 				builder.log.minor('Generating router.php');
 				const router = getRouterPhp(builder.config.kit.paths.base, 'php-static');
+				assertPhp74Safe(router, 'router.php');
 				await writeFile(path.join(outDir, 'router.php'), router, 'utf8');
 			}
 

@@ -1,5 +1,5 @@
-<script>
-	export let data;
+<script lang="ts">
+	export let data: { layout_level_1?: string };
 </script>
 
 <div class="layout-1">

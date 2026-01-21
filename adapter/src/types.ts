@@ -31,7 +31,7 @@ export interface Builder {
 	writePrerendered(dest: string): void;
 	copy(src: string, dest: string): void;
 	compress(dest: string): void;
-	
+
 	config: {
 		kit: {
 			files: {

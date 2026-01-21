@@ -30,14 +30,14 @@ The suite focuses on:
 
 ## Test Matrix (authoritative)
 
-| Capability | php-static | js-ssr |
-|---|---:|---:|
-| Prerendered HTML | ✅ required | ✅ supported |
-| Client hydration (CSR) | ✅ | ✅ |
-| `__data.json` navigation endpoint | ✅ via PHP bridge/rewrite | ✅ native (proxied through PHP) |
-| On-demand SSR | ❌ (build-time only) | ✅ |
-| Streaming (promises/flush) | best-effort | ✅ (proxy must not buffer) |
-| Content negotiation (`Accept`) | ✅ implemented by PHP router | ✅ (prefer sidecar rules, still validate via PHP path) |
+| Capability                        |                   php-static |                                                 js-ssr |
+| --------------------------------- | ---------------------------: | -----------------------------------------------------: |
+| Prerendered HTML                  |                  ✅ required |                                           ✅ supported |
+| Client hydration (CSR)            |                           ✅ |                                                     ✅ |
+| `__data.json` navigation endpoint |    ✅ via PHP bridge/rewrite |                        ✅ native (proxied through PHP) |
+| On-demand SSR                     |         ❌ (build-time only) |                                                     ✅ |
+| Streaming (promises/flush)        |                  best-effort |                             ✅ (proxy must not buffer) |
+| Content negotiation (`Accept`)    | ✅ implemented by PHP router | ✅ (prefer sidecar rules, still validate via PHP path) |
 
 ---
 

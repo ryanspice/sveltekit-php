@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { writeFile, mkdir } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import type { AdapterOptions, Builder } from './types.js';
 
 /**
@@ -8,11 +7,7 @@ import type { AdapterOptions, Builder } from './types.js';
  * Works with Vite's dev server for instant feedback
  */
 export default function sveltekitViteDevAdapter(options: AdapterOptions = {}) {
-	const {
-		ssr = true,
-		out = './build',
-		assets = './build',
-	} = options;
+	const { ssr = true, out = './build', assets = './build' } = options;
 
 	return {
 		name: '@ryanspice/sveltekit-adapter-php-vite-dev',
@@ -24,7 +19,7 @@ export default function sveltekitViteDevAdapter(options: AdapterOptions = {}) {
 
 			// 1) Client assets (fast)
 			builder.log.minor('Writing client assets');
-			const writtenClientFiles = builder.writeClient(assetsDir);
+			builder.writeClient(assetsDir);
 
 			// 2) Create development PHP router
 			if (ssr) {

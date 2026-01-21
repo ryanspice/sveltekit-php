@@ -2,7 +2,7 @@
 function GET($params) {
     $search = $params['url']->searchParams;
 
-    if (isset($search->set)) {
+    if ($search->get('set')) {
         // Set cookie
         setcookie('adapter_cookie', '1', [
             'expires' => time() + 3600,

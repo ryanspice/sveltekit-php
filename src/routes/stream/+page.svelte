@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 
-	let props = $props();
-	let serverData = $derived(props.data) as any;
+	type StreamData = {
+		step1?: string;
+		step2?: Promise<string>;
+	};
+
+	let props = $props<{ data: StreamData }>();
+	let serverData: StreamData = $derived(props.data);
 </script>
 
 <div class="container">

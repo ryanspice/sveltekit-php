@@ -10,7 +10,12 @@ import * as devalue from 'devalue';
  * @param {string} path - The path to the route (e.g. '/ssr-data')
  * @returns {Promise<any[]>} An array of parsed data objects for each node in the route
  */
-export async function getPhpData(fetch: typeof globalThis.fetch, path: string) {
+type PhpNode = {
+	type?: string;
+	data?: unknown[];
+};
+
+export async function getPhpData(fetch: typeof globalThis.fetch, path: string): Promise<unknown[]> {
 	if (!dev) return [];
 
 	// Normalize path (handle leading slash and avoid double slashes)
@@ -23,7 +28,9 @@ export async function getPhpData(fetch: typeof globalThis.fetch, path: string) {
 
 		const contentType = res.headers.get('content-type');
 		if (!contentType || !contentType.includes('application/json')) {
-			console.warn(`[PHP-Dev] Warning: Expected JSON from ${url}, got ${contentType}. This usually means the PHP route is missing or falling back to HTML.`);
+			console.warn(
+				`[PHP-Dev] Warning: Expected JSON from ${url}, got ${contentType}. This usually means the PHP route is missing or falling back to HTML.`
+			);
 			// If we got HTML (e.g. 404 page or fallback index), return empty to avoid crash
 			return [];
 		}
@@ -39,7 +46,7 @@ export async function getPhpData(fetch: typeof globalThis.fetch, path: string) {
 		// Expected: { type: 'data', nodes: [...] }
 
 		if (json.type === 'data' && Array.isArray(json.nodes)) {
-			return json.nodes.map((node: any) => {
+			return json.nodes.map((node: PhpNode) => {
 				if (node && node.type === 'data' && Array.isArray(node.data) && node.data.length > 0) {
 					try {
 						// node.data is the devalue-serialized array.

@@ -3,7 +3,6 @@
 import { createServer } from 'http';
 import { request } from 'http';
 import { spawn } from 'child_process';
-import { resolve } from 'path';
 
 const VITE_PORT = 5173;
 const DEV_PORT = 8000;
@@ -15,20 +14,18 @@ let viteServer = null;
 let isViteReady = false;
 
 const PHP_DATA_PORT = 8888;
-let phpDataServer = null;
 
 // Function to start PHP Data Server
 async function startPhpDataServer() {
 	console.log('🐘 Starting PHP Data Server...');
 
-	phpDataServer = spawn('php', ['-S', `localhost:${PHP_DATA_PORT}`, 'php-data-server.php'], {
+	spawn('php', ['-S', `localhost:${PHP_DATA_PORT}`, 'php-data-server.php'], {
 		stdio: 'inherit',
 		shell: true
 	});
 
 	console.log(`✅ PHP Data Server running at http://localhost:${PHP_DATA_PORT}`);
 }
-
 
 // Function to check if a port is available
 function checkPort(port) {
@@ -64,14 +61,17 @@ async function findAvailablePort(startPort) {
 // Function to check if Vite is running
 function checkViteStatus() {
 	return new Promise((resolve) => {
-		const req = request({
-			hostname: 'localhost',
-			port: VITE_PORT,
-			path: '/',
-			method: 'GET'
-		}, (res) => {
-			resolve(res.statusCode !== undefined);
-		});
+		const req = request(
+			{
+				hostname: 'localhost',
+				port: VITE_PORT,
+				path: '/',
+				method: 'GET'
+			},
+			(res) => {
+				resolve(res.statusCode !== undefined);
+			}
+		);
 
 		req.on('error', () => resolve(false));
 		req.setTimeout(1000, () => {
@@ -124,7 +124,7 @@ async function startViteServer() {
 	// Wait for Vite to be ready
 	let attempts = 0;
 	while (!viteStarted && attempts < 30) {
-		await new Promise(resolve => setTimeout(resolve, 1000));
+		await new Promise((resolve) => setTimeout(resolve, 1000));
 		attempts++;
 
 		if (await checkViteStatus()) {
@@ -181,7 +181,7 @@ async function createPerfectProxyServer() {
 				res.statusMessage = proxyRes.statusMessage;
 
 				// Forward all headers
-				Object.keys(proxyRes.headers).forEach(key => {
+				Object.keys(proxyRes.headers).forEach((key) => {
 					res.setHeader(key, proxyRes.headers[key]);
 				});
 
@@ -229,7 +229,7 @@ async function createPerfectProxyServer() {
 	// Start the server
 	return new Promise((resolve) => {
 		// Handle WebSocket upgrades for HMR
-		server.on('upgrade', (req, socket, head) => {
+		server.on('upgrade', (req, socket) => {
 			if (isViteReady) {
 				const options = {
 					hostname: 'localhost',
@@ -243,10 +243,10 @@ async function createPerfectProxyServer() {
 
 				const proxyReq = request(options);
 
-				proxyReq.on('upgrade', (proxyRes, proxySocket, proxyHead) => {
+				proxyReq.on('upgrade', (proxyRes, proxySocket) => {
 					const responseHeaders = [
 						`HTTP/1.1 ${proxyRes.statusCode} ${proxyRes.statusMessage}`,
-						...Object.keys(proxyRes.headers).map(key => `${key}: ${proxyRes.headers[key]}`),
+						...Object.keys(proxyRes.headers).map((key) => `${key}: ${proxyRes.headers[key]}`),
 						'\r\n'
 					].join('\r\n');
 
@@ -294,7 +294,7 @@ async function startServers() {
 		await startViteServer();
 
 		// Start the PERFECT proxy server
-		const actualPort = await createPerfectProxyServer();
+		await createPerfectProxyServer();
 
 		// Everything is ready!
 		console.log('\n✨ PERFECT SOLUTION DEPLOYED!');
@@ -303,7 +303,6 @@ async function startServers() {
 		console.log('   - Data loading works perfectly (same as Vite)');
 		console.log('   - PHP functionality ready for production');
 		console.log('   - IMPOSSIBLE to have sync issues!');
-
 	} catch (error) {
 		console.error('❌ Failed to start servers:', error);
 		process.exit(1);

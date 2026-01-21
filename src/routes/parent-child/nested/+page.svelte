@@ -1,10 +1,15 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { browser } from '$app/environment';
 
-	let { data } = $props();
-	let serverData: any = $state();
+	type ServerData = {
+		parent?: string;
+		child?: string;
+		nested?: string;
+	};
+
+	let { data } = $props<{ data?: ServerData }>();
+	let serverData: ServerData | undefined = $state();
 
 	$effect(() => {
 		if (data) serverData = data;

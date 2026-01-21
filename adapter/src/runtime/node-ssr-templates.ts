@@ -1,6 +1,5 @@
-
 export function getNodeHandlerMjs(base: string = '') {
-    return `
+	return `
 import { Server } from './index.js';
 import { manifest } from './manifest.js';
 import http from 'node:http';
@@ -98,7 +97,8 @@ http.createServer(async (req, res) => {
 }
 
 export function getPhpProxy(sidecarUrl: string, base: string = '') {
-    return `<?php
+	return `<?php
+require_once __DIR__ . '/_runtime/compat.php';
 /**
  * SvelteKit Node Sidecar Proxy
  * - Forwards requests to the running Node/Bun sidecar
@@ -203,7 +203,7 @@ $headersToIgnore = [
 // The user prompt said: "X-Request-Id (generate if missing)".
 // Let's check if we have one.
 $clientReqId = $_SERVER['HTTP_X_REQUEST_ID'] ?? null;
-if ($clientReqId && preg_match('/^[a-zA-Z0-9\-\_]{1,200}$/', $clientReqId)) {
+if ($clientReqId && preg_match('/^[a-zA-Z0-9-_]{1,200}$/', $clientReqId)) {
     $reqId = $clientReqId;
 }
 $headers[] = "X-Request-Id: $reqId";
@@ -394,10 +394,10 @@ if ($fp) {
 ?>`;
 }
 
-export function getHtaccess(mode: string, base: string = '', precompress: boolean = false) {
-    // Removed RewriteBase to support flexible subdirectory deployment
+export function getHtaccess(mode: string, precompress: boolean = false) {
+	// Removed RewriteBase to support flexible subdirectory deployment
 
-    let commonRules = `
+	let commonRules = `
     RewriteEngine On
 
     # 1. Serve static files if they exist
@@ -405,9 +405,9 @@ export function getHtaccess(mode: string, base: string = '', precompress: boolea
     RewriteRule ^ - [L]
 `;
 
-    // Precompression Rules (Brotli/Gzip)
-    if (precompress) {
-        commonRules = `
+	// Precompression Rules (Brotli/Gzip)
+	if (precompress) {
+		commonRules = `
     RewriteEngine On
 
     # 0. Precompression (Brotli)
@@ -423,32 +423,32 @@ export function getHtaccess(mode: string, base: string = '', precompress: boolea
     # Ensure Content-Type is correct for compressed files
     # This usually requires mod_mime and mod_headers.
     <IfModule mod_headers.c>
-        <FilesMatch "\.js\.br$">
+        <FilesMatch "\\.js\\.br$">
             Header set Content-Type "application/javascript"
             Header set Content-Encoding br
             Header append Vary Accept-Encoding
         </FilesMatch>
-        <FilesMatch "\.js\.gz$">
+        <FilesMatch "\\.js\\.gz$">
             Header set Content-Type "application/javascript"
             Header set Content-Encoding gzip
             Header append Vary Accept-Encoding
         </FilesMatch>
-        <FilesMatch "\.css\.br$">
+        <FilesMatch "\\.css\\.br$">
             Header set Content-Type "text/css"
             Header set Content-Encoding br
             Header append Vary Accept-Encoding
         </FilesMatch>
-        <FilesMatch "\.css\.gz$">
+        <FilesMatch "\\.css\\.gz$">
             Header set Content-Type "text/css"
             Header set Content-Encoding gzip
             Header append Vary Accept-Encoding
         </FilesMatch>
-        <FilesMatch "\.html\.br$">
+        <FilesMatch "\\.html\\.br$">
             Header set Content-Type "text/html"
             Header set Content-Encoding br
             Header append Vary Accept-Encoding
         </FilesMatch>
-        <FilesMatch "\.html\.gz$">
+        <FilesMatch "\\.html\\.gz$">
             Header set Content-Type "text/html"
             Header set Content-Encoding gzip
             Header append Vary Accept-Encoding
@@ -459,10 +459,10 @@ export function getHtaccess(mode: string, base: string = '', precompress: boolea
     RewriteCond %{REQUEST_FILENAME} -f
     RewriteRule ^ - [L]
 `;
-    }
+	}
 
-    // Cache Control Rules
-    const cacheRules = `
+	// Cache Control Rules
+	const cacheRules = `
     <IfModule mod_headers.c>
         # Immutable assets (hashed)
         <FilesMatch "^immutable/.*$">
@@ -475,14 +475,14 @@ export function getHtaccess(mode: string, base: string = '', precompress: boolea
         </FilesMatch>
 
         # HTML/PHP Pages and Data
-        <FilesMatch "\.(php|html)$">
+        <FilesMatch "\\.(php|html)$">
             Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
         </FilesMatch>
     </IfModule>
 `;
 
-    if (mode === 'node-ssr') {
-        return `
+	if (mode === 'node-ssr') {
+		return `
 <IfModule mod_rewrite.c>
 ${commonRules}
     # 2. Serve directory index if it exists (e.g. index.php)
@@ -495,10 +495,10 @@ ${commonRules}
 </IfModule>
 ${cacheRules}
 `;
-    }
+	}
 
-    // php-static mode
-    return `
+	// php-static mode
+	return `
 <IfModule mod_rewrite.c>
 ${commonRules}
     # 2. SvelteKit __data.json Bridge
@@ -519,9 +519,18 @@ ${cacheRules}
 }
 
 export function getStandaloneApiPhp(serverFilePath: string, relativePathToRoot?: string) {
-    const negotiationLogic = relativePathToRoot ? `
+	const negotiationLogic = relativePathToRoot
+		? `
 // Content Negotiation: If HTML requested, proxy to Node (Page)
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+if (($_SERVER['HTTP_X_SVELTEKIT_ACTION'] ?? '') === 'true') {
+    $proxy = __DIR__ . '/${relativePathToRoot}/index.php';
+    if (file_exists($proxy)) {
+        $_SERVER['SCRIPT_FILENAME'] = realpath($proxy);
+        require $proxy;
+        return;
+    }
+}
 if (!function_exists('sk_prefers_html')) {
     function sk_prefers_html($accept) {
         if (trim($accept) === '' || trim($accept) === '*/*') return false;
@@ -532,7 +541,8 @@ if (!function_exists('sk_prefers_html')) {
             $mime = trim($parts[0]);
             $q = 1.0;
             for ($i = 1; $i < count($parts); $i++) {
-                 if (str_starts_with(trim($parts[$i]), 'q=')) $q = (float)substr(trim($parts[$i]), 2);
+                 $p = trim($parts[$i]);
+                 if (strncmp($p, 'q=', 2) === 0) $q = (float)substr($p, 2);
             }
             if ($mime === 'text/html' || $mime === 'application/xhtml+xml') $htmlQ = max($htmlQ, $q);
             elseif ($mime === 'application/json') $jsonQ = max($jsonQ, $q);
@@ -558,9 +568,10 @@ if (sk_prefers_html($accept)) {
         return;
     }
 }
-` : '';
+`
+		: '';
 
-    return `<?php
+	return `<?php
 /**
  * SvelteKit PHP Adapter - Standalone API Wrapper
  * Wraps ${serverFilePath}
@@ -573,7 +584,7 @@ function sk_request_body(): string {
     return file_get_contents('php://input') ?: '';
 }
 
-function sk_json_body(): mixed {
+function sk_json_body() {
     $raw = sk_request_body();
     return json_decode($raw, true);
 }
