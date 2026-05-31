@@ -2641,9 +2641,6 @@ if (($path === '/' || $path === '/index.php')) {
         header('Content-Type: text/html; charset=utf-8');
         readfile($htmlPath);
         exit;
-    } else {
-        // Debugging why index.html is not found
-        proxy_log("Debug: index.html not found at $htmlPath");
     }
 }
 
