@@ -12,6 +12,7 @@ This project implements a **SvelteKit adapter for PHP**, allowing you to deploy 
 - `php-static` is the deployment default
 - `js-ssr` is JavaScript-sidecar SSR behind PHP
 - Historical audit notes under `docs/AUDIT-*` and `docs/CHAT-*` are archival snapshots, not the current contract
+- Live example: [blog.ryanspice.com](https://blog.ryanspice.com) uses this adapter for its PHP-hosted release path
 
 ## 🌟 Key Features
 
