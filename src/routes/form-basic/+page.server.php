@@ -15,4 +15,8 @@ function sk_form_basic_page_server_action_default($params) {
         'data' => ['success' => true, 'echo' => $val]
     ];
 }
+
+function sk_form_basic_page_server_action_echo($params) {
+    return sk_form_basic_page_server_action_default($params);
+}
 ?>
