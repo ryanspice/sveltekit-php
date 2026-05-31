@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -49,12 +50,28 @@ test('deep route does not render home', async ({ request }) => {
 		// "Running SvelteKit on PHP runtime with full SSR support."
 
 		if (text.includes('Running SvelteKit on PHP runtime with full SSR support.')) {
-			// This is definitely the home page.
-			// Unless the fallback IS the home page (SPA).
-			// But php-static usually implies multi-page or explicit fallback.
+			throw new Error('Deep route unexpectedly rendered the home page content');
 		}
 	} else {
 		expect(response.status()).not.toBe(200);
+	}
+});
+
+test('rejects traversal-looking paths without disclosure', async ({ baseURL }) => {
+	if (!baseURL) throw new Error('Expected Playwright baseURL for raw traversal probes');
+
+	const probes = [
+		'/%2e%2e/router.php',
+		'/_app/%2e%2e/router.php',
+		'/status/%2e%2e/__data.json',
+		'/%252e%252e/router.php'
+	];
+
+	for (const probe of probes) {
+		const response = await rawHttpGet(baseURL, joinBasePath(basePath, probe));
+		expect([400, 403]).toContain(response.status);
+		expect(response.text).not.toContain('<?php');
+		expect(response.text).not.toContain('SvelteKit PHP Adapter');
 	}
 });
 
@@ -108,4 +125,36 @@ function joinBasePath(base: string, routePath: string) {
 	const route = routePath.startsWith('/') ? routePath : `/${routePath}`;
 	if (!base) return route;
 	return `${base}${route === '/' ? '' : route}`;
+}
+
+function rawHttpGet(
+	baseURL: string,
+	requestPath: string
+): Promise<{ status: number; text: string }> {
+	const url = new URL(baseURL);
+
+	return new Promise((resolve, reject) => {
+		const req = http.request(
+			{
+				hostname: url.hostname,
+				port: url.port,
+				protocol: url.protocol,
+				method: 'GET',
+				path: requestPath
+			},
+			(res) => {
+				res.setEncoding('utf8');
+				let text = '';
+				res.on('data', (chunk) => {
+					text += chunk;
+				});
+				res.on('end', () => {
+					resolve({ status: res.statusCode ?? 0, text });
+				});
+			}
+		);
+
+		req.on('error', reject);
+		req.end();
+	});
 }

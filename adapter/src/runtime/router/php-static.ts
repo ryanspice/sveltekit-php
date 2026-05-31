@@ -1,16 +1,13 @@
 export function getRouterPhpStaticPhp(fallback?: string | boolean, fallbackFile?: string) {
 	const hasFallback = Boolean(fallback);
 	const resolvedFallback = fallbackFile ?? 'index.php';
+	const fallbackPathLiteral = JSON.stringify('/' + resolvedFallback.replace(/^\/+/, ''));
 
 	return `
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-if (strpos($path, '/../') !== false || strpos($path, '/..\\\\') !== false) {
-	http_response_code(400);
-	echo "Bad Request";
-	return;
-}
+$root = __DIR__;
+$q = $_SERVER['QUERY_STRING'] ?? '';
 
-if ($base !== '' && strpos($uri, $base) === 0) {
+if ($base !== '' && ($uri === $base || strpos($uri, $base . '/') === 0)) {
 	$uri = substr($uri, strlen($base));
 	if ($uri === '' || $uri === false) $uri = '/';
 	router_log("Stripped URI: $uri");
@@ -20,12 +17,56 @@ if (strlen($uri) > 0 && $uri[0] !== '/') {
     $uri = '/' . $uri;
 }
 
-$root = __DIR__;
-$q = $_SERVER['QUERY_STRING'] ?? '';
+if (router_has_bad_path($uri)) {
+	http_response_code(400);
+	echo "Bad Request";
+	return;
+}
+
+if (!function_exists('router_mime_type')) {
+function router_mime_type($path) {
+	$ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+	$mimes = [
+		'js' => 'application/javascript',
+		'mjs' => 'application/javascript',
+		'cjs' => 'application/javascript',
+		'css' => 'text/css',
+		'json' => 'application/json',
+		'html' => 'text/html',
+		'htm' => 'text/html',
+		'xml' => 'text/xml',
+		'txt' => 'text/plain',
+		'svg' => 'image/svg+xml',
+		'png' => 'image/png',
+		'jpg' => 'image/jpeg',
+		'jpeg' => 'image/jpeg',
+		'gif' => 'image/gif',
+		'webp' => 'image/webp',
+		'ico' => 'image/x-icon',
+		'woff2' => 'font/woff2',
+		'woff' => 'font/woff',
+		'ttf' => 'font/ttf',
+		'eot' => 'application/vnd.ms-fontobject'
+	];
+	return $mimes[$ext] ?? (function_exists('mime_content_type') ? mime_content_type($path) : 'application/octet-stream');
+}
+}
+
+if (!function_exists('router_send_file')) {
+function router_send_file($path, $mime = null) {
+	$mime = $mime ?? router_mime_type($path);
+	header('Content-Type: '.$mime);
+	header('Content-Length: '.filesize($path));
+	if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
+		readfile($path);
+	}
+}
+}
 
 // Load Route Manifest
 $manifest_file = $root . '/adapter/route-manifest.php';
-$manifest = file_exists($manifest_file) ? require $manifest_file : [];
+$manifest_real = router_safe_path($root, $manifest_file);
+$manifest = ($manifest_real !== null && is_file($manifest_real)) ? require $manifest_real : [];
 
 // Check Manifest Routes
 foreach ($manifest as $route) {
@@ -61,17 +102,10 @@ foreach ($manifest as $route) {
         }
 
         if ($route['type'] === 'page' || $route['type'] === 'endpoint') {
-            // ...
-            $shim = $root . $route['shim'];
+            $shim = router_safe_path($root, $root . ($route['shim'] ?? ''));
             router_log("Checking shim: $shim");
-            // If we are serving a directory index, we must ensure trailing slash is correct.
-            // But if we've reached here, the trailing slash check above should have handled it if manifest knows about it.
-            // If manifest didn't catch it (e.g. regex too broad or 'ignore'), and it's a directory...
-            // Actually, shim points to a file.
-            if (file_exists($shim)) {
-                // For directories, ensure we have trailing slash if required by manifest or typical convention
-                // But for pages/endpoints, the regex should handle it.
-                $_SERVER['SCRIPT_FILENAME'] = realpath($shim);
+            if ($shim !== null && is_file($shim)) {
+                $_SERVER['SCRIPT_FILENAME'] = $shim;
                 require $shim;
                 return;
             } else {
@@ -91,11 +125,11 @@ foreach ($manifest as $route) {
 
             if ($isRead && $prefersHtml) {
                 // Try page first
-                $page = $root . $route['page'];
-                if (file_exists($page)) {
+                $page = router_safe_path($root, $root . ($route['page'] ?? ''));
+                if ($page !== null && is_file($page)) {
                     // Check if it's .html or .php
                     if (substr($page, -4) === '.php') {
-                        $_SERVER['SCRIPT_FILENAME'] = realpath($page);
+                        $_SERVER['SCRIPT_FILENAME'] = $page;
                         require $page;
                         $served = true;
                     } else {
@@ -112,9 +146,9 @@ foreach ($manifest as $route) {
 
             if (!$served) {
                 // Try endpoint
-                $endpoint = $root . $route['endpoint'];
-                if (file_exists($endpoint)) {
-                    $_SERVER['SCRIPT_FILENAME'] = realpath($endpoint);
+                $endpoint = router_safe_path($root, $root . ($route['endpoint'] ?? ''));
+                if ($endpoint !== null && is_file($endpoint)) {
+                    $_SERVER['SCRIPT_FILENAME'] = $endpoint;
                     require $endpoint;
                     $served = true;
                 }
@@ -142,12 +176,13 @@ if (substr($uri, -strlen($suffix)) === $suffix) {
     // If base path is set, the data files are nested under it (created by adapter)
     $prefix = ($base !== '' && $base !== '/') ? $base : '';
     $php_file = $root . $prefix . $php_file_rel;
+    $php_file_real = router_safe_path($root, $php_file);
 
-    if (file_exists($php_file)) {
+    if ($php_file_real !== null && is_file($php_file_real)) {
 		header('Content-Type: application/json');
 		header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-		$_SERVER['SCRIPT_FILENAME'] = realpath($php_file);
-		require $php_file;
+		$_SERVER['SCRIPT_FILENAME'] = $php_file_real;
+		require $php_file_real;
 		return;
 	} else {
         http_response_code(404);
@@ -165,10 +200,11 @@ if (substr($uri, -strlen($action_suffix)) === $action_suffix) {
     // If base path is set, the action files are nested under it (created by adapter)
     $prefix = ($base !== '' && $base !== '/') ? $base : '';
     $php_file = $root . $prefix . $php_file_rel;
+    $php_file_real = router_safe_path($root, $php_file);
 
-    if (file_exists($php_file)) {
-        $_SERVER['SCRIPT_FILENAME'] = realpath($php_file);
-        require $php_file;
+    if ($php_file_real !== null && is_file($php_file_real)) {
+        $_SERVER['SCRIPT_FILENAME'] = $php_file_real;
+        require $php_file_real;
         // Same here
         return;
     } else {
@@ -181,45 +217,24 @@ if (substr($uri, -strlen($action_suffix)) === $action_suffix) {
 // This handles cases where static files are nested under the base path in the build output.
 // We use stripped URI but reconstructed path including base.
 $nested_path = __DIR__ . ($base === '/' ? '' : $base) . $uri;
-if ($uri !== '/' && file_exists($nested_path)) {
-	if (is_file($nested_path)) {
-		$real = realpath($nested_path);
-		if ($real === false || strpos($real, realpath(__DIR__)) !== 0) {
-			http_response_code(403);
-			return;
-		}
-
-		$ext = pathinfo($nested_path, PATHINFO_EXTENSION);
-        $mime = 'application/octet-stream';
-        if ($ext === 'html') $mime = 'text/html';
-        elseif ($ext === 'css') $mime = 'text/css';
-        elseif ($ext === 'js') $mime = 'application/javascript';
-        elseif ($ext === 'json') $mime = 'application/json';
-        elseif ($ext === 'png') $mime = 'image/png';
-        elseif ($ext === 'jpg') $mime = 'image/jpeg';
-        elseif ($ext === 'svg') $mime = 'image/svg+xml';
-
-		if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
-			header('Content-Type: '.$mime);
-			header('Content-Length: '.filesize($nested_path));
-			return;
-		}
+$nested_real = router_safe_path($root, $nested_path);
+if ($uri !== '/' && $nested_real !== null) {
+	if (is_file($nested_real)) {
+		$ext = pathinfo($nested_real, PATHINFO_EXTENSION);
 
 		if ($ext === 'php') {
-			$_SERVER['SCRIPT_FILENAME'] = $real;
-			require $real;
+			$_SERVER['SCRIPT_FILENAME'] = $nested_real;
+			require $nested_real;
 			return;
 		}
 
-		header('Content-Type: '.$mime);
-		header('Content-Length: '.filesize($nested_path));
-		readfile($nested_path);
+		router_send_file($nested_real);
 		return;
-	} elseif (is_dir($nested_path)) {
+	} elseif (is_dir($nested_real)) {
 		// If accessing directory, check for index
 		foreach (['/index.php', '/index.html'] as $idx) {
-			$candidate = $nested_path . $idx;
-			if (is_file($candidate)) {
+			$candidate = router_safe_path($root, $nested_real . $idx);
+			if ($candidate !== null && is_file($candidate)) {
 				if (substr($uri, -1) !== '/') {
 					// Redirect to slash
                     // We use $base . $uri because $uri is stripped
@@ -232,13 +247,12 @@ if ($uri !== '/' && file_exists($nested_path)) {
 				}
 
 				if (substr($candidate, -4) === '.php') {
-					$_SERVER['SCRIPT_FILENAME'] = realpath($candidate);
+					$_SERVER['SCRIPT_FILENAME'] = $candidate;
 					require $candidate;
 					return;
 				}
 
-				header('Content-Type: text/html; charset=utf-8');
-				readfile($candidate);
+				router_send_file($candidate, 'text/html; charset=utf-8');
 				return;
 			}
 		}
@@ -246,49 +260,10 @@ if ($uri !== '/' && file_exists($nested_path)) {
 }
 
 // 1. Serve static files if they exist
-$path = __DIR__.$uri;
-if ($uri !== '/' && file_exists($path) && is_file($path)) {
-    $real = realpath($path);
-    if ($real === false || strpos($real, realpath(__DIR__)) !== 0) {
-        http_response_code(403);
-        echo "Access Denied";
-        return;
-    }
-
-	$ext = pathinfo($path, PATHINFO_EXTENSION);
-	$mimes = [
-		'js' => 'application/javascript',
-		'mjs' => 'application/javascript',
-		'cjs' => 'application/javascript',
-		'css' => 'text/css',
-		'json' => 'application/json',
-		'html' => 'text/html',
-		'htm' => 'text/html',
-		'xml' => 'text/xml',
-		'txt' => 'text/plain',
-		'svg' => 'image/svg+xml',
-		'png' => 'image/png',
-		'jpg' => 'image/jpeg',
-		'jpeg' => 'image/jpeg',
-		'gif' => 'image/gif',
-		'webp' => 'image/webp',
-		'ico' => 'image/x-icon',
-		'woff2' => 'font/woff2',
-		'woff' => 'font/woff',
-		'ttf' => 'font/ttf',
-		'eot' => 'application/vnd.ms-fontobject'
-	];
-	$mime = $mimes[$ext] ?? (function_exists('mime_content_type') ? mime_content_type($path) : 'application/octet-stream');
-
-	if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
-		header('Content-Type: '.$mime);
-		header('Content-Length: '.filesize($path));
-		return;
-	}
-
-	header('Content-Type: '.$mime);
-	header('Content-Length: '.filesize($path));
-	readfile($path);
+$static_path = __DIR__.$uri;
+$static_real = router_safe_path($root, $static_path);
+if ($uri !== '/' && $static_real !== null && is_file($static_real)) {
+	router_send_file($static_real);
 	return;
 }
 
@@ -303,7 +278,7 @@ if (preg_match('/\\.(css|js|map|mjs|cjs|json|png|jpg|jpeg|gif|webp|svg|ico|txt|x
 }
 
 // 2. If it's a directory, manually serve index.php or index.html
-if ($uri !== '/' && is_dir($path)) {
+if ($uri !== '/' && $static_real !== null && is_dir($static_real)) {
     // If manifest said "never" for this route, we should have already redirected.
     // If we are here, and it's a directory, and the URI ends in slash (which is_dir implies usually unless trailing slash missing but is_dir still works on some OS?),
     // actually, if URI doesn't end in slash but is_dir is true, we should redirect to slash IF we want canonical directories.
@@ -323,18 +298,15 @@ if ($uri !== '/' && is_dir($path)) {
     }
 
     foreach (['/index.php', '/index.html'] as $idx) {
-        $candidate = $path . $idx;
-        if (is_file($candidate)) {
+        $candidate = router_safe_path($root, $static_real . $idx);
+        if ($candidate !== null && is_file($candidate)) {
             // Check for trailing slash policy if it's a directory serving index
             // If the URI doesn't end in slash, we should have redirected above.
 
             if (substr($candidate, -4) === '.php') {
-                $requested_file = realpath($candidate);
-                if ($requested_file) {
-                    $_SERVER['SCRIPT_FILENAME'] = $requested_file;
-                    require $requested_file;
-                    return;
-                }
+                $_SERVER['SCRIPT_FILENAME'] = $candidate;
+                require $candidate;
+                return;
             }
 
             // Fix: If serving directory index.html, we must redirect non-slash URI to slash first
@@ -342,8 +314,7 @@ if ($uri !== '/' && is_dir($path)) {
             // (We did a 301 redirect check above, but that was generic. The previous block handles generic dir redirect.)
             // But if we are here, it means we found an index file.
 
-            header('content-type: text/html; charset=utf-8');
-            readfile($candidate);
+            router_send_file($candidate, 'text/html; charset=utf-8');
             return;
         }
     }
@@ -354,19 +325,15 @@ if ($uri !== '/' && is_dir($path)) {
 if ($uri !== '/' && substr($uri, -1) !== '/') {
     $candidate_path = __DIR__ . $uri;
     foreach (['.php', '.html'] as $ext) {
-        $candidate = $candidate_path . $ext;
-        if (is_file($candidate)) {
+        $candidate = router_safe_path($root, $candidate_path . $ext);
+        if ($candidate !== null && is_file($candidate)) {
             if ($ext === '.php') {
-                $requested_file = realpath($candidate);
-                if ($requested_file) {
-                    $_SERVER['SCRIPT_FILENAME'] = $requested_file;
-                    require $requested_file;
-                    return;
-                }
+                $_SERVER['SCRIPT_FILENAME'] = $candidate;
+                require $candidate;
+                return;
             }
 
-            header('content-type: text/html; charset=utf-8');
-            readfile($candidate);
+            router_send_file($candidate, 'text/html; charset=utf-8');
             return;
         }
     }
@@ -375,19 +342,18 @@ if ($uri !== '/' && substr($uri, -1) !== '/') {
 ${
 	hasFallback
 		? `
-$fallback_file = __DIR__ . '/${resolvedFallback}';
-$fallback_php_ext = str_replace('.html', '.php', $fallback_file);
+$fallback_file = router_safe_path($root, $root . ${fallbackPathLiteral});
+$fallback_php_ext = $fallback_file !== null ? router_safe_path($root, str_replace('.html', '.php', $fallback_file)) : null;
 
-if (is_file($fallback_php_ext)) {
-    $_SERVER['SCRIPT_FILENAME'] = realpath($fallback_php_ext);
+if ($fallback_php_ext !== null && is_file($fallback_php_ext)) {
+    $_SERVER['SCRIPT_FILENAME'] = $fallback_php_ext;
     require $fallback_php_ext;
     $out = ob_get_clean();
     echo $out;
     return;
 }
-if (is_file($fallback_file)) {
-    header('content-type: text/html; charset=utf-8');
-    readfile($fallback_file);
+if ($fallback_file !== null && is_file($fallback_file)) {
+    router_send_file($fallback_file, 'text/html; charset=utf-8');
     $out = ob_get_clean();
     echo $out;
     return;

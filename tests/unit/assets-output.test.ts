@@ -4,6 +4,9 @@ import path from 'node:path';
 import os from 'node:os';
 import adapter from '../../adapter/src/index.ts';
 import { getHtaccess } from '../../adapter/src/runtime/htaccess-templates.ts';
+import { getPhpProxy } from '../../adapter/src/runtime/js-ssr-templates.ts';
+import { getRouterPhpStaticPhp } from '../../adapter/src/runtime/router/php-static.ts';
+import { getRouterSharedPhp } from '../../adapter/src/runtime/router/shared.ts';
 
 type AdapterBuilder = Parameters<ReturnType<typeof adapter>['adapt']>[0];
 
@@ -126,6 +129,34 @@ describe('assets output in js-ssr', () => {
 		expect(fs.existsSync(target + '.br')).toBe(true);
 		expect(fs.existsSync(target + '.gz')).toBe(true);
 	});
+
+	it('rejects unsafe build targets before cleanup', async () => {
+		const { builder, assetsDir } = createBuilder(tempRoot);
+		const instance = adapter({
+			mode: 'js-ssr',
+			out: process.cwd(),
+			assets: assetsDir,
+			strict: false
+		});
+
+		await expect(instance.adapt(builder as AdapterBuilder)).rejects.toThrow(
+			/Unsafe build target for out/
+		);
+	});
+
+	it('treats URL assets as non-filesystem targets', async () => {
+		const { builder, outDir } = createBuilder(tempRoot);
+		const instance = adapter({
+			mode: 'js-ssr',
+			out: outDir,
+			assets: 'https://cdn.example.test/assets',
+			precompress: false,
+			strict: false
+		});
+
+		await instance.adapt(builder as AdapterBuilder);
+		expect(fs.existsSync(path.join(outDir, '_app', 'immutable', 'entry', 'app.js'))).toBe(true);
+	});
 });
 
 describe('htaccess precompress rules', () => {
@@ -145,5 +176,38 @@ describe('htaccess precompress rules', () => {
 		expect(htaccess).toContain('# trailingSlash: always');
 		expect(htaccess).toContain('RewriteCond %{REQUEST_URI} !/$');
 		expect(htaccess).toContain('RewriteRule ^(.*[^/])$ /$1/ [L,R=308]');
+	});
+});
+
+describe('runtime hardening templates', () => {
+	it('gates router logging and avoids filesystem router logs', () => {
+		const router = getRouterSharedPhp('');
+		expect(router).toContain('function router_debug_enabled');
+		expect(router).toContain("file_put_contents('php://stderr'");
+		expect(router).not.toContain('../router.log');
+	});
+
+	it('generates safe router path helpers and traversal rejection', () => {
+		const shared = getRouterSharedPhp('');
+		const phpStatic = getRouterPhpStaticPhp(true, '200.html');
+		expect(shared).toContain('function router_has_bad_path');
+		expect(shared).toContain('function router_safe_path');
+		expect(shared).toContain('Bad Request');
+		expect(phpStatic).toContain('router_safe_path($root');
+		expect(phpStatic).toContain('router_send_file');
+	});
+
+	it('limits proxy fallback bodies without curl', () => {
+		const proxy = getPhpProxy('http://127.0.0.1:3000');
+		expect(proxy).toContain('Length Required');
+		expect(proxy).toContain('http_response_code(411)');
+		expect(proxy).toContain('$contentLength > (int)$maxBodyBytes');
+	});
+
+	it('documents sk_fetch timeout support in generated compat code', () => {
+		const compat = fs.readFileSync(path.resolve('adapter/src/runtime/php-compat.php'), 'utf8');
+		expect(compat).toContain('SK_FETCH_TIMEOUT_MS');
+		expect(compat).toContain('$timeoutMs =');
+		expect(compat).toContain("'timeout' => $timeoutMs / 1000");
 	});
 });

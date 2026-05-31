@@ -6,26 +6,81 @@ export function getRouterSharedPhp(base: string) {
 
 require_once __DIR__ . '/_runtime/compat.php';
 
-$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$uri_raw = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
+$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
+if (!is_string($path) || $path === '') $path = '/';
+$path = preg_replace('#/+#', '/', $path);
+$uri_raw = rawurldecode($path);
+$uri_raw = str_replace('\\\\', '/', $uri_raw);
 $base_env = getenv('SK_BASE_PATH');
 $base = $base_env !== false ? $base_env : '${base}';
+if ($base === '/' || $base === '.') $base = '';
+if ($base !== '' && $base[0] !== '/') $base = '/' . $base;
+$base = rtrim($base, '/');
 $uri = $uri_raw;
 
-if (strpos($path, '/../') !== false || strpos($path, '/..\\\\') !== false) {
+if (!function_exists('router_debug_enabled')) {
+    function router_debug_enabled() {
+        $value = getenv('SK_DEBUG');
+        if ($value === false) $value = getenv('ADAPTER_DEBUG');
+        if ($value === false) return false;
+        return in_array(strtolower((string)$value), ['1', 'true', 'yes', 'on'], true);
+    }
+}
+
+if (!function_exists('router_log')) {
+    function router_log($msg) {
+        if (!router_debug_enabled()) return;
+        file_put_contents('php://stderr', "[Router] ".$msg. "\\n", FILE_APPEND);
+    }
+}
+
+if (!function_exists('router_has_bad_path')) {
+    function router_has_bad_path($path) {
+        $decoded = (string)$path;
+        for ($i = 0; $i < 3; $i++) {
+            $next = rawurldecode($decoded);
+            if ($next === $decoded) break;
+            $decoded = $next;
+        }
+        $decoded = str_replace('\\\\', '/', $decoded);
+        foreach (explode('/', $decoded) as $segment) {
+            if ($segment === '..') return true;
+        }
+        return false;
+    }
+}
+
+if (!function_exists('router_safe_path')) {
+    function router_safe_path($root, $candidate) {
+        if (!is_string($candidate) || $candidate === '') return null;
+        $rootReal = realpath($root);
+        if ($rootReal === false) return null;
+        $real = realpath($candidate);
+        if ($real === false) return null;
+
+        $rootNorm = rtrim(str_replace('\\\\', '/', $rootReal), '/');
+        $realNorm = str_replace('\\\\', '/', $real);
+        if ($realNorm !== $rootNorm && strpos($realNorm, $rootNorm . '/') !== 0) {
+            return null;
+        }
+        return $real;
+    }
+}
+
+if (router_has_bad_path($path) || router_has_bad_path($uri_raw)) {
 	http_response_code(400);
 	echo "Bad Request";
 	return;
 }
 
-if (strpos($path, '/_protected/') !== false) {
+if (strpos($uri_raw, '/_protected/') !== false) {
 	http_response_code(403);
 	echo "Access Denied";
 	return;
 }
 
-$file = __DIR__ . $path;
-if ($path !== '/' && is_file($file)) {
+$file = router_safe_path(__DIR__, __DIR__ . $uri_raw);
+if ($uri_raw !== '/' && $file !== null && is_file($file)) {
 	return false;
 }
 
@@ -48,13 +103,7 @@ if (!defined('SK_ROUTER_HARDENED')) {
     });
 }
 
-if (!function_exists('router_log')) {
-    function router_log($msg) {
-        file_put_contents(__DIR__ . '/../router.log', "[Router] ".$msg. "\n", FILE_APPEND);
-    }
-}
-
-router_log("Request: $uri");
+router_log("Request path: " . (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/'));
 router_log("Base Env: '$base_env'");
 router_log("Base Used: '$base'");
 

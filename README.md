@@ -120,12 +120,19 @@ The project includes a suite of fixture routes to verify functionality.
 
 ### Running Regression Tests
 
-To run the comprehensive verification suite (requires build):
+To run the comprehensive verification suite:
 
 ```bash
-# Build and run verification
-bun run build
-node scripts/verify-comprehensive.mjs
+# Build E2E artifacts and run all verification checks
+bun run verify:all
+```
+
+For the same split used by CI:
+
+```bash
+bun run build:e2e
+bun scripts/verify-all.mjs --mode=php-static --skipBuild
+bun scripts/verify-all.mjs --mode=all --skipBuild
 ```
 
 ---

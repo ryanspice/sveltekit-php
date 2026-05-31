@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import os from 'node:os';
 import glob from 'tiny-glob';
 import { readFile, writeFile, rename, stat } from 'node:fs/promises';
 import {
@@ -57,8 +58,10 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			if (debugEnabled) {
 				await writeFile('adapter_debug.log', JSON.stringify(options, null, 2));
 			}
+			const isUrlLike = (value: string) => /^[a-zA-Z][a-zA-Z\d+.-]*:\/\//.test(value);
+			const assetsIsUrl = isUrlLike(assets);
 			const outDir = path.resolve(out);
-			const assetsDir = path.resolve(assets);
+			const assetsDir = assetsIsUrl ? outDir : path.resolve(assets);
 			const tmpDir = builder.getBuildDirectory('sveltekit-php');
 			const basePath =
 				baseMode === 'fixed' ? (options.basePath ?? builder.config.kit.paths.base ?? '') : '';
@@ -105,6 +108,40 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			builder.log.minor(`Adapting for mode: ${mode}`);
 			builder.log.minor('Cleaning output/temp');
 
+			const isInside = (parent: string, child: string) => {
+				const rel = path.relative(parent, child);
+				return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+			};
+			const assertSafeBuildTarget = (target: string, label: string) => {
+				const resolved = path.resolve(target);
+				const cwd = path.resolve(process.cwd());
+				const home = path.resolve(os.homedir());
+				const temp = path.resolve(os.tmpdir());
+				const root = path.parse(resolved).root;
+				const routesRoot = path.resolve(builder.config.kit.files.routes);
+				const sourceRoots = [
+					path.join(cwd, 'src'),
+					path.join(cwd, 'adapter', 'src'),
+					path.join(cwd, 'scripts'),
+					path.join(cwd, 'tests'),
+					routesRoot
+				];
+
+				if (resolved === root || resolved === cwd || resolved === home) {
+					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
+				}
+				if (sourceRoots.some((source) => resolved === source || isInside(source, resolved))) {
+					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
+				}
+				if (!isInside(cwd, resolved) && !isInside(temp, resolved)) {
+					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
+				}
+			};
+
+			assertSafeBuildTarget(outDir, 'out');
+			if (!assetsIsUrl) assertSafeBuildTarget(assetsDir, 'assets');
+			assertSafeBuildTarget(tmpDir, 'tmp');
+
 			// Robust delete for Windows
 			const robustRimraf = async (dir: string) => {
 				try {
@@ -131,11 +168,11 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			};
 
 			await robustRimraf(outDir);
-			await robustRimraf(assetsDir);
+			if (!assetsIsUrl && assetsDir !== outDir) await robustRimraf(assetsDir);
 			await robustRimraf(tmpDir);
 
 			builder.mkdirp(outDir);
-			builder.mkdirp(assetsDir);
+			if (!assetsIsUrl && assetsDir !== outDir) builder.mkdirp(assetsDir);
 			builder.mkdirp(tmpDir);
 
 			// 1) Client assets (Common)

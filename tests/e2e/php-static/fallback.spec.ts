@@ -54,6 +54,12 @@ test.describe('PHP Static Fallback', () => {
 
 	test('Router uses custom fallback logic', async () => {
 		const routerPhp = fs.readFileSync(path.join(BUILD_DIR, 'router.php'), 'utf8');
-		expect(routerPhp).toContain("$fallback_file = __DIR__ . '/200.html';");
+		expect(routerPhp).toMatch(
+			/\$fallback_file\s*=\s*router_safe_path\(\$root,\s*\$root\s*\.\s*["']\/200\.html["']\);/
+		);
+		expect(routerPhp).toMatch(
+			/\$fallback_php_ext\s*=\s*\$fallback_file\s*!==\s*null\s*\?\s*router_safe_path\(\$root,\s*str_replace\('\.html',\s*'\.php',\s*\$fallback_file\)\)\s*:\s*null;/
+		);
+		expect(routerPhp).not.toContain("$fallback_file = __DIR__ . '/200.html';");
 	});
 });

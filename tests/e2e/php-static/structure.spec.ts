@@ -42,32 +42,20 @@ test.describe('PHP Static Output Structure', () => {
 		await expect(page.locator('h1')).toHaveText('API Demo Page');
 	});
 
-	test('Canonicalization: trailingSlash behavior (never)', async ({ request }) => {
-		// Assuming default trailingSlash='never'
-		// Test route: /parent-child/nested
-
-		const targetPath = joinBasePath(basePath, '/parent-child/nested');
+	test('Canonicalization: status route trailingSlash behavior (never)', async ({ request }) => {
+		const targetPath = joinBasePath(basePath, '/status');
 		const slashPath = targetPath + '/';
 
 		// 1. Verify correct path (no slash) works
 		const resOk = await request.get(targetPath, { maxRedirects: 0 });
 		expect(resOk.status()).toBe(200);
 
-		// 2. Verify slash path redirects
-		// Note: We use maxRedirects: 0 to catch the redirect
 		const resRedirect = await request.get(slashPath, { maxRedirects: 0 });
 
-		// If it's 308, we are good.
-		// If it's 200, it failed to redirect (likely php -S limitation for directories).
-		// If it's 404, something is wrong.
-		const status = resRedirect.status();
-		expect([200, 308]).toContain(status);
-
-		if (status === 308) {
-			const location = resRedirect.headers()['location'];
-			expect(location?.endsWith('/parent-child/nested')).toBeTruthy();
-			expect(location.endsWith('/')).toBeFalsy();
-		}
+		expect(resRedirect.status()).toBe(308);
+		const location = resRedirect.headers()['location'];
+		expect(location?.endsWith('/status')).toBeTruthy();
+		expect(location?.endsWith('/status/')).toBeFalsy();
 	});
 });
 

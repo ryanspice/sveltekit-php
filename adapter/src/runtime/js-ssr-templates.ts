@@ -174,6 +174,9 @@ $base = '${base}';
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = $_SERVER['REQUEST_URI'];
 $path = parse_url($uri, PHP_URL_PATH);
+$hasBody = !in_array($method, ['GET', 'HEAD'], true);
+$contentLengthHeader = $_SERVER['CONTENT_LENGTH'] ?? null;
+$contentLength = is_numeric($contentLengthHeader) ? (int)$contentLengthHeader : null;
 // Normalize path for matching (e.g. // -> /)
 if ($path && $path !== '/') {
     $path = preg_replace('#/+#', '/', $path);
@@ -253,7 +256,7 @@ proxy_debug("Proxy Start: Method=$method, URI=$uri, Sidecar=$sidecar");
 $len = $_SERVER['CONTENT_LENGTH'] ?? 'unknown';
 proxy_debug("Body Check: Length=$len, Max=$maxBodyBytes");
 
-if (isset($_SERVER['CONTENT_LENGTH']) && (int)$_SERVER['CONTENT_LENGTH'] > $maxBodyBytes) {
+if ($hasBody && $contentLength !== null && $contentLength > (int)$maxBodyBytes) {
     proxy_log("Payload Too Large: " . $_SERVER['CONTENT_LENGTH']);
     http_response_code(413);
     header("Status: 413 Payload Too Large"); // Explicit header for some SAPI
@@ -326,7 +329,7 @@ if (function_exists('curl_init')) {
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, (int)$connectTimeoutMs);
     curl_setopt($ch, CURLOPT_TIMEOUT_MS, (int)$timeoutMs);
 
-    if ($method !== 'GET' && $method !== 'HEAD') {
+    if ($hasBody) {
         $input = @fopen('php://input', 'r');
         curl_setopt($ch, CURLOPT_UPLOAD, true);
         curl_setopt($ch, CURLOPT_INFILE, $input);
@@ -447,7 +450,19 @@ $opts = [
     ]
 ];
 
-if ($method !== 'GET' && $method !== 'HEAD') {
+if ($hasBody) {
+    if ($contentLength === null) {
+        proxy_log("Length Required: missing or invalid Content-Length for fallback proxy");
+        http_response_code(411);
+        echo "Length Required";
+        exit;
+    }
+    if ($contentLength > (int)$maxBodyBytes) {
+        proxy_log("Payload Too Large: " . $contentLength);
+        http_response_code(413);
+        echo "Payload Too Large";
+        exit;
+    }
     $opts['http']['content'] = file_get_contents('php://input');
 }
 

@@ -253,6 +253,8 @@ function sk_fetch(string $input, array $init = []): SK_FetchResponse {
 	$method = $init['method'] ?? 'GET';
 	$headers = $init['headers'] ?? [];
 	$body = $init['body'] ?? null;
+	$timeoutMsRaw = getenv('SK_FETCH_TIMEOUT_MS');
+	$timeoutMs = is_numeric($timeoutMsRaw) && (int)$timeoutMsRaw > 0 ? (int)$timeoutMsRaw : 10000;
 
 	$headerLines = [];
 	foreach ($headers as $k => $v) {
@@ -267,7 +269,8 @@ function sk_fetch(string $input, array $init = []): SK_FetchResponse {
 		'http' => [
 			'method' => $method,
 			'header' => implode("\r\n", $headerLines),
-			'ignore_errors' => true
+			'ignore_errors' => true,
+			'timeout' => $timeoutMs / 1000
 		]
 	];
 
