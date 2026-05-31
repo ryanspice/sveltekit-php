@@ -117,7 +117,7 @@ async function hasServerFile(routeId: string, routesBasePath: string): Promise<b
 		if (await fileExists(serverPhpPath)) return true;
 
 		return false;
-	} catch (error) {
+	} catch {
 		return false;
 	}
 }
@@ -126,7 +126,9 @@ export async function generateRouteManifest(builder: Builder): Promise<RouteMani
 	const manifest: RouteManifestEntry[] = [];
 
 	// Process routes in order of specificity (longest path first)
-	const sortedRoutes = [...builder.routes].sort((a, b) => (b.id?.length ?? 0) - (a.id?.length ?? 0));
+	const sortedRoutes = [...builder.routes].sort(
+		(a, b) => (b.id?.length ?? 0) - (a.id?.length ?? 0)
+	);
 
 	for (const route of sortedRoutes) {
 		const routeId = route.id.startsWith('/') ? route.id : `/${route.id}`;
@@ -157,7 +159,7 @@ export async function generateRouteManifest(builder: Builder): Promise<RouteMani
 		let hasServerEndpoint = false;
 		try {
 			hasServerEndpoint = await hasServerFile(routeId, routesBasePath);
-		} catch (error) {
+		} catch {
 			hasServerEndpoint = false;
 		}
 
@@ -195,46 +197,54 @@ export async function generateRouteManifest(builder: Builder): Promise<RouteMani
 /**
  * Read trailingSlash configuration from route files
  */
-export async function readTrailingSlashFromRoute(routeId: string, routesBasePath: string): Promise<'never' | 'always' | 'ignore' | undefined> {
-    const chain = buildLayoutChainCandidates(routeId); // e.g. ["a/b", "a", ""]
-    
-    for (const currentId of chain) {
-        // currentId is relative posix path, e.g. "a/b" or ""
-        const dir = path.join(routesBasePath, currentId);
-        
-        // If this is the leaf route (the one we are querying), check +page
-        // Note: routeId passed in might have leading slash, currentId from chain does not (it's from buildLayoutChainCandidates which strips it? No, check impl)
-        // buildLayoutChainCandidates uses stripLeadingSlash(routeIdPosix).split('/').
-        // So chain elements do NOT have leading slash.
-        // But routeId passed here MIGHT have leading slash (see generateRouteManifest).
-        
-        const normalizedRouteId = stripLeadingSlash(routeId);
-        const normalizedCurrentId = currentId; // chain elements are already stripped
-        
-        if (normalizedCurrentId === normalizedRouteId) {
-            const pageConfig = await checkFileForTrailingSlash(dir, '+page');
-            if (pageConfig) return pageConfig;
-        }
-        
-        // Check +layout
-        const layoutConfig = await checkFileForTrailingSlash(dir, '+layout');
-        if (layoutConfig) return layoutConfig;
-    }
-    
+export async function readTrailingSlashFromRoute(
+	routeId: string,
+	routesBasePath: string
+): Promise<'never' | 'always' | 'ignore' | undefined> {
+	const chain = buildLayoutChainCandidates(routeId); // e.g. ["a/b", "a", ""]
+
+	for (const currentId of chain) {
+		// currentId is relative posix path, e.g. "a/b" or ""
+		const dir = path.join(routesBasePath, currentId);
+
+		// If this is the leaf route (the one we are querying), check +page
+		// Note: routeId passed in might have leading slash, currentId from chain does not (it's from buildLayoutChainCandidates which strips it? No, check impl)
+		// buildLayoutChainCandidates uses stripLeadingSlash(routeIdPosix).split('/').
+		// So chain elements do NOT have leading slash.
+		// But routeId passed here MIGHT have leading slash (see generateRouteManifest).
+
+		const normalizedRouteId = stripLeadingSlash(routeId);
+		const normalizedCurrentId = currentId; // chain elements are already stripped
+
+		if (normalizedCurrentId === normalizedRouteId) {
+			const pageConfig = await checkFileForTrailingSlash(dir, '+page');
+			if (pageConfig) return pageConfig;
+		}
+
+		// Check +layout
+		const layoutConfig = await checkFileForTrailingSlash(dir, '+layout');
+		if (layoutConfig) return layoutConfig;
+	}
+
 	return undefined;
 }
 
-async function checkFileForTrailingSlash(dir: string, prefix: string): Promise<'never' | 'always' | 'ignore' | undefined> {
-    for (const ext of ['.js', '.ts']) {
-        try {
-            const content = await readFile(path.join(dir, prefix + ext), 'utf-8');
-            const match = content.match(/export\s+const\s+trailingSlash\s*=\s*['"](never|always|ignore)['"]/);
-            if (match) {
-                return match[1] as 'never' | 'always' | 'ignore';
-            }
-        } catch (error) {
-            // ignore missing files
-        }
-    }
-    return undefined;
+async function checkFileForTrailingSlash(
+	dir: string,
+	prefix: string
+): Promise<'never' | 'always' | 'ignore' | undefined> {
+	for (const ext of ['.js', '.ts']) {
+		try {
+			const content = await readFile(path.join(dir, prefix + ext), 'utf-8');
+			const match = content.match(
+				/export\s+const\s+trailingSlash\s*=\s*['"](never|always|ignore)['"]/
+			);
+			if (match) {
+				return match[1] as 'never' | 'always' | 'ignore';
+			}
+		} catch {
+			// ignore missing files
+		}
+	}
+	return undefined;
 }

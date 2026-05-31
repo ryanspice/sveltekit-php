@@ -5,7 +5,7 @@ loadEnv();
 
 /**
  * Single source of truth for base path resolution.
- * 
+ *
  * Rules:
  * 1. Default to root ('') if no environment variables are set.
  * 2. If SK_BASE_PATH is set, use it (internal override).
@@ -13,9 +13,9 @@ loadEnv();
  * 4. Normalize to ensure no trailing slash (unless it is exactly '/').
  */
 export function getBasePath() {
-    // Priority: SK_BASE_PATH > DEPLOY_BASE > Default ('')
-    const raw = process.env.SK_BASE_PATH ?? process.env.DEPLOY_BASE ?? '';
-    return normalizeBase(raw);
+	// Priority: SK_BASE_PATH > DEPLOY_BASE > Default ('')
+	const raw = process.env.SK_BASE_PATH ?? process.env.DEPLOY_BASE ?? '';
+	return normalizeBase(raw);
 }
 
 /**
@@ -26,17 +26,17 @@ export function getBasePath() {
  * - Return '' for root
  */
 export function normalizeBase(raw) {
-    if (!raw) return '';
-    let b = String(raw).trim();
-    if (b === '/' || b === '.') return '';
-    
-    // Ensure leading slash
-    if (!b.startsWith('/')) b = '/' + b;
-    
-    // Strip trailing slash(es)
-    b = b.replace(/\/+$/, '');
-    
-    return b;
+	if (!raw) return '';
+	let b = String(raw).trim();
+	if (b === '/' || b === '.') return '';
+
+	// Ensure leading slash
+	if (!b.startsWith('/')) b = '/' + b;
+
+	// Strip trailing slash(es)
+	b = b.replace(/\/+$/, '');
+
+	return b;
 }
 
 export function normalizeAdapterMode(raw = 'php-static') {
@@ -50,13 +50,13 @@ export function normalizeAdapterMode(raw = 'php-static') {
  * Useful for ensuring scripts run with consistent configuration.
  */
 export function getEnvForMode(mode, base = null) {
-    const basePath = base !== null ? normalizeBase(base) : getBasePath();
-    const adapterMode = normalizeAdapterMode(mode);
-    return {
-        ...process.env,
-        SK_BASE_PATH: basePath,
-        DEPLOY_BASE: basePath, // Sync them to avoid confusion
-        ADAPTER_MODE: adapterMode,
-        NODE_ENV: 'production'
-    };
+	const basePath = base !== null ? normalizeBase(base) : getBasePath();
+	const adapterMode = normalizeAdapterMode(mode);
+	return {
+		...process.env,
+		SK_BASE_PATH: basePath,
+		DEPLOY_BASE: basePath, // Sync them to avoid confusion
+		ADAPTER_MODE: adapterMode,
+		NODE_ENV: 'production'
+	};
 }

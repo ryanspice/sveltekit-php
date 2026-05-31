@@ -71,11 +71,14 @@ export default defineConfig({
 		command: 'bun scripts/serve-e2e.mjs',
 		// Wait for the last port to be ready, but technically we wait for all.
 		// Playwright waits for the url to be available.
-		url: adapterMode === 'php-static'
-			? 'http://127.0.0.1:8086'
-			: adapterMode === 'js-ssr'
-				? (getBasePath() === '' || getBasePath() === '/' ? 'http://127.0.0.1:8087' : `http://127.0.0.1:8088${getBasePath()}`)
-				: `http://127.0.0.1:8088${getBasePath()}`,
+		url:
+			adapterMode === 'php-static'
+				? 'http://127.0.0.1:8086'
+				: adapterMode === 'js-ssr'
+					? getBasePath() === '' || getBasePath() === '/'
+						? 'http://127.0.0.1:8087'
+						: `http://127.0.0.1:8088${getBasePath()}`
+					: `http://127.0.0.1:8088${getBasePath()}`,
 		reuseExistingServer: !process.env.CI,
 		stdout: 'pipe',
 		stderr: 'pipe',

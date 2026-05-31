@@ -27,7 +27,9 @@ function normalizeAssets(raw) {
 	return a;
 }
 
-const rawAssets = process.env.ADAPTER_ASSETS ? normalizeAssets(process.env.ADAPTER_ASSETS) : undefined;
+const rawAssets = process.env.ADAPTER_ASSETS
+	? normalizeAssets(process.env.ADAPTER_ASSETS)
+	: undefined;
 const assets = rawAssets && /^https?:\/\//.test(rawAssets) ? rawAssets : undefined;
 if (debugEnabled) {
 	console.log('[svelte.config.js] ENV ADAPTER_OUT:', process.env.ADAPTER_OUT);
@@ -56,7 +58,11 @@ const config = {
 			out: process.env.ADAPTER_OUT || 'build',
 			assets: process.env.ADAPTER_ASSETS || 'build',
 			precompress: process.env.PRECOMPRESS === 'true',
-			fallback: process.env.ADAPTER_FALLBACK ? (process.env.ADAPTER_FALLBACK === 'true' ? true : process.env.ADAPTER_FALLBACK) : false,
+			fallback: process.env.ADAPTER_FALLBACK
+				? process.env.ADAPTER_FALLBACK === 'true'
+					? true
+					: process.env.ADAPTER_FALLBACK
+				: false,
 			strict: true
 		}),
 

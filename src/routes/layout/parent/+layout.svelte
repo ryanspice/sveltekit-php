@@ -10,7 +10,7 @@
 <main>
 	<h1>Parent Layout</h1>
 	<p>This is the parent level of a nested layout hierarchy.</p>
-	
+
 	<slot />
 </main>
 

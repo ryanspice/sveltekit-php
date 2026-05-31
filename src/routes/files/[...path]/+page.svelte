@@ -19,7 +19,7 @@
 	<nav aria-label="Breadcrumb">
 		<ol>
 			<li><a href="{base}/files">Root</a></li>
-			{#each pathSegments as segment, i}
+			{#each pathSegments as segment, i (segment + i)}
 				<li>
 					{#if i === pathSegments.length - 1}
 						{segment}

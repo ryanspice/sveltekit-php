@@ -502,7 +502,7 @@ async function hasServerFile(routeId, routesBasePath) {
     if (await fileExists(serverPhpPath))
       return true;
     return false;
-  } catch (error) {
+  } catch {
     return false;
   }
 }
@@ -526,7 +526,7 @@ async function generateRouteManifest(builder) {
     let hasServerEndpoint = false;
     try {
       hasServerEndpoint = await hasServerFile(routeId, routesBasePath);
-    } catch (error) {
+    } catch {
       hasServerEndpoint = false;
     }
     if (hasPage && hasServerEndpoint) {
@@ -580,7 +580,7 @@ async function checkFileForTrailingSlash(dir, prefix) {
       if (match) {
         return match[1];
       }
-    } catch (error) {}
+    } catch {}
   }
   return;
 }
@@ -3340,13 +3340,13 @@ function sveltekitPhpAdapter(options = {}) {
           if (fs.existsSync(dir)) {
             try {
               fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
-            } catch (e) {
+            } catch {
               await new Promise((r) => setTimeout(r, 200));
               fs.rmSync(dir, { recursive: true, force: true });
             }
           }
-        } catch (e) {
-          builder.log.warn(`Failed to clean ${dir}: ${e}`);
+        } catch (error) {
+          builder.log.warn(`Failed to clean ${dir}: ${error}`);
         }
       };
       await robustRimraf(outDir);
@@ -3590,14 +3590,15 @@ function sveltekitPhpAdapter(options = {}) {
         const routeId = route?.id ?? routePath;
         if (navPath.includes("matrix")) {
           debug(`DEBUG: Route for ${navPath}:`, JSON.stringify(route, null, 2));
-          debug(`DEBUG: Route config for ${navPath}:`, JSON.stringify(route?.config, null, 2));
+          const routeConfig = route && typeof route === "object" && "config" in route ? route.config : undefined;
+          debug(`DEBUG: Route config for ${navPath}:`, JSON.stringify(routeConfig, null, 2));
         }
         const { phpRegex: routeRegex, phpMap: routeParamMapPhp } = compilePhpRouteMatcher(routeId);
         const { files: deps, loadMapItems } = getRouteDeps(routeId);
         for (const d of deps)
           usedServerFiles.add(d);
         const htmlFs = path3.join(prerenderedRoot, filePath.file);
-        let htmlDir = path3.dirname(htmlFs);
+        const htmlDir = path3.dirname(htmlFs);
         const htmlBasename = path3.basename(htmlFs);
         if (!/\.(html|php)$/i.test(htmlBasename)) {
           debug(`DEBUG: Skipping non-page prerendered output: ${filePath.file}`);
@@ -3765,7 +3766,7 @@ function sveltekitPhpAdapter(options = {}) {
         if (nodeCount === 0) {
           nodeCount = 2;
         }
-        let fsPath = navPath;
+        const fsPath = navPath;
         targetDir = path3.join(prerenderedRoot, stripLeadingSlash(fsPath));
         builder.mkdirp(targetDir);
         const relToRoot = phpRelToRootFromNav(fsPath);
@@ -3812,9 +3813,10 @@ function sveltekitPhpAdapter(options = {}) {
           if (templateJsonFs && await exists(templateJsonFs)) {
             try {
               await rename(templateJsonFs, path3.join(path3.dirname(templateJsonFs), "__data.template.json"));
-            } catch (e) {
-              if (e.code !== "ENOENT") {
-                throw e;
+            } catch (error) {
+              const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+              if (code !== "ENOENT") {
+                throw error;
               }
               builder.log.warn(`Could not rename ${templateJsonFs} (ENOENT). Ignoring.`);
             }

@@ -7,7 +7,7 @@ export async function handle({ event, resolve }) {
 			return new Response(JSON.stringify({ message: 'Negotiated API' }), {
 				headers: {
 					'Content-Type': 'application/json',
-					'Vary': 'Accept'
+					Vary: 'Accept'
 				}
 			});
 		}

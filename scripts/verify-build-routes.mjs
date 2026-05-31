@@ -59,11 +59,7 @@ if (await exists(htaccessPath)) {
 	const tsMatch = htaccess.match(/# trailingSlash: (always|never|ignore)/);
 	trailingSlashMode = tsMatch ? tsMatch[1] : 'unknown';
 
-	addCheck(
-		`htaccess handles trailing slash (${trailingSlashMode})`,
-		Boolean(tsMatch),
-		'.htaccess'
-	);
+	addCheck(`htaccess handles trailing slash (${trailingSlashMode})`, Boolean(tsMatch), '.htaccess');
 }
 
 const protectedHtaccessPath = path.join(buildDir, '_protected', '.htaccess');
@@ -401,13 +397,17 @@ async function startPhpServer() {
 	}
 
 	const routerAbsolute = path.join(buildDir, 'router.php');
-	phpProc = spawn('php', ['-d', 'opcache.enable=0', '-S', `${phpHost}:${phpPort}`, '-t', buildDir, routerAbsolute], {
-		stdio: 'pipe',
-		env: {
-			...process.env,
-			SK_BASE_PATH: basePath
+	phpProc = spawn(
+		'php',
+		['-d', 'opcache.enable=0', '-S', `${phpHost}:${phpPort}`, '-t', buildDir, routerAbsolute],
+		{
+			stdio: 'pipe',
+			env: {
+				...process.env,
+				SK_BASE_PATH: basePath
+			}
 		}
-	});
+	);
 
 	phpProc.stderr.on('data', (data) => {
 		const msg = data.toString().trim();

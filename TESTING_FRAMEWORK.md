@@ -9,30 +9,33 @@ The testing ecosystem consists of End-to-End (E2E) tests via Playwright, Unit te
 ### 1.1. Test Suite Catalog
 
 #### **E2E (Node SSR)**
+
 Located in `tests/e2e/node-ssr/`. Verifies the "Hybrid" mode where PHP proxies to a Node/Bun sidecar. Runs serially due to build requirements.
 
-| File | Scenarios Covered |
-|------|-------------------|
+| File               | Scenarios Covered                                                                                                                                                                                                                                                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `node-ssr.spec.ts` | **Hybrid Integration**: Builds and tests the app in `node-ssr` mode.<br>**Core Features**: Home page rendering, Deep link SSR, SSR Data Hydration, Streaming response handling.<br>**Data Bridge**: Verifies `__data.json` proxying for nested routes.<br>**Forms**: POST form actions.<br>**Assets**: Correct separation of assets and build artifacts. |
 
 #### **E2E (PHP Static)**
+
 Located in `tests/e2e/php-static/`. Verifies the "Static" mode where PHP handles routing, assets, and data. Runs in parallel.
 
-| File | Scenarios Covered |
-|------|-------------------|
-| `smoke.spec.ts` | **Sanity Checks**: Base HTML serving, Deep route handling, Robots.txt.<br>**Data**: Global layout data merging, JSON response for data requests.<br>**Redirects**: Server-side redirect logic. |
+| File                  | Scenarios Covered                                                                                                                                                                                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `smoke.spec.ts`       | **Sanity Checks**: Base HTML serving, Deep route handling, Robots.txt.<br>**Data**: Global layout data merging, JSON response for data requests.<br>**Redirects**: Server-side redirect logic.                             |
 | `negotiation.spec.ts` | **Content Negotiation**: Verifies `Accept` header handling.<br>- Prefers HTML by default.<br>- Serves JSON when requested (`Accept: application/json`).<br>- Ensures POST requests bypass static cache and hit the server. |
-| `fallback.spec.ts` | **SPA Fallback**: Tests behavior when `ADAPTER_FALLBACK` is set (e.g., `200.html`).<br>- Verifies unknown routes return the fallback content.<br>- Checks router logic for fallback path resolution. |
-| `structure.spec.ts` | **File System**: Verifies `name.html` is normalized to `name/index.php`.<br>**Routing**: Checks that `/api/*` paths can function as pages if defined in SvelteKit. |
-| `base-mode-*.spec.ts` | **Base Paths**: Tests dynamic base path resolution (`ADAPTER_BASE_MODE='auto'`).<br>- Verifies deep nested routes work under subdirectories.<br>- Checks `<base>` tag injection and asset URL rewriting. |
+| `fallback.spec.ts`    | **SPA Fallback**: Tests behavior when `ADAPTER_FALLBACK` is set (e.g., `200.html`).<br>- Verifies unknown routes return the fallback content.<br>- Checks router logic for fallback path resolution.                       |
+| `structure.spec.ts`   | **File System**: Verifies `name.html` is normalized to `name/index.php`.<br>**Routing**: Checks that `/api/*` paths can function as pages if defined in SvelteKit.                                                         |
+| `base-mode-*.spec.ts` | **Base Paths**: Tests dynamic base path resolution (`ADAPTER_BASE_MODE='auto'`).<br>- Verifies deep nested routes work under subdirectories.<br>- Checks `<base>` tag injection and asset URL rewriting.                   |
 
 #### **Unit Tests**
+
 Located in `tests/unit/`. Isolated tests for internal logic without a full build.
 
-| File | Scenarios Covered |
-|------|-------------------|
+| File                    | Scenarios Covered                                                                                                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `assets-output.test.ts` | **Asset Management**: Verifies client assets are correctly copied to the output directory.<br>- Handles `outDir` vs `assetsDir` differences.<br>- Checks precompressed asset handling. |
-| `paths.test.ts` | **Path Utilities**: Tests internal path normalization and resolution helpers. |
+| `paths.test.ts`         | **Path Utilities**: Tests internal path normalization and resolution helpers.                                                                                                          |
 
 ### 1.2. Verification Scripts (`scripts/`)
 
@@ -72,8 +75,8 @@ tests/
 
 - **Test Files:** `*.spec.ts` for Playwright (E2E), `*.test.ts` for Vitest (Unit).
 - **Test Descriptions:**
-    - Use `describe` blocks to group by feature (e.g., `describe('Content Negotiation', ...)`).
-    - Use `test` blocks for specific behaviors (e.g., `test('serves HTML for Accept: text/html', ...)`).
+  - Use `describe` blocks to group by feature (e.g., `describe('Content Negotiation', ...)`).
+  - Use `test` blocks for specific behaviors (e.g., `test('serves HTML for Accept: text/html', ...)`).
 - **Fixtures:** Named descriptively based on the scenario (e.g., `assets-output`).
 
 ### 2.3. Storage Strategy
@@ -89,20 +92,20 @@ tests/
 
 Developers should use the `bun run` scripts defined in `package.json`.
 
-| Workflow | Command | Description |
-|----------|---------|-------------|
-| **Full Suite** | `bun run test` | Runs default Playwright suite (check config). |
-| **PHP Static Only** | `bun run e2e:php-static` | **Recommended.** Runs all static mode tests in parallel. |
-| **Node SSR Only** | `bun run e2e:node-ssr` | Runs SSR/Sidecar tests serially. |
-| **Unit Tests** | `bun run test:unit` | Fast execution for utility logic. |
-| **Verification** | `bun run verify:php-static` | Quick sanity check script. |
+| Workflow            | Command                     | Description                                              |
+| ------------------- | --------------------------- | -------------------------------------------------------- |
+| **Full Suite**      | `bun run test`              | Runs default Playwright suite (check config).            |
+| **PHP Static Only** | `bun run e2e:php-static`    | **Recommended.** Runs all static mode tests in parallel. |
+| **Node SSR Only**   | `bun run e2e:node-ssr`      | Runs SSR/Sidecar tests serially.                         |
+| **Unit Tests**      | `bun run test:unit`         | Fast execution for utility logic.                        |
+| **Verification**    | `bun run verify:php-static` | Quick sanity check script.                               |
 
 ### 3.2. Test Data Management
 
 - **Fixtures:** Use `tests/fixtures/` for static file structures needed by unit tests.
 - **Test App:** The E2E tests build the actual SvelteKit app located in `src/routes/`.
-    - **Add New Scenarios:** Create new routes in `src/routes/` (e.g., `src/routes/my-new-feature/`).
-    - **Isolation:** Each test suite (Static vs. SSR) builds to a separate output directory (`build-e2e-php-static` vs `build-e2e-node-ssr`) to prevent artifact collision.
+  - **Add New Scenarios:** Create new routes in `src/routes/` (e.g., `src/routes/my-new-feature/`).
+  - **Isolation:** Each test suite (Static vs. SSR) builds to a separate output directory (`build-e2e-php-static` vs `build-e2e-node-ssr`) to prevent artifact collision.
 
 ### 3.3. CI/CD Integration
 
@@ -110,17 +113,17 @@ The GitHub Actions workflow (`.github/workflows/playwright.yml`) automates testi
 
 - **Trigger:** Push to `main` or Pull Request.
 - **Steps:**
-    1. Install dependencies (`bun install`).
-    2. Build the adapter.
-    3. Run Unit Tests.
-    4. Run Playwright Tests (can be split into jobs for parallelism).
+  1. Install dependencies (`bun install`).
+  2. Build the adapter.
+  3. Run Unit Tests.
+  4. Run Playwright Tests (can be split into jobs for parallelism).
 
 ### 3.4. Optimization Guidelines
 
 - **Build Reuse:** The `serve-php-static.ts` script checks if a build exists. Use flags to force/skip builds to save time during local dev loops.
 - **Parallelism:**
-    - **Static Tests:** Safe to run in parallel (`fullyParallel: true`).
-    - **SSR Tests:** Must run serially (`workers: 1`) if they share a single sidecar instance or modify global state.
+  - **Static Tests:** Safe to run in parallel (`fullyParallel: true`).
+  - **SSR Tests:** Must run serially (`workers: 1`) if they share a single sidecar instance or modify global state.
 - **Targeted Testing:** Use Playwright's `-g` flag to run specific tests:
   ```bash
   bun run e2e:php-static -- -g "Content Negotiation"
@@ -139,7 +142,7 @@ The GitHub Actions workflow (`.github/workflows/playwright.yml`) automates testi
 ### 4.2. Duplication Prevention
 
 - **Review `TEST_AUDIT_REPORT.md`**: Ensure the test doesn't already exist in the consolidated suites.
-- **Shared Logic:** If a test applies to both Static and SSR modes (e.g., basic routing), consider if it needs to be tested in *both* or if one covers the logic sufficiently. Critical core features should be tested in both.
+- **Shared Logic:** If a test applies to both Static and SSR modes (e.g., basic routing), consider if it needs to be tested in _both_ or if one covers the logic sufficiently. Critical core features should be tested in both.
 
 ### 4.3. Review & Pruning
 
@@ -157,20 +160,20 @@ import { expect, test } from '@playwright/test';
 import * as utils from '../../test-utils';
 
 test.describe('My New Feature', () => {
-    test('should behave correctly under specific conditions', async ({ page }) => {
-        // 1. Arrange: Navigate to the route
-        await page.goto('/my-new-feature');
+	test('should behave correctly under specific conditions', async ({ page }) => {
+		// 1. Arrange: Navigate to the route
+		await page.goto('/my-new-feature');
 
-        // 2. Act: Interact with the page (if necessary)
-        // await page.click('#submit');
+		// 2. Act: Interact with the page (if necessary)
+		// await page.click('#submit');
 
-        // 3. Assert: Check the state
-        await expect(page.locator('h1')).toHaveText('Feature Active');
+		// 3. Assert: Check the state
+		await expect(page.locator('h1')).toHaveText('Feature Active');
 
-        // Optional: Check Server Headers (if relevant)
-        const response = await page.request.get('/my-new-feature');
-        expect(response.headers()['content-type']).toContain('text/html');
-    });
+		// Optional: Check Server Headers (if relevant)
+		const response = await page.request.get('/my-new-feature');
+		expect(response.headers()['content-type']).toContain('text/html');
+	});
 });
 ```
 
@@ -181,14 +184,14 @@ import { describe, expect, it } from 'vitest';
 import { myHelperFunction } from '../../adapter/src/utils/my-helper';
 
 describe('myHelperFunction', () => {
-    it('returns true for valid input', () => {
-        const result = myHelperFunction('valid');
-        expect(result).toBe(true);
-    });
+	it('returns true for valid input', () => {
+		const result = myHelperFunction('valid');
+		expect(result).toBe(true);
+	});
 
-    it('throws error for invalid input', () => {
-        expect(() => myHelperFunction('invalid')).toThrow();
-    });
+	it('throws error for invalid input', () => {
+		expect(() => myHelperFunction('invalid')).toThrow();
+	});
 });
 ```
 

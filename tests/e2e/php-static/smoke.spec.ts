@@ -12,7 +12,9 @@ test.beforeAll(async () => {
 	// We read it from the build output router.php which should exist.
 	try {
 		const router = await readFile(routerPath, 'utf8');
-		const match = router.match(/\$base\s*=\s*\$base_env\s*!==\s*false\s*\?\s*\$base_env\s*:\s*'([^']*)'/);
+		const match = router.match(
+			/\$base\s*=\s*\$base_env\s*!==\s*false\s*\?\s*\$base_env\s*:\s*'([^']*)'/
+		);
 		basePath = normalizeBasePath(match?.[1] ?? '');
 	} catch (e) {
 		console.warn('Could not read router.php, assuming empty base path or default', e);

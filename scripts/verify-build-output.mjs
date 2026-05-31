@@ -4,9 +4,6 @@ import { normalizeAdapterMode } from './utils/config.mjs';
 
 // Configuration
 const OUT_DIR = process.env.ADAPTER_OUT || 'build-verify-all'; // Use the same dir as verify-all
-const MANIFEST_PATH = path.join(OUT_DIR, 'adapter', 'route-manifest.php');
-const HTACCESS_PATH = path.join(OUT_DIR, '.htaccess');
-
 const BASE_PATH = process.env.SK_BASE_PATH || '';
 function resolvePath(p) {
 	if (!BASE_PATH || BASE_PATH === '/' || BASE_PATH === '') return p;
@@ -62,21 +59,33 @@ async function run() {
 
 	// 1. .htaccess Checks
 	const htaccess = checkFileExists('.htaccess');
-	checkContent(htaccess, /# trailingSlash: (always|never|ignore)/, 'htaccess: trailingSlash marker');
+	checkContent(
+		htaccess,
+		/# trailingSlash: (always|never|ignore)/,
+		'htaccess: trailingSlash marker'
+	);
 
 	// The rewrite rule might differ based on base path configuration
 	// In the build, we see: RewriteRule ^(.*)/$ /dev/sveltekit/$1 [L,R=308]
 	// This is because base path is /dev/sveltekit
 	// Let's check for the general structure of the redirect rule
-	checkContent(htaccess, /RewriteRule \^\(\.\*\)\/\$ .*\[L,R=308\]/, 'htaccess: trailingSlash rule (308 redirect)');
+	checkContent(
+		htaccess,
+		/RewriteRule \^\(\.\*\)\/\$ .*\[L,R=308\]/,
+		'htaccess: trailingSlash rule (308 redirect)'
+	);
 
-	checkContent(htaccess, /RewriteRule \^.*__data\\.json\$ .*__data\.php \[QSA,L\]/, 'htaccess: __data.json rewrite');
+	checkContent(
+		htaccess,
+		/RewriteRule \^.*__data\\.json\$ .*__data\.php \[QSA,L\]/,
+		'htaccess: __data.json rewrite'
+	);
 
 	// 2. Manifest Checks
 	const manifest = checkFileExists('adapter/route-manifest.php');
 	// Check for /status route entry
 	// It should look like: "re" => "~^/status/?$~", "type" => "page"
-	checkContent(manifest, /\/status\/\?\$\~/, 'manifest: status route regex');
+	checkContent(manifest, /\/status\/\?\$~/, 'manifest: status route regex');
 	checkContent(manifest, /'type'\s*=>\s*'page'/, 'manifest: status route type');
 
 	// 3. Page Shim Checks
@@ -98,8 +107,6 @@ async function run() {
 	// 5. Package & Config Integrity
 	log('\nChecking configuration integrity...');
 	if (!fs.existsSync('package.json')) fail('Missing package.json in root');
-	const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-
 	// Playwright Config Check (Relaxed)
 	// We no longer strictly require e2e:php-static script to exist in package.json
 	// if we are running verification via scripts/verify-all.mjs which invokes playwright directly.

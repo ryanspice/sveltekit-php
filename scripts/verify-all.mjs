@@ -13,7 +13,9 @@ function cleanup() {
 		for (const proc of spawned) {
 			try {
 				if (!proc.killed) proc.kill();
-			} catch (e) { }
+			} catch (error) {
+				void error;
+			}
 		}
 		spawned.clear();
 	}
@@ -21,8 +23,14 @@ function cleanup() {
 
 // Ensure cleanup on exit
 process.on('exit', cleanup);
-process.on('SIGINT', () => { cleanup(); process.exit(); });
-process.on('SIGTERM', () => { cleanup(); process.exit(); });
+process.on('SIGINT', () => {
+	cleanup();
+	process.exit();
+});
+process.on('SIGTERM', () => {
+	cleanup();
+	process.exit();
+});
 process.on('uncaughtException', (err) => {
 	console.error('Uncaught Exception:', err);
 	cleanup();
@@ -71,19 +79,17 @@ async function pickFreePort(preferred) {
 
 function runCmd(label, cmd, env) {
 	log(label, COLORS.yellow);
-	try {
-		// We use execSync for synchronous steps (build, test)
-		// If we needed async background servers, we'd use spawn and track them in `spawned`
-		execSync(cmd, { stdio: 'inherit', env });
-		log('OK\n', COLORS.green);
-	} catch (e) {
-		// execSync throws on non-zero exit
-		throw e;
-	}
+	// We use execSync for synchronous steps (build, test)
+	// If we needed async background servers, we'd use spawn and track them in `spawned`
+	execSync(cmd, { stdio: 'inherit', env });
+	log('OK\n', COLORS.green);
 }
 
 const opts = {
-	mode: argValue('mode') === 'all' || !argValue('mode') ? (argValue('mode') || 'all') : normalizeAdapterMode(argValue('mode')),
+	mode:
+		argValue('mode') === 'all' || !argValue('mode')
+			? argValue('mode') || 'all'
+			: normalizeAdapterMode(argValue('mode')),
 	basePath: argValue('basePath') ?? getBasePath(),
 	phpPort: argValue('phpPort') || '0',
 	nodePort: argValue('nodePort') || '0',
@@ -186,7 +192,9 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 			// /status?code=404 must return 404, not 200
 			const resStatus404 = await fetch(`${baseUrl}/status?code=404`);
 			if (resStatus404.status !== 404) {
-				throw new Error(`Regression: /status?code=404 returned ${resStatus404.status} (expected 404)`);
+				throw new Error(
+					`Regression: /status?code=404 returned ${resStatus404.status} (expected 404)`
+				);
 			}
 			log('  ✓ /status?code=404 -> 404 (Status passthrough works)');
 
@@ -205,7 +213,6 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				throw new Error(`Canonical redirect failed: Expected 308, got ${resRedirect.status}`);
 			}
 			const location = resRedirect.headers.get('location');
-			const expectedLocation = `${opts.basePath}/status`; // Expecting server to return path relative to domain root, or full URL?
 			// PHP built-in server usually returns relative or absolute path.
 			// We verify it ends with /status and doesn't contain /status//
 			if (!location.endsWith('/status') || location.endsWith('/status/')) {
@@ -232,21 +239,30 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				// Fail if it looks like "{\"success\":...}" (JSON string inside string)
 				// Devalue payload is usually an array/object structure
 				if (text.startsWith('"') && text.endsWith('"') && text.includes('\\"')) {
-					throw new Error(`Double-encoded JSON detected in action response: ${text.slice(0, 50)}...`);
+					throw new Error(
+						`Double-encoded JSON detected in action response: ${text.slice(0, 50)}...`
+					);
 				}
 
 				try {
 					const parsed = JSON.parse(text);
 					if (typeof parsed === 'string') {
-						throw new Error(`Double-encoded JSON detected (parsed as string): ${text.slice(0, 50)}...`);
+						throw new Error(
+							`Double-encoded JSON detected (parsed as string): ${text.slice(0, 50)}...`
+						);
 					}
 					log('  ✓ Action response is structured JSON (not double-encoded)');
 				} catch (e) {
 					// Devalue is JSON-compatible syntax usually
-					throw new Error(`Invalid JSON in action response: ${e.message}\nBody: ${text.slice(0, 100)}...`);
+					throw new Error(
+						`Invalid JSON in action response: ${e.message}\nBody: ${text.slice(0, 100)}...`
+					);
 				}
 			} else {
-				log(`  ⚠ Action check failed with status ${resActionSanity.status} (skipping double-encoding check)`, COLORS.yellow);
+				log(
+					`  ⚠ Action check failed with status ${resActionSanity.status} (skipping double-encoding check)`,
+					COLORS.yellow
+				);
 			}
 
 			// 5. Data Bridge Check
@@ -255,8 +271,8 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 			log(`  Checking Data Bridge: ${bridgeUrl}`);
 			const resBridge = await fetch(bridgeUrl, {
 				headers: {
-					'Connection': 'close',
-					'Accept': 'application/json',
+					Connection: 'close',
+					Accept: 'application/json',
 					'User-Agent': 'verify-all.mjs'
 				},
 				redirect: 'manual'
@@ -282,11 +298,15 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 			// GET /form-basic/__data.json should return JSON (Route Proof)
 			const resFormJson = await fetch(`${baseUrl}/form-basic/__data.json`);
 			if (resFormJson.status !== 200) {
-				throw new Error(`Regression: /form-basic/__data.json returned ${resFormJson.status} (expected 200)`);
+				throw new Error(
+					`Regression: /form-basic/__data.json returned ${resFormJson.status} (expected 200)`
+				);
 			}
 			const formJsonType = resFormJson.headers.get('content-type');
 			if (!formJsonType || !formJsonType.includes('application/json')) {
-				throw new Error(`Regression: /form-basic/__data.json content-type is '${formJsonType}' (expected application/json)`);
+				throw new Error(
+					`Regression: /form-basic/__data.json content-type is '${formJsonType}' (expected application/json)`
+				);
 			}
 			const formDataJson = await resFormJson.json();
 			// Check shape (roughly)
@@ -349,7 +369,10 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				}
 				log('  ✓ Asset loaded successfully');
 			} else {
-				log('  ⚠ No _app assets found to check in homepage (might be inline or different structure)', COLORS.yellow);
+				log(
+					'  ⚠ No _app assets found to check in homepage (might be inline or different structure)',
+					COLORS.yellow
+				);
 			}
 
 			// 6. Strict Form Action POST Check (Deterministic)
@@ -363,7 +386,7 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
 					'X-SvelteKit-Action': 'true',
-					'Accept': 'application/json'
+					Accept: 'application/json'
 				}
 			});
 
@@ -423,11 +446,13 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 			if (typeof resultData === 'string') {
 				// Sanity check: verify it's not double-encoded JSON
 				if (/^\s*\{/.test(resultData)) {
-					throw new Error(`Double-encoded JSON detected in action response: ${resultData.substring(0, 50)}...`);
+					throw new Error(
+						`Double-encoded JSON detected in action response: ${resultData.substring(0, 50)}...`
+					);
 				}
 				try {
 					resultData = JSON.parse(resultData);
-				} catch (e) {
+				} catch {
 					// keep as string
 				}
 			}
@@ -463,7 +488,7 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				headers: {
 					'Content-Type': 'application/x-www-form-urlencoded',
 					'X-SvelteKit-Action': 'true',
-					'Accept': 'application/json'
+					Accept: 'application/json'
 				}
 			});
 
@@ -491,7 +516,7 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 			// 5. Content Negotiation Check
 			// /negotiate with Accept: application/json -> JSON + Vary: Accept
 			const resNeg = await fetch(`${baseUrl}/negotiate`, {
-				headers: { 'Accept': 'application/json' }
+				headers: { Accept: 'application/json' }
 			});
 			if (resNeg.status === 200) {
 				const vary = resNeg.headers.get('vary');
@@ -514,7 +539,6 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 					throw new Error(`Negotiation check failed: status ${resNeg.status}`);
 				}
 			}
-
 		} else if (mode === 'js-ssr') {
 			// 1. SSR Data Check
 			const resSSR = await fetch(`${baseUrl}/ssr-data`);
@@ -555,7 +579,9 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 			const loc = resRoot.headers.get('location');
 			// Allow both with and without trailing slash in Location, but strict 308
 			if (!loc || (!loc.endsWith(opts.basePath) && !loc.endsWith(opts.basePath + '/'))) {
-				throw new Error(`Base Path Regression: Location header '${loc}' does not match base '${opts.basePath}'`);
+				throw new Error(
+					`Base Path Regression: Location header '${loc}' does not match base '${opts.basePath}'`
+				);
 			}
 			log('  ✓ Root / -> 308 -> Base Path');
 
@@ -611,7 +637,6 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				log('  ⚠ No _app assets found in HTML to verify (skipping asset check)', COLORS.yellow);
 			}
 		}
-
 	} catch (e) {
 		log(`  ❌ Fast HTTP check failed: ${e.message}`, COLORS.red);
 		for (const p of procs) {
@@ -651,7 +676,7 @@ async function verifyMode(mode, ports) {
 				log(`Checking syntax of ${routerPath}...`);
 				execSync('php -v', { stdio: 'inherit' });
 				execSync(`php -l ${routerPath}`, { stdio: 'inherit' });
-			} catch (e) {
+			} catch {
 				fail(`Syntax error in ${routerPath}`);
 			}
 		}
@@ -671,7 +696,9 @@ async function verifyMode(mode, ports) {
 	// Verify artifacts (stamp check)
 	const stampResult = await verifyBuildStamp(outDir, mode, opts.basePath);
 	if (!stampResult.ok) {
-		fail(`Artifacts invalid in ${outDir}: ${stampResult.error}\nRun without --skipBuild to rebuild.`);
+		fail(
+			`Artifacts invalid in ${outDir}: ${stampResult.error}\nRun without --skipBuild to rebuild.`
+		);
 	}
 	log(`Artifacts verified in ${outDir} (built at ${stampResult.stamp.builtAt})`);
 
@@ -700,7 +727,8 @@ async function verifyMode(mode, ports) {
 	} else {
 		if (!opts.skipE2E) {
 			// Determine project based on basePath
-			const project = opts.basePath === '/' || opts.basePath === '' ? 'js-ssr-root' : 'js-ssr-subdir';
+			const project =
+				opts.basePath === '/' || opts.basePath === '' ? 'js-ssr-root' : 'js-ssr-subdir';
 			// No SKIP_BUILD env needed, js-ssr tests expect artifacts
 			runCmd(`E2E (${mode})...`, `bun run test:e2e -- --project=${project}`, env);
 		} else {
@@ -720,7 +748,7 @@ async function run() {
 	if (!opts.skipPhp) {
 		try {
 			execSync('php -v', { stdio: 'ignore' });
-		} catch (e) {
+		} catch {
 			fail('PHP is required but not found. Use --skipPhp to bypass.');
 		}
 	}
@@ -770,7 +798,7 @@ async function run() {
 		}
 
 		log('\nALL CHECKS PASSED!', COLORS.green + COLORS.bold);
-	} catch (e) {
+	} catch {
 		fail('Verification failed. See logs above.');
 	}
 }

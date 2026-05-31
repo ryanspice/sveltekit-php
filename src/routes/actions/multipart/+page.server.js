@@ -1,13 +1,13 @@
 export const actions = {
 	default: async ({ request }) => {
 		const formData = await request.formData();
-		
+
 		// Get form fields
 		const title = formData.get('title');
 		const description = formData.get('description');
 		const file = formData.get('file');
 		const agree = formData.get('agree');
-		
+
 		// Validate required fields
 		if (!title || !description || !file || !agree) {
 			return {
@@ -17,7 +17,7 @@ export const actions = {
 				description
 			};
 		}
-		
+
 		// Validate file
 		if (!(file instanceof File)) {
 			return {
@@ -27,7 +27,7 @@ export const actions = {
 				description
 			};
 		}
-		
+
 		// File size validation (10MB limit)
 		const maxSize = 10 * 1024 * 1024; // 10MB in bytes
 		if (file.size > maxSize) {
@@ -38,17 +38,17 @@ export const actions = {
 				description
 			};
 		}
-		
+
 		// File type validation
 		const allowedTypes = [
 			'image/jpeg',
-			'image/png', 
+			'image/png',
 			'image/gif',
 			'image/webp',
 			'application/pdf',
 			'text/plain'
 		];
-		
+
 		if (!allowedTypes.includes(file.type)) {
 			return {
 				success: false,
@@ -57,7 +57,7 @@ export const actions = {
 				description
 			};
 		}
-		
+
 		// Simulate file processing
 		const uploadedFile = {
 			name: file.name,
@@ -65,13 +65,13 @@ export const actions = {
 			type: file.type,
 			lastModified: new Date(file.lastModified).toISOString()
 		};
-		
+
 		// In a real application, you would:
 		// 1. Save the file to a storage service
 		// 2. Create a database record
 		// 3. Generate thumbnails for images
 		// 4. Extract metadata from PDFs
-		
+
 		// For this demo, we'll just return success with file info
 		return {
 			success: true,

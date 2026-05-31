@@ -13,7 +13,7 @@
 		}
 	}
 
-	function handleSubmit(event) {
+	function handleSubmit() {
 		loading = true;
 		return async ({ result }) => {
 			loading = false;
@@ -34,7 +34,7 @@
 
 <div class="container">
 	<h1>Multipart Form Actions</h1>
-	
+
 	{#if form?.success}
 		<div class="success">
 			<p>✅ File uploaded successfully!</p>
@@ -54,10 +54,10 @@
 	<form method="POST" enctype="multipart/form-data" use:enhance={handleSubmit}>
 		<div class="form-group">
 			<label for="title">Title</label>
-			<input 
-				type="text" 
-				id="title" 
-				name="title" 
+			<input
+				type="text"
+				id="title"
+				name="title"
 				placeholder="Enter a title for your upload"
 				value={form?.title || ''}
 			/>
@@ -65,25 +65,22 @@
 
 		<div class="form-group">
 			<label for="description">Description</label>
-			<textarea 
-				id="description" 
-				name="description" 
-				rows="3"
-				placeholder="Describe your upload"
-			>{form?.description || ''}</textarea>
+			<textarea id="description" name="description" rows="3" placeholder="Describe your upload"
+				>{form?.description || ''}</textarea
+			>
 		</div>
 
 		<div class="form-group">
 			<label for="file">File Upload</label>
-			<input 
-				type="file" 
-				id="file" 
-				name="file" 
+			<input
+				type="file"
+				id="file"
+				name="file"
 				accept="image/*,.pdf,.txt"
 				on:change={handleFileSelect}
 				required
 			/>
-			
+
 			{#if selectedFile}
 				<div class="file-info">
 					<p><strong>Selected:</strong> {selectedFile.name}</p>
@@ -164,7 +161,7 @@
 		color: #555;
 	}
 
-	input[type="text"],
+	input[type='text'],
 	textarea {
 		width: 100%;
 		padding: 0.75rem;
@@ -173,11 +170,11 @@
 		font-size: 1rem;
 	}
 
-	input[type="file"] {
+	input[type='file'] {
 		margin-bottom: 0.5rem;
 	}
 
-	input[type="checkbox"] {
+	input[type='checkbox'] {
 		margin-right: 0.5rem;
 	}
 
@@ -198,7 +195,7 @@
 		max-width: 200px;
 		max-height: 200px;
 		border-radius: 4px;
-		box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	}
 
 	button {

@@ -27,20 +27,22 @@ export function phpRelToRootFromNav(navPath: string) {
 	return depth === 0 ? './' : `./${'../'.repeat(depth)}`;
 }
 
-export function phpArrayString(obj: any): string {
+export function phpArrayString(obj: unknown): string {
 	if (obj === null || obj === undefined) return 'null';
 	if (typeof obj === 'boolean') return obj ? 'true' : 'false';
 	if (typeof obj === 'number') return String(obj);
 	if (typeof obj === 'string') return `'${obj.replace(/'/g, "\\'")}'`;
 	if (Array.isArray(obj)) {
-		const items = obj.map(item => phpArrayString(item)).join(', ');
+		const items = obj.map((item) => phpArrayString(item)).join(', ');
 		return `[${items}]`;
 	}
 	if (typeof obj === 'object') {
-		const entries = Object.entries(obj).map(([key, value]) => {
-			const phpKey = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key) ? `'${key}'` : `'${key}'`;
-			return `${phpKey} => ${phpArrayString(value)}`;
-		}).join(', ');
+		const entries = Object.entries(obj as Record<string, unknown>)
+			.map(([key, value]) => {
+				const phpKey = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(key) ? `'${key}'` : `'${key}'`;
+				return `${phpKey} => ${phpArrayString(value)}`;
+			})
+			.join(', ');
 		return `[${entries}]`;
 	}
 	return 'null';

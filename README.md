@@ -23,6 +23,7 @@ This project implements a **SvelteKit adapter for PHP**, allowing you to deploy 
   - `js-ssr`: PHP frontend proxy + JavaScript SSR sidecar (Full SSR + Streaming).
 
 `js-ssr` is the SSR mode string. It uses a JavaScript SSR sidecar behind the PHP entrypoint.
+
 - **API Proxy**: `/api/*` routes are automatically handled by PHP.
 
 ---

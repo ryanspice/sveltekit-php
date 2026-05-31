@@ -4,7 +4,7 @@ export const actions = {
 		const name = formData.get('name');
 		const email = formData.get('email');
 		const message = formData.get('message');
-		
+
 		// Basic validation
 		if (!name || !email || !message) {
 			return {
@@ -12,10 +12,10 @@ export const actions = {
 				message: 'All fields are required'
 			};
 		}
-		
+
 		// Simulate processing
-		await new Promise(resolve => setTimeout(resolve, 1000));
-		
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+
 		// Return success with processed data
 		return {
 			success: true,

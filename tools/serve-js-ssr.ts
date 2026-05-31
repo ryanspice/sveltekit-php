@@ -54,14 +54,18 @@ const nodeServer = spawn('node', [handlerPath], {
 });
 
 // Start PHP Server
-const phpServer = spawn('php', ['-S', `127.0.0.1:${phpPort}`, '-t', outDir, path.join(outDir, 'router.php')], {
-	stdio: 'inherit',
-	env: {
-		...process.env,
-		SK_BASE_PATH: basePath,
-		PHP_SIDECAR_URL: `http://127.0.0.1:${port}`
+const phpServer = spawn(
+	'php',
+	['-S', `127.0.0.1:${phpPort}`, '-t', outDir, path.join(outDir, 'router.php')],
+	{
+		stdio: 'inherit',
+		env: {
+			...process.env,
+			SK_BASE_PATH: basePath,
+			PHP_SIDECAR_URL: `http://127.0.0.1:${port}`
+		}
 	}
-});
+);
 
 const cleanup = () => {
 	console.log('Shutting down servers...');

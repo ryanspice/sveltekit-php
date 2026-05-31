@@ -1,8 +1,8 @@
 export function getRouterPhpStaticPhp(fallback?: string | boolean, fallbackFile?: string) {
-    const hasFallback = Boolean(fallback);
-    const resolvedFallback = fallbackFile ?? 'index.php';
+	const hasFallback = Boolean(fallback);
+	const resolvedFallback = fallbackFile ?? 'index.php';
 
-    return `
+	return `
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 if (strpos($path, '/../') !== false || strpos($path, '/..\\\\') !== false) {
 	http_response_code(400);
@@ -372,8 +372,9 @@ if ($uri !== '/' && substr($uri, -1) !== '/') {
     }
 }
 
-${hasFallback
-            ? `
+${
+	hasFallback
+		? `
 $fallback_file = __DIR__ . '/${resolvedFallback}';
 $fallback_php_ext = str_replace('.html', '.php', $fallback_file);
 
@@ -393,7 +394,8 @@ if (is_file($fallback_file)) {
 }
 router_log("Fallback enabled but file not found. Checked: $fallback_file and $fallback_php_ext");
 `
-            : 'router_log("Fallback disabled");'}
+		: 'router_log("Fallback disabled");'
+}
 
 // Explicit 404 for non-existent routes when no fallback is configured
 http_response_code(404);

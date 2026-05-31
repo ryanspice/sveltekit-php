@@ -1,5 +1,5 @@
 export function getRouterJsSsrPhp() {
-    return `
+	return `
 // 0. Try to serve exact file match; preserves base path nesting
 $full_path = __DIR__ . $uri;
 if ($uri !== '/' && file_exists($full_path)) {

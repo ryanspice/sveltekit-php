@@ -69,8 +69,9 @@ export function getHtaccessPhpStatic(
 
 	${precompress ? 'Header append Vary "Accept-Encoding"\n' : ''}
 </IfModule>
-${precompress
-			? `<IfModule mod_mime.c>
+${
+	precompress
+		? `<IfModule mod_mime.c>
 	AddEncoding br .br
 	AddEncoding gzip .gz
 
@@ -85,8 +86,8 @@ ${precompress
 	AddType font/woff2            .woff2.br .woff2.gz
 </IfModule>
 `
-			: ''
-		}`.trim();
+		: ''
+}`.trim();
 
 	const commonRules = `
 	RewriteEngine On

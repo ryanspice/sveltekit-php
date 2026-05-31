@@ -1,7 +1,9 @@
 # Verification Plan
 
 ## Repo Audit Checklist
+
 > **Keep this checklist active for every change.**
+
 - [ ] **Adapter Changes**: Must pass `bun run verify:all`
 - [ ] **Bug Fixes**: Add a regression test in the relevant mode spec
 - [ ] **Shared Features**: Test in both modes unless clearly mode-specific
@@ -21,7 +23,9 @@ Historical audit notes under `docs/AUDIT-*` and `docs/CHAT-*` are archival snaps
 The pipeline is designed to be boring, fast, and predictable.
 
 ### 1. Single Build Phase (`build:e2e`)
+
 We build **once** for all configurations.
+
 - Command: `bun run build:e2e`
 - Outputs:
   - `build-e2e-php-static` (Base: `/dev/sveltekit`)
@@ -30,7 +34,9 @@ We build **once** for all configurations.
 - **Stamps**: Each build directory contains a `_runtime/build-stamp.json`. Tests verify this stamp before running.
 
 ### 2. Verification Phase (`test` / `verify:all`)
+
 Verification reuses existing builds.
+
 - Command: `bun run test` (alias for `verify:all`)
 - Flow:
   1. **Build**: Runs `build:e2e` (unless `SKIP_BUILD` is set).
@@ -43,7 +49,9 @@ Verification reuses existing builds.
   5. **E2E**: Runs Playwright against the builds.
 
 ### 3. E2E Serving (`serve:e2e`)
+
 Playwright (and local debugging) uses a unified server script.
+
 - Command: `bun run serve:e2e`
 - **Strictness**: Refuses to start if builds/stamps are missing.
 - **Ports**:
@@ -52,7 +60,9 @@ Playwright (and local debugging) uses a unified server script.
   - `js-ssr-subdir`: **8088** (PHP) / 3002 (JavaScript SSR sidecar)
 
 ### 4. CI Strategy
+
 CI should run:
+
 1. `bun install`
 2. `bun run build:e2e`
 3. `bun run test --skipBuild` (Reuses the artifact from step 2)
@@ -72,6 +82,7 @@ The PHP runtime templates (`php-templates.ts`) inject hardening logic to prevent
 - **Streaming Safety**: Output buffering management.
 
 ### Verification of Hardening
+
 - **Multi-include Safety**: `tests/unit/redeclare_test.php`.
 
 ## Manual Debugging

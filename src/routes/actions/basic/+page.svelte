@@ -1,38 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { applyAction } from '$app/forms';
 
 	export let form;
-
-	let loading = false;
-	let result = null;
-
-	async function handleSubmit(event) {
-		loading = true;
-		result = null;
-
-		const formData = new FormData(event.target);
-
-		try {
-			const response = await fetch(event.target.action, {
-				method: 'POST',
-				body: formData
-			});
-
-			if (response.ok) {
-				const data = await response.json();
-				result = { success: true, data };
-			} else {
-				result = { success: false, error: 'Action failed' };
-			}
-		} catch (error) {
-			result = { success: false, error: error.message };
-		} finally {
-			loading = false;
-		}
-
-		return false; // Prevent default form submission
-	}
 </script>
 
 <svelte:head>
@@ -61,9 +30,7 @@
 				<textarea id="message" name="message" rows="4" required></textarea>
 			</div>
 
-			<button type="submit" disabled={loading}>
-				{loading ? 'Processing...' : 'Submit'}
-			</button>
+			<button type="submit">Submit</button>
 		</form>
 	</div>
 

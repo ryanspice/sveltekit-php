@@ -65,7 +65,7 @@
 			<p>No messages yet...</p>
 		{:else}
 			<div class="message-list">
-				{#each messages as message}
+				{#each messages as message (message.id)}
 					<div class="message" class:recent={message.id > messages.length - 3}>
 						<span class="timestamp">{message.timestamp}</span>
 						<span class="text">{message.text}</span>

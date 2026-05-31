@@ -5,6 +5,8 @@ import os from 'node:os';
 import adapter from '../../adapter/src/index.ts';
 import { getHtaccess } from '../../adapter/src/runtime/htaccess-templates.ts';
 
+type AdapterBuilder = Parameters<ReturnType<typeof adapter>['adapt']>[0];
+
 const fixtureRoot = path.resolve('tests/fixtures/assets-output');
 const fixtureClient = path.join(fixtureRoot, 'client');
 const fixturePrerendered = path.join(fixtureRoot, 'prerendered');
@@ -29,9 +31,9 @@ function createBuilder(tempRoot: string) {
 	const prerenderedPages = new Map([['/', { file: 'index.html' }]]);
 	const builder = {
 		log: {
-			minor: () => { },
-			warn: () => { },
-			error: () => { }
+			minor: () => {},
+			warn: () => {},
+			error: () => {}
 		},
 		rimraf: (dir: string) => fs.rmSync(dir, { recursive: true, force: true }),
 		mkdirp: (dir: string) => fs.mkdirSync(dir, { recursive: true }),
@@ -62,7 +64,7 @@ function createBuilder(tempRoot: string) {
 			fs.writeFileSync(path.join(dest, 'index.js'), '');
 		},
 		generateManifest: () => '{}',
-		generateFallback: async () => { },
+		generateFallback: async () => {},
 		config: {
 			kit: {
 				paths: {
@@ -103,7 +105,7 @@ describe('assets output in js-ssr', () => {
 			precompress: false,
 			strict: false
 		});
-		await instance.adapt(builder as any);
+		await instance.adapt(builder as AdapterBuilder);
 		const assetPath = path.join(outDir, '_app', 'immutable', 'entry', 'app.js');
 		expect(fs.existsSync(assetPath)).toBe(true);
 	});
@@ -117,13 +119,12 @@ describe('assets output in js-ssr', () => {
 			precompress: true,
 			strict: false
 		});
-		await instance.adapt(builder as any);
+		await instance.adapt(builder as AdapterBuilder);
 		const target = collectAssetFiles(outDir)[0];
 		expect(target).toBeTruthy();
 		expect(fs.existsSync(target + '.br')).toBe(true);
 		expect(fs.existsSync(target + '.gz')).toBe(true);
 	});
-
 });
 
 describe('htaccess precompress rules', () => {
@@ -131,7 +132,9 @@ describe('htaccess precompress rules', () => {
 		const htaccess = getHtaccess('js-ssr', '/base', true);
 		expect(htaccess).toContain('RewriteCond %{REQUEST_URI} !/__data\\.json$ [NC]');
 		expect(htaccess).toContain('RewriteCond %{REQUEST_URI} !/__action$ [NC]');
-		expect(htaccess).toContain('Header set Cache-Control "public, max-age=31536000, immutable" env=SK_ASSET');
+		expect(htaccess).toContain(
+			'Header set Cache-Control "public, max-age=31536000, immutable" env=SK_ASSET'
+		);
 		expect(htaccess).toContain('Header set Cache-Control "no-store" env=SK_DATA');
 		expect(htaccess).toContain('Header set Cache-Control "no-store" env=SK_ACTION');
 	});

@@ -1,5 +1,5 @@
 export function getNodeHandlerMjs(base: string = '') {
-    return `
+	return `
 import { Server } from './index.js';
 import { manifest } from './manifest.js';
 import http from 'node:http';
@@ -122,7 +122,7 @@ http.createServer(async (req, res) => {
 }
 
 export function getPhpProxy(sidecarUrl: string, base: string = '') {
-    return `<?php
+	return `<?php
 require_once __DIR__ . '/_runtime/compat.php';
 /**
  * SvelteKit Node Sidecar Proxy
@@ -487,8 +487,8 @@ if ($fp) {
 }
 
 export function getStandaloneApiPhp(serverFilePath: string, relativePathToRoot?: string) {
-    const negotiationLogic = relativePathToRoot
-        ? `
+	const negotiationLogic = relativePathToRoot
+		? `
 // Content Negotiation: If HTML requested, proxy to Node (Page)
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
 header('Vary: Accept');
@@ -538,9 +538,9 @@ if (sk_prefers_html($accept)) {
     }
 }
 `
-        : '';
+		: '';
 
-    return `<?php
+	return `<?php
 /**
  * SvelteKit PHP Adapter - Standalone API Wrapper
  * Wraps ${serverFilePath}
