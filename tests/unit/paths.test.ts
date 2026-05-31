@@ -1,5 +1,4 @@
-import { test } from 'node:test';
-import assert from 'node:assert/strict';
+import { describe, it, expect } from 'vitest';
 import path from 'node:path';
 import {
 	posixify,
@@ -9,28 +8,30 @@ import {
 	phpRelToRootFromNav
 } from '../../adapter/src/utils/paths.ts';
 
-test('posixify normalizes separators', () => {
-	const input = ['a', 'b', 'c'].join(path.sep);
-	assert.equal(posixify(input), 'a/b/c');
-});
+describe('paths utils', () => {
+	it('posixify normalizes separators', () => {
+		const input = ['a', 'b', 'c'].join(path.sep);
+		expect(posixify(input)).toBe('a/b/c');
+	});
 
-test('stripLeadingSlash removes only the first slash', () => {
-	assert.equal(stripLeadingSlash('/foo/bar'), 'foo/bar');
-	assert.equal(stripLeadingSlash('foo/bar'), 'foo/bar');
-});
+	it('stripLeadingSlash removes only the first slash', () => {
+		expect(stripLeadingSlash('/foo/bar')).toBe('foo/bar');
+		expect(stripLeadingSlash('foo/bar')).toBe('foo/bar');
+	});
 
-test('toPhpIdentifier normalizes names safely', () => {
-	assert.equal(toPhpIdentifier('a-b.c'), 'a_b_c');
-	assert.equal(toPhpIdentifier('1abc'), '_1abc');
-});
+	it('toPhpIdentifier normalizes names safely', () => {
+		expect(toPhpIdentifier('a-b.c')).toBe('a_b_c');
+		expect(toPhpIdentifier('1abc')).toBe('_1abc');
+	});
 
-test('fnPrefixForServerFile produces stable prefixes', () => {
-	assert.equal(fnPrefixForServerFile('(app)/blog/+page.server.php'), 'sk__app__blog_page_server');
-	assert.equal(fnPrefixForServerFile('api/ping/+server.php'), 'sk_api_ping_server');
-});
+	it('fnPrefixForServerFile produces stable prefixes', () => {
+		expect(fnPrefixForServerFile('(app)/blog/+page.server.php')).toBe('sk__app__blog_page_server');
+		expect(fnPrefixForServerFile('api/ping/+server.php')).toBe('sk_api_ping_server');
+	});
 
-test('phpRelToRootFromNav builds relative paths', () => {
-	assert.equal(phpRelToRootFromNav('/'), './');
-	assert.equal(phpRelToRootFromNav('/a/'), './../');
-	assert.equal(phpRelToRootFromNav('/a/b/'), './../../');
+	it('phpRelToRootFromNav builds relative paths', () => {
+		expect(phpRelToRootFromNav('/')).toBe('./');
+		expect(phpRelToRootFromNav('/a/')).toBe('./../');
+		expect(phpRelToRootFromNav('/a/b/')).toBe('./../../');
+	});
 });

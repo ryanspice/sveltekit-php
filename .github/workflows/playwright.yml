@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: ['7.4', '8.3']
+        php: ['8.1', '8.3']
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
@@ -26,14 +26,16 @@ jobs:
         run: bun run check
       - name: Build adapter
         run: bun run build:adapter
-      - name: Build
-        run: bun run build
+      - name: Build E2E artifacts
+        run: bun run build:e2e
       - name: Install Playwright Browsers
         run: bunx playwright install --with-deps
-      - name: Start PHP server
-        run: php -S 127.0.0.1:4173 -t build build/router.php & sleep 1
-      - name: Run Playwright tests
-        run: bun run test
+      - name: Run Unit Tests
+        run: bun run test:unit
+      - name: Run PHP Static Verification
+        run: bun scripts/verify-all.mjs --mode=php-static --skipBuild
+      - name: Run Full Verification
+        run: bun scripts/verify-all.mjs --mode=all --skipBuild
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

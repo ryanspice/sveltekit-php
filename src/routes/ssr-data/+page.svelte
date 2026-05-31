@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { base } from '$app/paths';
 
 	export let data: { message?: string } | undefined;
 
@@ -26,7 +27,7 @@
 		</div>
 	{/if}
 
-	<a href="/">Back to Home</a>
+	<a href="{base}/">Back to Home</a>
 </div>
 
 <style>

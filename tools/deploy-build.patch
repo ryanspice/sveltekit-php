@@ -1,0 +1,233 @@
+﻿diff --git a/tools/deploy-build.ts b/tools/deploy-build.ts
+index 0000000..1111111 100644
+--- a/tools/deploy-build.ts
++++ b/tools/deploy-build.ts
+@@ -1,10 +1,12 @@
+ #!/usr/bin/env bun
+ import { spawn } from "node:child_process";
+ import crypto from "node:crypto";
+ import fs from "node:fs/promises";
+ import fssync from "node:fs";
+ import path from "node:path";
++import readline from "node:readline/promises";
+ 
+ type ManifestFile = {
+   path: string; // posix relative
+   size: number;
+   mtimeMs: number;
+   sha256: string;
+ };
+ 
+ type Manifest = {
+   version: 1;
+   createdAt: string;
+   localRoot: string;
+   files: Record<string, ManifestFile>;
+ };
+ 
+ type Options = {
+   profile: string;
+   host: string;
+   user: string;
+   port: number;
+   remote: string;
+   local: string;
+ 
+   thresholdFiles: number; // 0..1
+   thresholdBytes: number; // 0..1
+   dryRun: boolean;
+   forceFull: boolean;
++  yes: boolean;
++  listLimit: number;
+ 
+   deleteRemote: boolean;
+   wipeRemote: boolean;
+   yesWipe: boolean;
+ };
+ 
+ const DEFAULTS = {
+   profile: "mark8t-dev",
+   local: "./build",
+   port: 22,
+   thresholdFiles: 0.35,
+-  thresholdBytes: 0.5
++  thresholdBytes: 0.5,
++  listLimit: 200
+ };
+ 
+ function parseArgs(argv: string[]): Partial<Options> {
+   const out: Record<string, string | boolean> = {};
+   for (let i = 0; i < argv.length; i++) {
+     const a = argv[i]!;
+     if (!a.startsWith("--")) continue;
+@@ -78,6 +80,29 @@ function fmtBytes(n: number): string {
+   const s = i === 0 ? `${v}` : `${Math.round(v * 10) / 10}`;
+   return `${s} ${units[i]}`;
+ }
+ 
++async function promptYesNo(question: string, def = false): Promise<boolean> {
++  if (!process.stdin.isTTY) {
++    console.error('No TTY for prompt. Re-run with --yes to proceed non-interactively.');
++    process.exit(2);
++  }
++  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
++  const suffix = def ? "[Y/n]" : "[y/N]";
++  const ans = (await rl.question(`${question} ${suffix} `)).trim().toLowerCase();
++  rl.close();
++  if (!ans) return def;
++  return ans === "y" || ans === "yes";
++}
++
+ async function run(cmd: string, args: string[], inherit = true): Promise<number> {
+   return await new Promise((resolve, reject) => {
+     const p = spawn(cmd, args, { stdio: inherit ? "inherit" : "pipe" });
+     p.on("error", reject);
+     p.on("close", (code) => resolve(code ?? 1));
+   });
+ }
+@@ -212,6 +237,18 @@ function sshTarget(o: Options): string {
+   return `${o.user}@${o.host}`;
+ }
+ 
++function remoteFileFor(o: Options, relPosix: string): string {
++  const base = o.remote.replace(/\/+$/, "");
++  const r = relPosix ? `${base}/${relPosix}` : base;
++  return `${sshTarget(o)}:${r}`;
++}
++
+ function remoteDirFor(o: Options, relPosix: string): string {
+   const relDir = relPosix.includes("/") ? relPosix.slice(0, relPosix.lastIndexOf("/")) : "";
+   const r = relDir ? `${o.remote.replace(/\/+$/, "")}/${relDir}` : o.remote.replace(/\/+$/, "");
+   return r;
+ }
+ 
+@@ -313,6 +350,55 @@ async function fullUpload(o: Options): Promise<void> {
+   const code = await run("scp", ["-P", String(o.port), "-r", source, dest]);
+   if (code !== 0) process.exit(code);
+ }
+ 
++function buildPlanLines(o: Options, shouldFull: boolean, d: ReturnType<typeof diffManifests>, curr: Manifest): string[] {
++  const limit = Number.isFinite(o.listLimit) ? o.listLimit : DEFAULTS.listLimit;
++  const lines: string[] = [];
++
++  if (shouldFull) {
++    lines.push(`FULL  ${path.resolve(o.local)}${path.sep}.  ->  ${sshTarget(o)}:${o.remote.replace(/\/+$/, "")}/`);
++    const rels = Object.keys(curr.files).sort();
++    const shown = limit <= 0 ? rels : rels.slice(0, limit);
++    for (const rel of shown) {
++      lines.push(`COPY  ${rel}  ->  ${remoteFileFor(o, rel)}`);
++    }
++    if (limit > 0 && rels.length > shown.length) {
++      lines.push(`... (${rels.length - shown.length} more not shown; use --list-limit=0 to show all)`);
++    }
++    if (o.wipeRemote) {
++      lines.push(`WIPE  ${sshTarget(o)}:${o.remote.replace(/\/+$/, "")}/*  (requires --yes-wipe)`);
++    }
++    return lines;
++  }
++
++  const puts = d.changed.slice().sort();
++  const rms = d.removed.slice().sort();
++
++  const putShown = limit <= 0 ? puts : puts.slice(0, limit);
++  for (const rel of putShown) lines.push(`PUT   ${rel}  ->  ${remoteFileFor(o, rel)}`);
++  if (limit > 0 && puts.length > putShown.length) {
++    lines.push(`... (${puts.length - putShown.length} more PUT not shown; use --list-limit=0 to show all)`);
++  }
++
++  if (o.deleteRemote && rms.length) {
++    const left = limit > 0 ? Math.max(0, limit - putShown.length) : 0;
++    const rmShown = limit <= 0 ? rms : rms.slice(0, left);
++    for (const rel of rmShown) lines.push(`RM    ${remoteFileFor(o, rel)}`);
++    if (limit > 0 && rms.length > rmShown.length) {
++      lines.push(`... (${rms.length - rmShown.length} more RM not shown; use --list-limit=0 to show all)`);
++    }
++  }
++
++  return lines;
++}
++
+ async function main() {
+   const a = parseArgs(process.argv.slice(2));
+ 
+   const profile = String((a.profile ?? env("DEPLOY_PROFILE") ?? DEFAULTS.profile) as string);
+ 
+   const host = must(String((a as any).host ?? env("DEPLOY_HOST")), "host");
+   const user = must(String((a as any).user ?? env("DEPLOY_USER")), "user");
+   const remote = must(String((a as any).remote ?? env("DEPLOY_REMOTE")), "remote");
+ 
+   const port = Number((a as any).port ?? env("DEPLOY_PORT") ?? DEFAULTS.port);
+   const local = String((a as any).local ?? env("DEPLOY_LOCAL") ?? DEFAULTS.local);
+ 
+   const thresholdFiles = Number((a as any)["threshold-files"] ?? env("DEPLOY_THRESHOLD_FILES") ?? DEFAULTS.thresholdFiles);
+   const thresholdBytes = Number((a as any)["threshold-bytes"] ?? env("DEPLOY_THRESHOLD_BYTES") ?? DEFAULTS.thresholdBytes);
+ 
+   const dryRun = Boolean((a as any)["dry-run"] ?? false);
+   const forceFull = Boolean((a as any).full ?? false);
++  const yes = Boolean((a as any).yes ?? env("DEPLOY_YES") ?? false);
++  const listLimit = Number((a as any)["list-limit"] ?? env("DEPLOY_LIST_LIMIT") ?? DEFAULTS.listLimit);
+ 
+   const deleteRemote = Boolean((a as any).delete ?? false);
+   const wipeRemoteFlag = Boolean((a as any)["wipe-remote"] ?? false);
+   const yesWipe = Boolean((a as any)["yes-wipe"] ?? false);
+ 
+   const o: Options = {
+     profile,
+     host,
+     user,
+     port,
+     remote,
+     local,
+     thresholdFiles,
+     thresholdBytes,
+     dryRun,
+     forceFull,
++    yes,
++    listLimit,
+     deleteRemote,
+     wipeRemote: wipeRemoteFlag,
+     yesWipe
+   };
+@@ -384,21 +470,30 @@ async function main() {
+   console.log(
+     shouldFull
+       ? `Mode: FULL upload${o.wipeRemote ? " (wipe remote enabled)" : ""}`
+       : `Mode: PATCH upload${o.deleteRemote ? " (delete enabled)" : ""}`
+   );
+ 
+-  if (o.dryRun) {
+-    console.log("");
+-    console.log("Dry run, not uploading.");
+-    await saveManifest(cachePath, curr);
+-    return;
+-  }
++  console.log("");
++  console.log("Plan:");
++  const planLines = buildPlanLines(o, shouldFull, d, curr);
++  for (const line of planLines) console.log(line);
++
++  console.log("");
++  const question = o.dryRun
++    ? "Dry run preview complete. Run the upload now?"
++    : "Proceed with upload?";
++  const proceed = o.yes ? true : await promptYesNo(question, false);
++  if (!proceed) {
++    console.log("Cancelled. No upload performed, cache NOT updated.");
++    process.exit(0);
++  }
+ 
+   if (shouldFull) {
+     await fullUpload(o);
+   } else {
+     await patchUpload(o, d.changed, d.removed);
+   }
+ 
+   await saveManifest(cachePath, curr);
+   console.log("");
+   console.log("Done. Cache updated.");
+ }
+ 
+ main().catch((e) => {
+   console.error(e);
+   process.exit(1);
+ });

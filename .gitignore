@@ -5,8 +5,12 @@ node_modules
 .vercel
 .netlify
 .wrangler
+.deploy-cache
+.svelte-kit-*
 /.svelte-kit
 /build
+build-*
+!scripts/build-e2e.mjs
 
 # OS
 .DS_Store
@@ -21,6 +25,13 @@ Thumbs.db
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# Adapter debug artifacts
+adapter_debug.log
+debug_env.txt
+debug_payload.json
+router.log
+router_e2e.log
 
 # Playwright
 /test-results/

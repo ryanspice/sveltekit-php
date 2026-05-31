@@ -1,0 +1,239 @@
+﻿diff --git a/tools/deploy-build.ts b/tools/deploy-build.ts
+index 3333333..4444444 100644
+--- a/tools/deploy-build.ts
++++ b/tools/deploy-build.ts
+@@ -25,6 +25,8 @@ type Options = {
+   forceFull: boolean;
+   archive: boolean;
+   cleanup: boolean;
+   cleanupBackground: boolean;
++  cleanupMaxSecs: number;
++  cleanupStallSecs: number;
+   yes: boolean;
+   listLimit: number;
+
+   deleteRemote: boolean;
+@@ -315,7 +317,7 @@ async function wipeRemote(o: Options): Promise<void> {
+   if (code !== 0) process.exit(code);
+ }
+
+ async function fullUploadArchive(o: Options, curr: Manifest): Promise<void> {
+   // Create archive of local build contents (.) and extract into remote directory (overwrite).
+-  // NOTE: This will NOT delete remote files that no longer exist locally.
++  // NOTE: Cleanup (if enabled) will delete remote files not present locally.
+
+   const localAbs = path.resolve(o.local);
+   const cacheDir = path.resolve(".deploy-cache", o.profile);
+   await fs.mkdir(cacheDir, { recursive: true });
+
+   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+   const archiveLocal = path.join(cacheDir, `build-${stamp}.tgz`);
+   const keepLocal = path.join(cacheDir, `keep-${stamp}.txt`);
+   const cleanupLocal = path.join(cacheDir, `cleanup-${stamp}.sh`);
++  const runnerLocal = path.join(cacheDir, `runner-${stamp}.sh`);
+
+   const remoteBaseRaw = o.remote.replace(/\/+$/, "");
+   const remoteTgzRaw = `${remoteBaseRaw}/.deploy-upload.tgz`;
+   const remoteKeepRaw = `${remoteBaseRaw}/.deploy-keep.txt`;
+   const remoteCleanupRaw = `${remoteBaseRaw}/.deploy-cleanup.sh`;
++  const remoteRunnerRaw = `${remoteBaseRaw}/.deploy-cleanup-runner.sh`;
+   const remoteLogRaw = `${remoteBaseRaw}/.deploy-cleanup.log`;
+
+   const remoteBaseQ = remoteBaseRaw.replace(/"/g, '\\"');
+   const remoteTgzQ = remoteTgzRaw.replace(/"/g, '\\"');
+   const remoteKeepQ = remoteKeepRaw.replace(/"/g, '\\"');
+   const remoteCleanupQ = remoteCleanupRaw.replace(/"/g, '\\"');
++  const remoteRunnerQ = remoteRunnerRaw.replace(/"/g, '\\"');
+   const remoteLogQ = remoteLogRaw.replace(/"/g, '\\"');
+
+   // Build keep list from the manifest (paths are posix rel already)
+   const keepList = Object.keys(curr.files).sort().join("\n") + "\n";
+   await fs.writeFile(keepLocal, keepList, "utf8");
+
+-  // Remote cleanup script: delete files not in keep list, prune empty dirs, remove temp files.
+-  // Assumption: build output file names do not contain newlines (reasonable).
++  // Remote cleanup script: delete files not in keep list, prune empty dirs.
++  // Writes a heartbeat timestamp to .deploy-heartbeat so a watchdog can detect stalls.
+   const cleanupScript = `#!/bin/sh
+ set -e
+ cd "${remoteBaseQ}" || exit 0
++HB=".deploy-heartbeat"
++beat() { date +%s > "$HB" 2>/dev/null || true; }
++beat
+
+ # Normalize keep list
+ sort ".deploy-keep.txt" > ".deploy-keep-sorted.txt"
++beat
+
+ # List remote files (relative)
+ find . -type f -print | sed 's|^\\./||' | sort > ".deploy-remote.txt"
++beat
+
+ # Compute extras (remote - keep)
+ comm -23 ".deploy-remote.txt" ".deploy-keep-sorted.txt" > ".deploy-delete.txt" || true
++beat
+
+ if [ -s ".deploy-delete.txt" ]; then
+   while IFS= read -r f; do
+     [ -z "$f" ] && continue
+     case "$f" in
+       .deploy-*) continue ;;
+     esac
++    beat
+     rm -f -- "$f" || true
+   done < ".deploy-delete.txt"
+ fi
+
+ # Remove empty directories
+ find . -type d -empty -delete 2>/dev/null || true
++beat
+
+-# Cleanup temp files (keep log)
+-rm -f ".deploy-remote.txt" ".deploy-keep-sorted.txt" ".deploy-delete.txt" ".deploy-keep.txt" ".deploy-cleanup.sh" 2>/dev/null || true
++# Cleanup temp files (log + scripts handled by runner)
++rm -f ".deploy-remote.txt" ".deploy-keep-sorted.txt" ".deploy-delete.txt" 2>/dev/null || true
+ `;
+   await fs.writeFile(cleanupLocal, cleanupScript, "utf8");
+
++  // Runner/watchdog:
++  // - spawns cleanup (nice'd if available)
++  // - kills previous cleanup if still running
++  // - kills on stall (no heartbeat) or max runtime
++  // - removes temp files/scripts at end (leaves log)
++  const runnerScript = `#!/bin/sh
++set -e
++cd "${remoteBaseQ}" || exit 0
++
++LOG=".deploy-cleanup.log"
++PIDFILE=".deploy-cleanup.pid"
++HB=".deploy-heartbeat"
++MAX="${o.cleanupMaxSecs}"
++STALL="${o.cleanupStallSecs}"
++
++ts() { date -Is 2>/dev/null || date; }
++echo "[runner] start $(ts) max=${o.cleanupMaxSecs}s stall=${o.cleanupStallSecs}s" >> "$LOG"
++
++# Kill any previous cleanup still running
++if [ -f "$PIDFILE" ]; then
++  old="$(cat "$PIDFILE" 2>/dev/null || true)"
++  case "$old" in
++    ''|*[!0-9]*) ;;
++    *)
++      if kill -0 "$old" 2>/dev/null; then
++        echo "[runner] killing previous pid=$old $(ts)" >> "$LOG"
++        kill "$old" 2>/dev/null || true
++        sleep 2
++        kill -9 "$old" 2>/dev/null || true
++      fi
++    ;;
++  esac
++  rm -f "$PIDFILE" 2>/dev/null || true
++fi
++
++date +%s > "$HB" 2>/dev/null || echo 0 > "$HB"
++
++NICE=""
++if command -v nice >/dev/null 2>&1; then NICE="nice -n 10"; fi
++
++($NICE sh ".deploy-cleanup.sh") >> "$LOG" 2>&1 &
++pid=$!
++echo "$pid" > "$PIDFILE"
++start="$(date +%s)"
++
++kill_it() {
++  why="$1"
++  echo "[runner] $why pid=$pid $(ts)" >> "$LOG"
++  kill "$pid" 2>/dev/null || true
++  sleep 3
++  kill -9 "$pid" 2>/dev/null || true
++}
++
++while kill -0 "$pid" 2>/dev/null; do
++  now="$(date +%s)"
++  if [ $((now-start)) -gt "$MAX" ]; then
++    kill_it "timeout"
++    break
++  fi
++  hb="$(cat "$HB" 2>/dev/null || echo 0)"
++  case "$hb" in ''|*[!0-9]*) hb=0 ;; esac
++  if [ "$hb" -gt 0 ] && [ $((now-hb)) -gt "$STALL" ]; then
++    kill_it "stall (no heartbeat for ${o.cleanupStallSecs}s)"
++    break
++  fi
++  sleep 2
++done
++
++wait "$pid" 2>/dev/null || true
++rm -f "$PIDFILE" "$HB" ".deploy-keep.txt" ".deploy-cleanup.sh" ".deploy-cleanup-runner.sh" 2>/dev/null || true
++echo "[runner] end $(ts)" >> "$LOG"
++`;
++  await fs.writeFile(runnerLocal, runnerScript, "utf8");
++
+   // tar -czf <archive> -C <localAbs> .
+   let code = await run("tar", ["-czf", archiveLocal, "-C", localAbs, "."]);
+   if (code !== 0) process.exit(code);
+
+   // upload archive into the destination folder
+   code = await run("ssh", ["-p", String(o.port), sshTarget(o), `mkdir -p "${remoteBaseQ}"`]);
+   if (code !== 0) process.exit(code);
+
+   code = await run("scp", ["-P", String(o.port), archiveLocal, `${sshTarget(o)}:${remoteTgzRaw}`]);
+   if (code !== 0) process.exit(code);
+
+   // upload keep list + cleanup script
+   code = await run("scp", ["-P", String(o.port), keepLocal, `${sshTarget(o)}:${remoteKeepRaw}`]);
+   if (code !== 0) process.exit(code);
+   code = await run("scp", ["-P", String(o.port), cleanupLocal, `${sshTarget(o)}:${remoteCleanupRaw}`]);
+   if (code !== 0) process.exit(code);
++  code = await run("scp", ["-P", String(o.port), runnerLocal, `${sshTarget(o)}:${remoteRunnerRaw}`]);
++  if (code !== 0) process.exit(code);
+
+   // extract in-place (overwrite), then remove the uploaded archive
+   // then run cleanup (background by default) to delete remote files not present locally
+   const runCleanup =
+     o.cleanup
+       ? o.cleanupBackground
+-        ? `if command -v nohup >/dev/null 2>&1; then nohup sh "${remoteCleanupQ}" > "${remoteLogQ}" 2>&1 & else sh "${remoteCleanupQ}" > "${remoteLogQ}" 2>&1 & fi; echo "Cleanup started: ${sshTarget(o)}:${remoteLogRaw}"`
+-        : `sh "${remoteCleanupQ}" > "${remoteLogQ}" 2>&1; echo "Cleanup finished: ${sshTarget(o)}:${remoteLogRaw}"`
++        ? `chmod 700 "${remoteCleanupQ}" "${remoteRunnerQ}" 2>/dev/null || true; if command -v nohup >/dev/null 2>&1; then nohup sh "${remoteRunnerQ}" >> "${remoteLogQ}" 2>&1 & else sh "${remoteRunnerQ}" >> "${remoteLogQ}" 2>&1 & fi; echo "Cleanup watchdog started: ${sshTarget(o)}:${remoteLogRaw}"`
++        : `chmod 700 "${remoteCleanupQ}" "${remoteRunnerQ}" 2>/dev/null || true; sh "${remoteRunnerQ}" >> "${remoteLogQ}" 2>&1; echo "Cleanup watchdog finished: ${sshTarget(o)}:${remoteLogRaw}"`
+       : `echo "Cleanup disabled."`;
+
+   const extractCmd =
+     `tar -xzf "${remoteTgzQ}" -C "${remoteBaseQ}" && rm -f "${remoteTgzQ}" && ${runCleanup}`;
+
+   code = await run("ssh", ["-p", String(o.port), sshTarget(o), extractCmd]);
+   if (code !== 0) process.exit(code);
+
+   await fs.rm(archiveLocal, { force: true });
+   await fs.rm(keepLocal, { force: true });
+   await fs.rm(cleanupLocal, { force: true });
++  await fs.rm(runnerLocal, { force: true });
+ }
+@@ -406,10 +408,14 @@ async function main() {
+   const archive = parseBool((a as any).archive ?? env("DEPLOY_ARCHIVE"), false);
+   const cleanupWait = parseBool((a as any)["cleanup-wait"] ?? env("DEPLOY_CLEANUP_WAIT"), false);
+   const cleanup = parseBool((a as any).cleanup ?? env("DEPLOY_CLEANUP"), archive ? true : false);
+   const cleanupBackground = cleanup ? !cleanupWait : false;
++  const cleanupMaxSecs = Number((a as any)["cleanup-max-secs"] ?? env("DEPLOY_CLEANUP_MAX_SECS") ?? 90);
++  const cleanupStallSecs = Number((a as any)["cleanup-stall-secs"] ?? env("DEPLOY_CLEANUP_STALL_SECS") ?? 15);
+   const yes = Boolean((a as any).yes ?? env("DEPLOY_YES") ?? false);
+   const listLimit = Number((a as any)["list-limit"] ?? env("DEPLOY_LIST_LIMIT") ?? DEFAULTS.listLimit);
+
+   const deleteRemote = Boolean((a as any).delete ?? false);
+   const wipeRemoteFlag = Boolean((a as any)["wipe-remote"] ?? false);
+   const yesWipe = Boolean((a as any)["yes-wipe"] ?? false);
+
+   const o: Options = {
+@@ -423,6 +429,8 @@ async function main() {
+     archive,
+     cleanup,
+     cleanupBackground,
++    cleanupMaxSecs,
++    cleanupStallSecs,
+     yes,
+     listLimit,
+     deleteRemote,
+     wipeRemote: wipeRemoteFlag,
+     yesWipe
+   };

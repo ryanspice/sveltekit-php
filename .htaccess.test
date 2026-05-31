@@ -1,0 +1,24 @@
+Options -MultiViews
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Serve real files/dirs directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # SvelteKit data requests
+  RewriteRule ^(.*/)?__data\.json$ $1__data.php [L,QSA]
+
+  # Extensionless -> .php if it exists (trailingSlash=never style)
+  RewriteCond %{REQUEST_FILENAME}.php -f
+  RewriteRule ^(.+?)/?$ $1.php [L,QSA]
+
+  # Extensionless -> /index.php if it exists (trailingSlash=always style)
+  RewriteCond %{REQUEST_FILENAME}/index.php -f
+  RewriteRule ^(.+?)/?$ $1/index.php [L,QSA]
+
+  # Last resort: let router.php decide (optional but robust)
+  RewriteRule ^ router.php [L,QSA]
+</IfModule>

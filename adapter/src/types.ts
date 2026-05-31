@@ -1,17 +1,22 @@
 export interface AdapterOptions {
-	mode?: 'php-static' | 'node-ssr';
+	mode?: AdapterMode;
 	ssr?: boolean;
 	out?: string;
 	assets?: string;
 	precompress?: boolean;
 	fallback?: boolean;
 	strict?: boolean;
+	basePath?: string;
+	baseMode?: 'fixed' | 'auto';
 }
+
+export type AdapterMode = 'php-static' | 'js-ssr';
 
 export interface Route {
 	id: string;
 	pattern: RegExp;
 	prerender: boolean | 'auto';
+	trailingSlash?: 'never' | 'always' | 'ignore';
 }
 
 export interface PrerenderedPage {
@@ -37,6 +42,11 @@ export interface Builder {
 			files: {
 				routes: string;
 			};
+			paths: {
+				base: string;
+				assets: string;
+			};
+			trailingSlash?: 'never' | 'always' | 'ignore';
 		};
 	};
 

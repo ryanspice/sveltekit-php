@@ -1,0 +1,100 @@
+﻿diff --git a/tools/deploy-build.ts b/tools/deploy-build.ts
+index 1111111..2222222 100644
+--- a/tools/deploy-build.ts
++++ b/tools/deploy-build.ts
+@@ -23,6 +23,7 @@ type Options = {
+   thresholdFiles: number; // 0..1
+   thresholdBytes: number; // 0..1
+   dryRun: boolean;
+   forceFull: boolean;
++  archive: boolean;
+   yes: boolean;
+   listLimit: number;
+ 
+   deleteRemote: boolean;
+@@ -41,7 +42,8 @@ const DEFAULTS = {
+   local: "./build",
+   port: 22,
+   thresholdFiles: 0.35,
+   thresholdBytes: 0.5,
+-  listLimit: 200
++  listLimit: 200,
++  // archive: false (default)
+ };
+ 
+ function parseArgs(argv: string[]): Partial<Options> {
+   const out: Record<string, string | boolean> = {};
+@@ -313,6 +315,48 @@ async function wipeRemote(o: Options): Promise<void> {
+   if (code !== 0) process.exit(code);
+ }
+ 
++async function fullUploadArchive(o: Options): Promise<void> {
++  // Create archive of local build contents (.) and extract into remote directory (overwrite).
++  // NOTE: This will NOT delete remote files that no longer exist locally.
++  const localAbs = path.resolve(o.local);
++  const cacheDir = path.resolve(".deploy-cache", o.profile);
++  await fs.mkdir(cacheDir, { recursive: true });
++
++  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
++  const archiveLocal = path.join(cacheDir, `build-${stamp}.tgz`);
++
++  const remoteBaseRaw = o.remote.replace(/\/+$/, "");
++  const remoteTgzRaw = `${remoteBaseRaw}/.deploy-upload.tgz`;
++
++  const remoteBaseQ = remoteBaseRaw.replace(/"/g, '\\"');
++  const remoteTgzQ = remoteTgzRaw.replace(/"/g, '\\"');
++
++  // tar -czf <archive> -C <localAbs> .
++  let code = await run("tar", ["-czf", archiveLocal, "-C", localAbs, "."]);
++  if (code !== 0) process.exit(code);
++
++  // upload archive into the destination folder
++  code = await run("ssh", ["-p", String(o.port), sshTarget(o), `mkdir -p "${remoteBaseQ}"`]);
++  if (code !== 0) process.exit(code);
++
++  code = await run("scp", ["-P", String(o.port), archiveLocal, `${sshTarget(o)}:${remoteTgzRaw}`]);
++  if (code !== 0) process.exit(code);
++
++  // extract in-place (overwrite), then remove the uploaded archive
++  const extractCmd = `tar -xzf "${remoteTgzQ}" -C "${remoteBaseQ}" && rm -f "${remoteTgzQ}"`;
++  code = await run("ssh", ["-p", String(o.port), sshTarget(o), extractCmd]);
++  if (code !== 0) process.exit(code);
++
++  await fs.rm(archiveLocal, { force: true });
++}
++
+ async function fullUpload(o: Options): Promise<void> {
+   await run("ssh", ["-p", String(o.port), sshTarget(o), `mkdir -p "${o.remote.replace(/"/g, '\\"')}"`]);
+ 
+   await wipeRemote(o);
+ 
++  if (o.archive) {
++    await fullUploadArchive(o);
++    return;
++  }
++
+   const localAbs = path.resolve(o.local);
+   const source = path.join(localAbs, ".");
+   const dest = `${sshTarget(o)}:${o.remote.replace(/\/+$/, "")}/`;
+@@ -350,6 +394,7 @@ async function main() {
+   const thresholdBytes = Number((a as any)["threshold-bytes"] ?? env("DEPLOY_THRESHOLD_BYTES") ?? DEFAULTS.thresholdBytes);
+ 
+   const dryRun = Boolean((a as any)["dry-run"] ?? false);
+   const forceFull = Boolean((a as any).full ?? false);
++  const archive = Boolean((a as any).archive ?? env("DEPLOY_ARCHIVE") ?? false);
+   const yes = Boolean((a as any).yes ?? env("DEPLOY_YES") ?? false);
+   const listLimit = Number((a as any)["list-limit"] ?? env("DEPLOY_LIST_LIMIT") ?? DEFAULTS.listLimit);
+ 
+   const deleteRemote = Boolean((a as any).delete ?? false);
+@@ -365,6 +410,7 @@ async function main() {
+     thresholdFiles,
+     thresholdBytes,
+     dryRun,
+     forceFull,
++    archive,
+     yes,
+     listLimit,
+     deleteRemote,
+     wipeRemote: wipeRemoteFlag,
+     yesWipe
+   };

@@ -1,5 +1,5 @@
 export function getNodeHandlerMjs(base: string = '') {
-	return `
+    return `
 import { Server } from './index.js';
 import { manifest } from './manifest.js';
 import http from 'node:http';
@@ -8,16 +8,34 @@ const server = new Server(manifest);
 await server.init({ env: process.env });
 
 const PORT = process.env.PORT || 3000;
+const DEBUG = process.env.SK_DEBUG === 'true' || process.env.ADAPTER_DEBUG === 'true';
+const debugLog = (...args) => {
+    if (DEBUG) console.log(...args);
+};
 
 http.createServer(async (req, res) => {
 	try {
 		const protocol = req.headers['x-forwarded-proto'] || 'http';
 		const host = req.headers['x-forwarded-host'] || req.headers.host;
-		const url = new URL(req.url, \`\${protocol}://\${host}\`);
+		let url = new URL(req.url, \`\${protocol}://\${host}\`);
 
     // Health/Ready Checks
-    const pathname = url.pathname;
     const base = '${base}';
+    const pathname = url.pathname;
+    const ensureBase = (rawPathname, basePath) => {
+        if (!basePath) return rawPathname;
+        if (rawPathname === basePath || rawPathname.startsWith(basePath + '/')) return rawPathname;
+        if (rawPathname === '/') return basePath + '/';
+        return basePath + rawPathname;
+    };
+    const prefixBase = (location, basePath) => {
+        if (!basePath || !location) return location;
+        if (/^https?:\\/\\//i.test(location)) return location;
+        if (!location.startsWith('/')) return location;
+        if (location === basePath || location.startsWith(basePath + '/')) return location;
+        if (location === '/') return basePath + '/';
+        return basePath + location;
+    };
     const healthPath = base + '/__health';
     const readyPath = base + '/__ready';
 
@@ -27,13 +45,18 @@ http.createServer(async (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         res.end(JSON.stringify({
             ok: true,
-            mode: 'node-ssr',
+            mode: 'js-ssr',
             ts: Date.now()
         }));
         return;
     }
 
-    console.log('[Handler] Request: ' + req.method + ' ' + url.pathname);
+    const routedPathname = ensureBase(pathname, base);
+    if (routedPathname !== pathname) {
+        url.pathname = routedPathname;
+    }
+
+    debugLog('[Handler] Request: ' + req.method + ' ' + pathname + ' -> ' + url.pathname);
 
     // Polyfill: SvelteKit may not handle HEAD for __data.json, so we simulate it by doing GET and stripping body
     const isHead = req.method === 'HEAD';
@@ -41,7 +64,7 @@ http.createServer(async (req, res) => {
     const method = (isHead && isDataRequest) ? 'GET' : req.method;
 
     if (isHead && isDataRequest) {
-        console.log('[Handler] Converting HEAD to GET for ' + url.pathname);
+        debugLog('[Handler] Converting HEAD to GET for ' + url.pathname);
     }
 
     const request = new Request(url, {
@@ -65,6 +88,8 @@ http.createServer(async (req, res) => {
         if (key === 'set-cookie') {
             const cookies = response.headers.getSetCookie();
             res.setHeader('set-cookie', cookies);
+        } else if (key === 'location') {
+            res.setHeader('location', prefixBase(value, base));
         } else {
             res.setHeader(key, value);
         }
@@ -97,7 +122,7 @@ http.createServer(async (req, res) => {
 }
 
 export function getPhpProxy(sidecarUrl: string, base: string = '') {
-	return `<?php
+    return `<?php
 require_once __DIR__ . '/_runtime/compat.php';
 /**
  * SvelteKit Node Sidecar Proxy
@@ -120,47 +145,113 @@ ini_set('display_errors', '0'); // Suppress notices/warnings from breaking outpu
 while (ob_get_level()) ob_end_clean();
 
 // Configuration & Validation (Security: Prevent SSRF)
-$sidecarHost = getenv('SIDECAR_HOST') ?: '127.0.0.1';
-$sidecarPort = getenv('SIDECAR_PORT') ?: '3000';
-$allowNonLocal = getenv('ALLOW_NONLOCAL_SIDECAR') ?: '0';
+$sidecar = getenv('PHP_SIDECAR_URL');
 
-if ($allowNonLocal !== '1' && $sidecarHost !== '127.0.0.1' && $sidecarHost !== 'localhost') {
-    file_put_contents('php://stderr', "[Proxy Config Error] SIDECAR_HOST must be local unless ALLOW_NONLOCAL_SIDECAR=1\n", FILE_APPEND);
-    http_response_code(500);
-    echo "Configuration Error: Insecure SIDECAR_HOST";
-    exit;
+if (!$sidecar) {
+    $sidecarHost = getenv('SIDECAR_HOST') ?: '127.0.0.1';
+    $sidecarPort = getenv('SIDECAR_PORT') ?: '3000';
+    $allowNonLocal = getenv('ALLOW_NONLOCAL_SIDECAR') ?: '0';
+
+    if ($allowNonLocal !== '1' && $sidecarHost !== '127.0.0.1' && $sidecarHost !== 'localhost') {
+        file_put_contents('php://stderr', "[Proxy Config Error] SIDECAR_HOST must be local unless ALLOW_NONLOCAL_SIDECAR=1\n", FILE_APPEND);
+        http_response_code(500);
+        echo "Configuration Error: Insecure SIDECAR_HOST";
+        exit;
+    }
+
+    if (!is_numeric($sidecarPort)) {
+        file_put_contents('php://stderr', "[Proxy Config Error] SIDECAR_PORT must be numeric\n", FILE_APPEND);
+        http_response_code(500);
+        echo "Configuration Error: Invalid SIDECAR_PORT";
+        exit;
+    }
+    $sidecar = "http://$sidecarHost:$sidecarPort";
 }
 
-if (!is_numeric($sidecarPort)) {
-    file_put_contents('php://stderr', "[Proxy Config Error] SIDECAR_PORT must be numeric\n", FILE_APPEND);
-    http_response_code(500);
-    echo "Configuration Error: Invalid SIDECAR_PORT";
-    exit;
-}
-
-$sidecar = "http://$sidecarHost:$sidecarPort";
+$sidecar = rtrim($sidecar, '/');
 $base = '${base}';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = $_SERVER['REQUEST_URI'];
+$path = parse_url($uri, PHP_URL_PATH);
+// Normalize path for matching (e.g. // -> /)
+if ($path && $path !== '/') {
+    $path = preg_replace('#/+#', '/', $path);
+}
+
+// 1. Prerendered Home Page Support
+if (($path === '/' || $path === '/index.php')) {
+    if (file_exists(__DIR__ . '/_home.php')) {
+        require __DIR__ . '/_home.php';
+        exit;
+    }
+
+    $htmlPath = __DIR__ . '/index.html';
+    if (file_exists($htmlPath)) {
+        header('Content-Type: text/html; charset=utf-8');
+        readfile($htmlPath);
+        exit;
+    } else {
+        // Debugging why index.html is not found
+        proxy_log("Debug: index.html not found at $htmlPath");
+    }
+}
+
+// 2. Prerendered Data Support
+// If we have a local __data.php corresponding to the request, serve it directly.
+// This handles /__data.json -> /__data.php (Root)
+// And /about/__data.json -> /about/__data.php (Subdir)
+if (substr($path, -12) === '/__data.json') {
+    $phpDataRel = substr($path, 0, -12) . '/__data.php';
+    // Prevent directory traversal attacks if someone requests /../../__data.json (though parse_url cleans some)
+    // Realpath check is good.
+    $phpData = __DIR__ . $phpDataRel;
+    if (file_exists($phpData)) {
+         $real = realpath($phpData);
+         if ($real && strpos($real, realpath(__DIR__)) === 0) {
+             $_SERVER['SCRIPT_FILENAME'] = $real;
+             require $real;
+             exit;
+         }
+    }
+}
+
 $reqId = uniqid('req_', true);
 
 // Logging Helper
-function proxy_log($msg) {
-    global $reqId;
-    $log = json_encode([
-        'ts' => date('c'),
-        'id' => $reqId,
-        'msg' => $msg
-    ]);
-    file_put_contents('php://stderr', $log . "\\n", FILE_APPEND);
+if (!function_exists('proxy_log')) {
+    function proxy_log($msg) {
+        global $reqId;
+        $log = json_encode([
+            'ts' => date('c'),
+            'id' => $reqId,
+            'msg' => $msg
+        ]);
+        file_put_contents('php://stderr', $log . "\\n", FILE_APPEND);
+    }
 }
 
-proxy_log("Proxy Start: Method=$method, URI=$uri");
+if (!function_exists('proxy_debug_enabled')) {
+    function proxy_debug_enabled() {
+        $value = getenv('PROXY_DEBUG');
+        if ($value === false) $value = getenv('SK_DEBUG');
+        if ($value === false) $value = getenv('ADAPTER_DEBUG');
+        if ($value === false) return false;
+        return in_array(strtolower((string)$value), ['1', 'true', 'yes', 'on'], true);
+    }
+}
+
+if (!function_exists('proxy_debug')) {
+    function proxy_debug($msg) {
+        if (proxy_debug_enabled()) proxy_log($msg);
+    }
+}
+
+proxy_debug("Proxy Start: Method=$method, URI=$uri, Sidecar=$sidecar");
 
 // Max Body Check
 $len = $_SERVER['CONTENT_LENGTH'] ?? 'unknown';
-proxy_log("Body Check: Length=$len, Max=$maxBodyBytes");
+proxy_debug("Body Check: Length=$len, Max=$maxBodyBytes");
 
 if (isset($_SERVER['CONTENT_LENGTH']) && (int)$_SERVER['CONTENT_LENGTH'] > $maxBodyBytes) {
     proxy_log("Payload Too Large: " . $_SERVER['CONTENT_LENGTH']);
@@ -229,6 +320,7 @@ if (function_exists('curl_init')) {
     curl_setopt($ch, CURLOPT_HEADER, false); // Headers handled by callback
     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false); // Do not follow redirects
     curl_setopt($ch, CURLOPT_BUFFERSIZE, 16384); // Smaller buffer for streaming?
+    curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4); // Force IPv4 to avoid localhost ::1 issues on Windows
 
     // Timeouts
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT_MS, (int)$connectTimeoutMs);
@@ -323,7 +415,7 @@ if (function_exists('curl_init')) {
     if ($result === false) {
         $error = curl_error($ch);
         $errno = curl_errno($ch);
-        proxy_log("Proxy Error ($errno): $error");
+        proxy_log("Proxy Error (origin=$sidecar, errno=$errno): $error");
 
         // If we haven't sent headers yet, we can send 502/504
         if (!headers_sent()) {
@@ -394,135 +486,12 @@ if ($fp) {
 ?>`;
 }
 
-export function getHtaccess(mode: string, precompress: boolean = false) {
-	// Removed RewriteBase to support flexible subdirectory deployment
-
-	let commonRules = `
-    RewriteEngine On
-
-    # 1. Serve static files if they exist
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^ - [L]
-`;
-
-	// Precompression Rules (Brotli/Gzip)
-	if (precompress) {
-		commonRules = `
-    RewriteEngine On
-
-    # 0. Precompression (Brotli)
-    RewriteCond %{HTTP:Accept-Encoding} br
-    RewriteCond %{REQUEST_FILENAME}.br -f
-    RewriteRule ^(.*)$ $1.br [L]
-
-    # 0. Precompression (Gzip)
-    RewriteCond %{HTTP:Accept-Encoding} gzip
-    RewriteCond %{REQUEST_FILENAME}.gz -f
-    RewriteRule ^(.*)$ $1.gz [L]
-
-    # Ensure Content-Type is correct for compressed files
-    # This usually requires mod_mime and mod_headers.
-    <IfModule mod_headers.c>
-        <FilesMatch "\\.js\\.br$">
-            Header set Content-Type "application/javascript"
-            Header set Content-Encoding br
-            Header append Vary Accept-Encoding
-        </FilesMatch>
-        <FilesMatch "\\.js\\.gz$">
-            Header set Content-Type "application/javascript"
-            Header set Content-Encoding gzip
-            Header append Vary Accept-Encoding
-        </FilesMatch>
-        <FilesMatch "\\.css\\.br$">
-            Header set Content-Type "text/css"
-            Header set Content-Encoding br
-            Header append Vary Accept-Encoding
-        </FilesMatch>
-        <FilesMatch "\\.css\\.gz$">
-            Header set Content-Type "text/css"
-            Header set Content-Encoding gzip
-            Header append Vary Accept-Encoding
-        </FilesMatch>
-        <FilesMatch "\\.html\\.br$">
-            Header set Content-Type "text/html"
-            Header set Content-Encoding br
-            Header append Vary Accept-Encoding
-        </FilesMatch>
-        <FilesMatch "\\.html\\.gz$">
-            Header set Content-Type "text/html"
-            Header set Content-Encoding gzip
-            Header append Vary Accept-Encoding
-        </FilesMatch>
-    </IfModule>
-
-    # 1. Serve static files if they exist
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteRule ^ - [L]
-`;
-	}
-
-	// Cache Control Rules
-	const cacheRules = `
-    <IfModule mod_headers.c>
-        # Immutable assets (hashed)
-        <FilesMatch "^immutable/.*$">
-            Header set Cache-Control "public, max-age=31536000, immutable"
-        </FilesMatch>
-
-        # Other assets in _app (not immutable)
-        <FilesMatch "^_app/(?!immutable/).*$">
-            Header set Cache-Control "public, max-age=0, must-revalidate"
-        </FilesMatch>
-
-        # HTML/PHP Pages and Data
-        <FilesMatch "\\.(php|html)$">
-            Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
-        </FilesMatch>
-    </IfModule>
-`;
-
-	if (mode === 'node-ssr') {
-		return `
-<IfModule mod_rewrite.c>
-${commonRules}
-    # 2. Serve directory index if it exists (e.g. index.php)
-    RewriteCond %{REQUEST_FILENAME} -d
-    RewriteCond %{REQUEST_FILENAME}/index.php -f
-    RewriteRule ^ %{REQUEST_URI}/index.php [L]
-
-    # 3. Proxy everything else to index.php (which proxies to Node)
-    RewriteRule ^ index.php [L]
-</IfModule>
-${cacheRules}
-`;
-	}
-
-	// php-static mode
-	return `
-<IfModule mod_rewrite.c>
-${commonRules}
-    # 2. SvelteKit __data.json Bridge
-    # Rewrite /path/__data.json -> /path/__data.php
-    RewriteRule ^(.*)/__data\\.json$ $1/__data.php [L]
-
-    # 3. Handle Prerendered HTML / PHP
-    # If request is /foo, check for /foo.php (prerendered)
-    RewriteCond %{REQUEST_FILENAME}.php -f
-    RewriteRule ^(.*)$ $1.php [L]
-
-    # 4. Fallback to index.php (SPA / Dynamic)
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^ index.php [L]
-</IfModule>
-${cacheRules}
-`;
-}
-
 export function getStandaloneApiPhp(serverFilePath: string, relativePathToRoot?: string) {
-	const negotiationLogic = relativePathToRoot
-		? `
+    const negotiationLogic = relativePathToRoot
+        ? `
 // Content Negotiation: If HTML requested, proxy to Node (Page)
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+header('Vary: Accept');
 if (($_SERVER['HTTP_X_SVELTEKIT_ACTION'] ?? '') === 'true') {
     $proxy = __DIR__ . '/${relativePathToRoot}/index.php';
     if (file_exists($proxy)) {
@@ -569,9 +538,9 @@ if (sk_prefers_html($accept)) {
     }
 }
 `
-		: '';
+        : '';
 
-	return `<?php
+    return `<?php
 /**
  * SvelteKit PHP Adapter - Standalone API Wrapper
  * Wraps ${serverFilePath}
@@ -580,16 +549,21 @@ ${negotiationLogic}
 require_once __DIR__ . '/${serverFilePath}';
 
 // Helper to access request body
+if (!function_exists('sk_request_body')) {
 function sk_request_body(): string {
     return file_get_contents('php://input') ?: '';
 }
+}
 
+if (!function_exists('sk_json_body')) {
 function sk_json_body() {
     $raw = sk_request_body();
     return json_decode($raw, true);
 }
+}
 
 // Build param object similar to RequestEvent
+if (!function_exists('sk_api_param')) {
 function sk_api_param(): array {
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
     $headers = [];
@@ -619,6 +593,7 @@ function sk_api_param(): array {
         'cookies' => $_COOKIE,
         'params' => []
     ];
+}
 }
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';

@@ -1,8 +1,17 @@
 # SvelteKit PHP Adapter
 
-![PHP 7.4+](https://img.shields.io/badge/PHP-7.4%2B-777bb4?logo=php&logoColor=white) ![Apache/Nginx](https://img.shields.io/badge/Apache%20%2F%20Nginx-supported-6c757d)
+![PHP 8.1+](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white) ![Apache/Nginx](https://img.shields.io/badge/Apache%20%2F%20Nginx-supported-6c757d)
 
 This project implements a **SvelteKit adapter for PHP**, allowing you to deploy SvelteKit applications to standard PHP hosting environments (Apache, Nginx, Shared Hosting) while maintaining a modern development experience.
+
+## Support Policy
+
+- Official support floor: PHP 8.1+
+- Recommended production target: PHP 8.3+
+- Supported hosting styles: Apache, Nginx, shared hosting, and PHP-FPM-backed hosts
+- `php-static` is the deployment default
+- `js-ssr` is JavaScript-sidecar SSR behind PHP
+- Historical audit notes under `docs/AUDIT-*` and `docs/CHAT-*` are archival snapshots, not the current contract
 
 ## 🌟 Key Features
 
@@ -10,7 +19,9 @@ This project implements a **SvelteKit adapter for PHP**, allowing you to deploy 
 - **SSR Data Bridge**: Fetches `+page.server.php` data seamlessly in development.
 - **Production Modes**:
   - `php-static`: Prerendered shell + PHP data/action bridge (Traditional PHP hosting).
-  - `js-ssr`: PHP frontend proxy + Node/Bun sidecar (Full SSR + Streaming).
+  - `js-ssr`: PHP frontend proxy + JavaScript SSR sidecar (Full SSR + Streaming).
+
+`js-ssr` is the SSR mode string. It uses a JavaScript SSR sidecar behind the PHP entrypoint.
 - **API Proxy**: `/api/*` routes are automatically handled by PHP.
 
 ---
@@ -20,7 +31,7 @@ This project implements a **SvelteKit adapter for PHP**, allowing you to deploy 
 ### Prerequisites
 
 - **Node.js** (or Bun)
-- **PHP 7.4+** (Available in your system PATH; PHP 8+ uses faster built-ins)
+- **PHP 8.1+** (Available in your system PATH)
 
 ### Installation
 

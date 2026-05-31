@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { base } from '$app/paths';
 
 	let loaded = false;
 	let time = '';
@@ -39,7 +40,7 @@
 		the initial HTML.
 	</p>
 
-	<a href="/">Back to Home</a>
+	<a href="{base}/">Back to Home</a>
 </div>
 
 <style>

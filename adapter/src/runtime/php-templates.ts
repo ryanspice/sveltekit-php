@@ -1,7 +1,12 @@
+import { getRouterJsSsrPhp } from './router/js-ssr';
+import { getRouterPhpStaticPhp } from './router/php-static';
+import { getRouterSharedPhp } from './router/shared';
+
 export function getDataPhp(
 	includes: string[],
 	base: string = '',
-	compatRel: string = './_runtime/compat.php'
+	compatRel: string = './_runtime/compat.php',
+	relToRoot: string = './'
 ) {
 	return `<?php
 /**
@@ -14,16 +19,49 @@ export function getDataPhp(
 
 declare(strict_types=1);
 
+// Runtime Hardening
+if (!defined('SK_HARDENED')) {
+	define('SK_HARDENED', 1);
+	// 1. Output Buffering
+	if (ob_get_level() === 0) ob_start();
+
+	// 2. Error Output Policy
+	ini_set('display_errors', '0');
+	ini_set('log_errors', '1');
+	ini_set('error_log', 'php://stderr');
+
+	// 3. Capture warnings/notices
+	set_error_handler(function($severity, $message, $file, $line) {
+		if (!(error_reporting() & $severity)) {
+			return false;
+		}
+		error_log("[php-warning] $message in $file:$line");
+		return true;
+	});
+}
+
 require_once __DIR__ . '/${compatRel}';
+
+// Define relative path to root for runtime base detection
+if (!defined('SK_REL_TO_ROOT')) {
+	define('SK_REL_TO_ROOT', '${relToRoot}');
+}
 
 // Allow env override for base path (e.g. for different dev/prod paths)
 // Fallback to build-time base
-define('SK_BASE_PATH', getenv('SK_BASE_PATH') ?: '${base}');
-const SK_ROUTE_REGEX = 'PLACEHOLDER_ROUTE_REGEX';
-const SK_ROUTE_PARAM_MAP = PLACEHOLDER_ROUTE_PARAM_MAP;
+if (!defined('SK_BASE_PATH')) {
+	define('SK_BASE_PATH', getenv('SK_BASE_PATH') ?: '${base}');
+}
+if (!defined('SK_ROUTE_REGEX')) {
+	define('SK_ROUTE_REGEX', 'PLACEHOLDER_ROUTE_REGEX');
+}
+if (!defined('SK_ROUTE_PARAM_MAP')) {
+	define('SK_ROUTE_PARAM_MAP', PLACEHOLDER_ROUTE_PARAM_MAP);
+}
 
 ${includes.join('\n')}
 
+if (!function_exists('sk_json_encode')) {
 function sk_json_encode($value): string {
 	$json = json_encode(
 		$value,
@@ -36,7 +74,9 @@ function sk_json_encode($value): string {
 	);
 	return $json === false ? 'null' : $json;
 }
+}
 
+if (!class_exists('SK_URLSearchParams')) {
 final class SK_URLSearchParams {
 	private array $pairs = [];
 
@@ -85,46 +125,31 @@ final class SK_URLSearchParams {
 		return implode('&', $out);
 	}
 }
+}
 
+if (!class_exists('__SK_Deferred')) {
 final class __SK_Deferred {
 	public $fn;
 	public function __construct($fn) {
 		$this->fn = $fn;
 	}
 }
+}
+if (!class_exists('__SK_Deferred_Placeholder')) {
 final class __SK_Deferred_Placeholder {
 	public int $id;
 	public function __construct(int $id) {
 		$this->id = $id;
 	}
 }
-
-function sk_defer(callable $fn): __SK_Deferred { return new __SK_Deferred($fn); }
-
-function sk_extract_params(string $request_uri, string $base, string $regex, array $map): array {
-	$path = parse_url($request_uri, PHP_URL_PATH) ?? '';
-	if ($base !== '' && str_starts_with($path, $base)) {
-		$path = substr($path, strlen($base));
-		if ($path === '') $path = '/';
-	}
-
-	if ($path !== '/' && str_ends_with($path, '/')) $path = rtrim($path, '/');
-	if ($path === '') $path = '/';
-
-	$m = [];
-	if (!preg_match($regex, $path, $m)) return [];
-
-	$params = [];
-	foreach ($map as $idx => $name) {
-		$i = (int)$idx;
-		if (!isset($m[$i])) continue;
-		if ($m[$i] === '') continue;
-		$params[(string)$name] = rawurldecode($m[$i]);
-	}
-
-	return $params;
 }
 
+if (!function_exists('sk_defer')) {
+function sk_defer(callable $fn): __SK_Deferred { return new __SK_Deferred($fn); }
+}
+
+
+if (!function_exists('sk_assert_jsonable')) {
 function sk_assert_jsonable($value, string $path = ''): void {
 	if ($value instanceof __SK_Deferred || $value instanceof __SK_Deferred_Placeholder) return;
 	if (is_null($value) || is_bool($value) || is_int($value) || is_string($value)) return;
@@ -151,12 +176,14 @@ function sk_assert_jsonable($value, string $path = ''): void {
 	if (is_resource($value)) throw new RuntimeException("Non-JSON resource at $path");
 	throw new RuntimeException("Non-JSON value at $path");
 }
+}
 
+if (!function_exists('sk_recursive_resolve')) {
 function sk_recursive_resolve($data, ?array &$deferreds = null) {
 	if ($data instanceof __SK_Deferred) {
 		if ($deferreds !== null) {
-			$id = count($deferreds);
-			$deferreds[] = $data;
+			$id = count($deferreds) + 1;
+			$deferreds[$id] = $data;
 			return new __SK_Deferred_Placeholder($id);
 		}
 		$fn = $data->fn;
@@ -169,6 +196,7 @@ function sk_recursive_resolve($data, ?array &$deferreds = null) {
 	}
 	return $data;
 }
+}
 
 /**
  * Locates the "nodes" array within the template payload.
@@ -176,6 +204,7 @@ function sk_recursive_resolve($data, ?array &$deferreds = null) {
  *   A) { "type":"data", "nodes":[ ... ] }
  *   B) devalue-like: [ { "type":1, "nodes":2 }, ..., <nodes at index 2>, ... ]
  */
+if (!function_exists('sk_get_nodes_ref')) {
 function sk_get_nodes_ref(array &$payload): array {
 	// A) associative with nodes
 	if (array_key_exists('nodes', $payload) && is_array($payload['nodes'])) {
@@ -193,32 +222,40 @@ function sk_get_nodes_ref(array &$payload): array {
 	// fallback: treat as already nodes
 	return ['kind' => 'self'];
 }
+}
 
+if (!function_exists('sk_serialize')) {
 function sk_serialize($value): array {
 	$flattened = [];
 	$map = [];
 
+	$add_primitive = function($val) use (&$flattened, &$map) {
+		$key = is_string($val)
+			? 's_'.$val
+			: (is_int($val)
+				? 'i_'.$val
+				: (is_float($val) ? 'f_'.$val : json_encode($val)));
+		if (array_key_exists($key, $map)) {
+			return $map[$key];
+		}
+
+		$flattened[] = $val;
+		$idx = count($flattened) - 1;
+		$map[$key] = $idx;
+		return $idx;
+	};
+
 	// Recursive closure to flatten the structure
 	// We use a reference for $flattened to append values
-	$fn = function($val) use (&$flattened, &$map, &$fn) {
+	$fn = function($val) use (&$flattened, &$map, &$fn, $add_primitive) {
 		// Primitives
 		if (is_string($val) || is_int($val) || is_float($val) || is_bool($val) || is_null($val)) {
-			$key = is_string($val) ? 's_'.$val : (is_int($val) ? 'i_'.$val : (is_float($val) ? 'f_'.$val : json_encode($val)));
-			if (array_key_exists($key, $map)) {
-				return $map[$key];
-			}
-
-			$flattened[] = $val;
-			$idx = count($flattened) - 1;
-			$map[$key] = $idx;
-			return $idx;
+			return $add_primitive($val);
 		}
 
 		if ($val instanceof __SK_Deferred_Placeholder) {
-			// Placeholder for deferred promise
-			// We return a unique string that we can replace later
-			$placeholder = "%%%SK_DEFER_" . $val->id . "%%%";
-			$flattened[] = $placeholder;
+			$id_idx = $add_primitive($val->id);
+			$flattened[] = ["Promise", $id_idx];
 			return count($flattened) - 1;
 		}
 
@@ -243,11 +280,13 @@ function sk_serialize($value): array {
 	$fn($value);
 	return $flattened;
 }
+}
 
 /**
  * Unflattens a Devalue-serialized array back into a PHP structure (array/object).
  * This is used to provide hydrated data to the client in a format SvelteKit's start() accepts (objects).
  */
+if (!function_exists('sk_unflatten')) {
 function sk_unflatten(array $data) {
 	if (empty($data)) return null;
 
@@ -292,11 +331,15 @@ function sk_unflatten(array $data) {
 	// Devalue root is always at index 0
 	return $resolve(0);
 }
+}
 
+if (!function_exists('sk_set_node_data')) {
 function sk_set_node_data(&$node, $server_data): void {
 	if (!is_array($node)) {
 		$node = [];
 	}
+
+	$node['type'] = 'data';
 
 	sk_assert_jsonable($server_data);
 
@@ -312,7 +355,9 @@ function sk_set_node_data(&$node, $server_data): void {
 		$node['uses'] = (object)[];
 	}
 }
+}
 
+if (!function_exists('sk_set_payload_form')) {
 function sk_set_payload_form(&$payload, $form): void {
 	if (is_array($payload) && isset($payload[0]) && is_array($payload[0])) {
 		$payload[0]['form'] = $form;
@@ -323,7 +368,9 @@ function sk_set_payload_form(&$payload, $form): void {
 		$payload['form'] = $form;
 	}
 }
+}
 
+if (!function_exists('sk_apply_loads')) {
 function sk_apply_loads(string $routeid, array $loadFns, array &$payload, string $inline_mode, ?array &$deferreds = null): array {
 	$base = [];
 	$server_results = [];
@@ -337,7 +384,9 @@ function sk_apply_loads(string $routeid, array $loadFns, array &$payload, string
 		}
 
 		// Prepare URL object to match dev environment
-		$searchParams = new SK_URLSearchParams($_SERVER['QUERY_STRING'] ?? '');
+		$qs = $_SERVER['QUERY_STRING'] ?? '';
+		$searchParams = new SK_URLSearchParams($qs);
+		sk_debug_log("DEBUG: sk_apply_loads - route: $routeid, fn: $fn, qs: $qs");
 
 		// Execute the load function
 		// Pass $base (merged parent data) as 'parentdata' if needed, though SvelteKit usually
@@ -400,6 +449,8 @@ function sk_apply_loads(string $routeid, array $loadFns, array &$payload, string
 		}
 	}
 
+    sk_debug_log("DEBUG: server_results=" . json_encode($server_results));
+
 	// Update the payload with server results
 	$ref = sk_get_nodes_ref($payload);
 
@@ -407,7 +458,7 @@ function sk_apply_loads(string $routeid, array $loadFns, array &$payload, string
 	$nodes = [];
 	if ($ref['kind'] === 'assoc') {
 		$nodes = &$payload[$ref['key']];
-	} elseif ($ref['kind'] === 'index') {
+	} else if ($ref['kind'] === 'index') {
 		$nodes = &$payload[$ref['idx']];
 	} else {
 		$nodes = &$payload;
@@ -426,7 +477,9 @@ function sk_apply_loads(string $routeid, array $loadFns, array &$payload, string
 	// Inline Mode: return full payload (no streaming needed for now)
 	return $payload;
 }
+}
 
+if (!function_exists('sk_build_embed_data')) {
 function sk_build_embed_data(string $routeid, array $loadFns, string $templateJson, string $inline_mode, bool $streaming = false): array {
 	$payload = json_decode($templateJson, true);
 	if (!$payload) return ['[]', []];
@@ -452,23 +505,16 @@ function sk_build_embed_data(string $routeid, array $loadFns, string $templateJs
 
 	// If inline_mode is 'nodes', we want the parallel array of data objects
 	// SvelteKit hydration expects [ data_0, data_1, ... ] matching node_ids
-	// We must unflatten the Devalue structure to provide plain objects to SvelteKit's start()
+	// The nodes are usually objects like { type: 'data', data: [...], uses: ... }
+	// We should return them AS IS (preserving Devalue structure) because SvelteKit client will deserialize them.
 	if ($inline_mode === 'nodes' || $inline_mode === 'unknown') {
-		$hydrationData = [];
-		if (is_array($nodes)) {
-			foreach ($nodes as $node) {
-				$data = $node['data'] ?? null;
-				$newNode = $node;
-				if (is_array($data)) {
-					$newNode['data'] = sk_unflatten($data);
-				}
-				$hydrationData[] = $newNode;
-			}
-		}
-		$outputPayload = $hydrationData;
+		$outputPayload = $nodes;
 	}
 
 	$json = sk_json_encode($outputPayload);
+	if (sk_debug_enabled()) {
+		file_put_contents('debug_payload.json', $json . "\n", FILE_APPEND);
+	}
 
 	// Replace deferred placeholders with JS calls
 	if ($streaming && $deferreds) {
@@ -480,14 +526,13 @@ function sk_build_embed_data(string $routeid, array $loadFns, string $templateJs
 
 		$json = preg_replace_callback('/"%%%SK_DEFER_(\\d+)%%%"/', function($matches) {
 			$id = (int)$matches[1];
-			// SvelteKit uses 1-based IDs usually? We used 0-based index in array, so +1?
-			// sk_recursive_resolve used count($deferreds) BEFORE push. So 0-based.
-			// Let's use the ID as is.
+			// sk_recursive_resolve uses 1-based IDs to match SvelteKit chunk ids.
 			return "PLACEHOLDER_APP_ID.defer($id)";
 		}, $json);
 	}
 
 	return [$json, $deferreds];
+}
 }
 
 // Main execution if called directly (client navigation)
@@ -543,14 +588,16 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === '__data.php') {
 	$inlineMode = PLACEHOLDER_INLINE_MODE;
 
 	// Blocking mode for client navigation
+	sk_debug_log("DEBUG: __data.php processing request for $routeId");
 	$finalPayload = sk_apply_loads($routeId, $loadFns, $payload, $inlineMode);
 	$json = sk_json_encode($finalPayload);
 
-    header('Content-Length: ' . strlen($json));
+	header('Content-Length: ' . strlen($json));
 
-    if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') {
-        echo $json;
-    }
+	if ($_SERVER['REQUEST_METHOD'] !== 'HEAD') {
+		echo $json;
+	}
+	sk_debug_log("DEBUG: __data.php response sent");
 }
 `;
 }
@@ -576,12 +623,16 @@ ${includes.join('\n')}
 require_once __DIR__ . '/__data.php';
 
 // Helper for SvelteKit fail()
+if (!function_exists('sk_fail')) {
 function sk_fail(int $status, $data): array {
 	return ['type' => 'failure', 'status' => $status, 'data' => $data];
 }
+}
 
+if (!function_exists('sk_action_serialize')) {
 function sk_action_serialize($value): string {
 	return sk_json_encode(array_values(sk_serialize($value)));
+}
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -747,8 +798,11 @@ while (ob_get_level()) ob_end_flush();
 
 // Handle Actions (POST)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    sk_debug_log("DEBUG: index.php handling POST for " . $_SERVER['REQUEST_URI']);
     if (file_exists(__DIR__ . '${requirePrefix}/__action.php')) {
         require __DIR__ . '${requirePrefix}/__action.php';
+    } else {
+        sk_debug_log("DEBUG: __action.php not found in " . __DIR__ . '${requirePrefix}');
     }
 }
 
@@ -758,7 +812,10 @@ $templateJson = base64_decode('${templateB64}');
 $inlineMode = ${JSON.stringify(inlineMode)};
 
 // Build data with streaming support
-list($dataPayload, $sk_deferreds) = sk_build_embed_data($routeId, $loadFns, $templateJson, $inlineMode, true);
+list($data, $sk_deferreds) = sk_build_embed_data($routeId, $loadFns, $templateJson, $inlineMode, true);
+
+$dataPayload = $data;
+sk_debug_log("DEBUG: dataPayload=" . substr($dataPayload, 0, 500));
 
 // Fix PLACEHOLDER_APP_ID in streaming promises
 // We can't do this in sk_build_embed_data because we don't know the appId yet
@@ -789,6 +846,8 @@ export function getFooterPhp(appId: string) {
 while (ob_get_level()) ob_end_flush();
 flush();
 
+sk_debug_log("DEBUG: Footer running. deferreds count: " . (isset($sk_deferreds) ? count($sk_deferreds) : '0'));
+
 if (!empty($sk_deferreds)) {
 	foreach($sk_deferreds as $id => $deferred) {
 		$fn = $deferred -> fn;
@@ -797,11 +856,11 @@ if (!empty($sk_deferreds)) {
 		$data = sk_recursive_resolve($fn());
 
 		// Serialize
-		$serialized = sk_json_encode(array_values(sk_serialize($data)));
+		// TODO: Support full Devalue serialization for deferreds (requires client-side unflattening)
+		// For now, we use simple JSON encoding to avoid the need for unflattening on the client.
+		$serialized = sk_json_encode($data);
 
-		// Output script to resolve the promise on the client
-		// We use the global variable '${appId}' detected during build.
-		echo '<script>if(typeof ${appId} !== "undefined") ${appId}.resolve('.$id. ', () => '.$serialized. ');</script>';
+		echo '<script>if(typeof ${appId} !== "undefined") { ${appId}.resolve('.$id. ', () => ['.$serialized.', null]); } else { console.error("App ID undefined: ${appId}"); }</script>';
 		flush();
 	}
 }
@@ -813,12 +872,9 @@ export function getMinimalBootstrapPhp(requirePrefix: string = '') {
 // Minimal bootstrap for actions only (SSR=false or no data)
 // We still might need __action.php included if we want to support actions on this page
 // (even if data loading is client-side).
-if (file_exists(__DIR__. '${requirePrefix}/__action.php')) {
-	// require_once __DIR__ . '${requirePrefix}/__action.php';
-	// Actually, actions are POST requests to ?/action, handled by __action.php directly?
-	// Or does the page need to know about them?
-	// Usually no.
-}
+if (file_exists(__DIR__ . '${requirePrefix}/__action.php')) {
+		require __DIR__ . '${requirePrefix}/__action.php';
+	}
 `;
 }
 
@@ -828,7 +884,8 @@ export function getApiPhp(
 	base: string,
 	routeRegex: string,
 	routeParamMapPhp: string,
-	compatRel: string = './_runtime/compat.php'
+	compatRel: string = './_runtime/compat.php',
+	relToRoot: string = './'
 ) {
 	return `<?php
 /**
@@ -839,6 +896,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/${compatRel}';
 
+// Define relative path to root for runtime base detection
+if (!defined('SK_REL_TO_ROOT')) {
+	define('SK_REL_TO_ROOT', '${relToRoot}');
+}
+
 // Allow env override for base path
 define('SK_BASE_PATH', getenv('SK_BASE_PATH') ?: '${base}');
 const SK_ROUTE_REGEX = '${routeRegex}';
@@ -846,6 +908,7 @@ const SK_ROUTE_PARAM_MAP = ${routeParamMapPhp};
 
 ${includes.join('\n')}
 
+if (!function_exists('sk_json_encode')) {
 function sk_json_encode($value): string {
 	$json = json_encode(
 		$value,
@@ -858,7 +921,9 @@ function sk_json_encode($value): string {
 	);
 	return $json === false ? 'null' : $json;
 }
+}
 
+if (!class_exists('SK_URLSearchParams')) {
 final class SK_URLSearchParams {
 	private array $pairs = [];
 
@@ -885,6 +950,14 @@ final class SK_URLSearchParams {
 		return array_key_exists($key, $this->pairs);
 	}
 
+	public function __get(string $key): ?string {
+		return $this->get($key);
+	}
+
+	public function __isset(string $key): bool {
+		return $this->has($key);
+	}
+
 	public function all(string $key): array {
 		return $this->pairs[$key] ?? [];
 	}
@@ -899,7 +972,9 @@ final class SK_URLSearchParams {
 		return implode('&', $out);
 	}
 }
+}
 
+if (!function_exists('sk_extract_params')) {
 function sk_extract_params(string $request_uri, string $base, string $regex, array $map): array {
 	$path = parse_url($request_uri, PHP_URL_PATH) ?? '';
 	if ($base !== '' && str_starts_with($path, $base)) {
@@ -921,20 +996,26 @@ function sk_extract_params(string $request_uri, string $base, string $regex, arr
 	}
 	return $params;
 }
+}
 
 $__SK_RAW_BODY = null;
+if (!function_exists('sk_request_body')) {
 function sk_request_body(): string {
 	global $__SK_RAW_BODY;
 	if ($__SK_RAW_BODY === null) $__SK_RAW_BODY = file_get_contents('php://input') ?: '';
 	return $__SK_RAW_BODY;
 }
+}
 
+if (!function_exists('sk_json_body')) {
 function sk_json_body() {
 	$raw = sk_request_body();
 	return json_decode($raw, true);
 }
+}
 
 // Build param object similar to RequestEvent
+if (!function_exists('sk_api_param')) {
 function sk_api_param(): array {
 	$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 	$headers = [];
@@ -975,6 +1056,7 @@ function sk_api_param(): array {
 			return sk_fetch($input, $init ?? []);
 		}
 	];
+}
 }
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -1049,247 +1131,21 @@ if ($body !== null) {
 `;
 }
 
-export function getRouterPhp(base: string, mode: 'php-static' | 'node-ssr') {
-	return `<?php
-// Simple router to emulate Apache .htaccess mod_rewrite
-// for the PHP built-in server.
-// Generated by @ryanspice/sveltekit-adapter-php
-
-require_once __DIR__ . '/_runtime/compat.php';
-
-// Helper for logging
-function router_log($msg) {
-	file_put_contents('php://stderr', "[Router] ".$msg. "\\n", FILE_APPEND);
-}
-
-$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-$base = getenv('SK_BASE_PATH') ?: '${base}';
-
-router_log("Request: $uri");
-
-// Strip base path
-if ($base !== '' && strpos($uri, $base) === 0) {
-	$uri = substr($uri, strlen($base));
-	if ($uri === '' || $uri === false) $uri = '/';
-	router_log("Stripped URI: $uri");
-}
-
-// Security: Block _protected directory
-if (strpos($uri, '/_protected/') === 0) {
-	http_response_code(403);
-    echo "Access Denied";
-	return;
-}
-
-${mode === 'php-static'
-			? `
-// Canonicalize /foo/ -> /foo (prevents relative asset paths breaking hydration)
-if ($uri !== '/' && str_ends_with($uri, '/')) {
-    $qs = $_SERVER['QUERY_STRING'] ?? '';
-    $location = $base . rtrim($uri, '/');
-    if ($location === '') $location = $base ?: '/';
-    if ($qs !== '') $location .= '?' . $qs;
-    header('Location: ' . $location, true, 308);
-    return;
-}
-
-// Normalize: treat /foo and /foo/ identically
-$uri = rtrim($uri, '/');
-if ($uri === '') $uri = '/';
-
-// Special handling for SvelteKit __data.json requests
-// Map /path/__data.json to /path/__data.php
-$suffix = '/__data.json';
-if (substr($uri, -strlen($suffix)) === $suffix) {
-    $php_file_rel = str_replace($suffix, '/__data.php', $uri);
-    $php_file = __DIR__ . $php_file_rel; // Flat build structure
-
-    if (file_exists($php_file)) {
-        router_log("Mapping JSON to PHP: $uri -> $php_file");
-        header('Content-Type: application/json');
-        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-        $_SERVER['SCRIPT_FILENAME'] = realpath($php_file);
-        require $php_file;
-        return;
-    } else {
-        // Do not fallback to index.php for __data.json
-        http_response_code(404);
-        echo json_encode(["error" => "Data not found", "path" => $uri]);
-        return;
-    }
-}
-`
-			: `
-// node-ssr mode: Do NOT rewrite __data.json to __data.php
-// Instead, let it fall through to the Proxy (index.php) which forwards to sidecar.
-`
-		}
-
-// 1. Serve static files if they exist
-$path = __DIR__.$uri;
-if ($uri !== '/' && file_exists($path) && is_file($path)) {
-	// HEAD Support for static files
-	if ($_SERVER['REQUEST_METHOD'] === 'HEAD') {
-		$ext = pathinfo($path, PATHINFO_EXTENSION);
-		$mimes = [
-			'js' => 'application/javascript',
-			'mjs' => 'application/javascript',
-			'cjs' => 'application/javascript',
-			'css' => 'text/css',
-			'json' => 'application/json',
-			'html' => 'text/html',
-			'htm' => 'text/html',
-			'xml' => 'text/xml',
-			'txt' => 'text/plain',
-			'svg' => 'image/svg+xml',
-			'png' => 'image/png',
-			'jpg' => 'image/jpeg',
-			'jpeg' => 'image/jpeg',
-			'gif' => 'image/gif',
-			'webp' => 'image/webp',
-			'ico' => 'image/x-icon'
-		];
-		$mime = $mimes[$ext] ?? (mime_content_type($path) ?: 'application/octet-stream');
-		header('Content-Type: '.$mime);
-		header('Content-Length: '.filesize($path));
-		return;
+export function getRouterPhp(base: string, mode: 'php-static' | 'js-ssr', fallback?: string | boolean) {
+	let fallbackFile = 'index.php'; // default SPA fallback
+	if (typeof fallback === 'string' && fallback) {
+		fallbackFile = fallback;
+	} else if (fallback === true) {
+		fallbackFile = '200.html'; // Default Kit fallback
 	}
-	return false; // serve as-is
-}
+	// If we converted .html to .php, we should look for .php version first or check both
+	// In the template, we'll check for the file.
 
-${mode === 'php-static'
-			? `
-// 2. If it's a directory, manually serve index.php or index.html
-if ($uri !== '/' && is_dir($path)) {
-    foreach (['/index.php', '/index.html'] as $idx) {
-        $candidate = $path . $idx;
-        if (is_file($candidate)) {
-            if (str_ends_with($candidate, '.php')) {
-                $requested_file = realpath($candidate);
-                if ($requested_file) {
-                    router_log("Serving Directory Index PHP: $requested_file");
-                    $_SERVER['SCRIPT_FILENAME'] = $requested_file;
-                    require $requested_file;
-                    return;
-                }
-            }
-
-            router_log("Serving Directory Index HTML: $candidate");
-            header('content-type: text/html; charset=utf-8');
-            readfile($candidate);
-            return;
-        }
-    }
-}
-
-// 3. Extensionless matching: /foo -> /foo.php or /foo.html
-if ($uri !== '/') {
-    foreach (['.php', '.html'] as $ext) {
-        $candidate = $path . $ext;
-        if (is_file($candidate)) {
-            if ($ext === '.php') {
-                $requested_file = realpath($candidate);
-                if ($requested_file) {
-                    router_log("Serving PHP file: $requested_file");
-                    $_SERVER['SCRIPT_FILENAME'] = $requested_file;
-                    require $requested_file;
-                    return;
-                }
-            }
-
-            router_log("Serving HTML file: $candidate");
-            header('content-type: text/html; charset=utf-8');
-            readfile($candidate);
-            return;
-        }
-    }
-}
-
-// 4. Do not fallback API 404s to HTML
-if ($uri === '/api' || str_starts_with($uri, '/api/')) {
-    http_response_code(404);
-    echo "404 Not Found (PHP Router)";
-    return;
-}
-
-// 5. SPA/dynamic fallback for non-prerendered routes:
-// prefer index.php if present, otherwise index.html
-$fallback_php = __DIR__ . '/index.php';
-$fallback_html = __DIR__ . '/index.html';
-
-if (is_file($fallback_php)) {
-    router_log("Serving Root Index PHP (Fallback): $fallback_php");
-    $_SERVER['SCRIPT_FILENAME'] = realpath($fallback_php);
-    require $fallback_php;
-    return;
-}
-
-if (is_file($fallback_html)) {
-    router_log("Serving Root Index HTML (Fallback): $fallback_html");
-    header('content-type: text/html; charset=utf-8');
-    readfile($fallback_html);
-    return;
-}
-
-http_response_code(404);
-echo "404 Not Found (PHP Router)";
-return;
-`
-			: `
-// 2. Serve PHP endpoints (directories with index.php)
-// This handles +server.php which are copied to out/path/index.php
-if (file_exists($path) && is_dir($path) && file_exists($path . '/index.php')) {
-    // Check if it's a wrapper (has _server.php)
-    if (file_exists($path . '/_server.php')) {
-        $file = realpath($path . '/index.php');
-        $_SERVER['SCRIPT_FILENAME'] = $file;
-        require $file;
-        return;
-    }
-
-    // If not a wrapper, it might be the Proxy (at root).
-    // If index.html exists, serve it (Prerendered Page takes precedence over Proxy for HTML)
-    if (file_exists($path . '/index.html')) {
-        header('Content-Type: text/html');
-        readfile($path . '/index.html');
-        return;
-    }
-
-    $file = realpath($path . '/index.php');
-    $_SERVER['SCRIPT_FILENAME'] = $file;
-    require $file;
-    return;
-}
-
-// Mode B: Fallback to Proxy (index.php)
-
-// Check for index.html in the requested directory (Prerendered)
-router_log("Checking index.html in path: $path");
-if (is_dir($path)) {
-    $index = rtrim($path, '/') . '/index.html';
-    if (file_exists($index)) {
-        router_log("Serving Prerendered Index: $index");
-        header('Content-Type: text/html');
-        readfile($index);
-        return;
-    } else {
-        router_log("Prerendered Index not found: $index");
-    }
-} else {
-    router_log("Not a directory: $path");
-}
-
-if (file_exists(__DIR__ . '/index.php')) {
-    $file = realpath(__DIR__ . '/index.php');
-    $_SERVER['SCRIPT_FILENAME'] = $file;
-    // We must pass the original URI to the proxy (or stripped? Proxy expects stripped if base is set)
-    // Actually, if we require index.php, it will read $_SERVER['REQUEST_URI'].
-    // If router.php strips it, it only affects local $uri variable.
-    // We should probably rely on index.php to handle the URI.
-    require $file;
-    return;
-}
-`
-		}
-`;
+	const shared = getRouterSharedPhp(base);
+	const routerBody =
+		mode === 'php-static'
+			? getRouterPhpStaticPhp(fallback, fallbackFile)
+			: getRouterJsSsrPhp();
+	return `${shared}${routerBody}
+?>`;
 }

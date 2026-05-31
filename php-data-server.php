@@ -28,17 +28,24 @@ if (file_exists($phpFile)) {
 
             if (function_exists($actionName)) {
                 // Get POST data
-                $input = json_decode(file_get_contents('php://input'), true) ?? [];
+                $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
+                $isJson = stripos($contentType, 'application/json') !== false;
+                
+                if ($isJson) {
+                    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+                } else {
+                    $input = $_POST;
+                }
 
                 // Mock params
                 $params = [
                     'params' => [],
-                    'post' => $input, // We'll pass the decoded body as 'post'
+                    'post' => $input, // We'll pass the decoded body or $_POST as 'post'
                     'url' => (object)[
                         'searchParams' => (object)[]
                     ],
                     'request' => (object)[
-                        'headers' => (object)[]
+                        'headers' => (object)getallheaders()
                     ]
                 ];
 

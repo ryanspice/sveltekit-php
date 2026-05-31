@@ -1,0 +1,206 @@
+﻿diff --git a/tools/deploy-build.ts b/tools/deploy-build.ts
+index 2222222..3333333 100644
+--- a/tools/deploy-build.ts
++++ b/tools/deploy-build.ts
+@@ -23,6 +23,8 @@ type Options = {
+   thresholdBytes: number; // 0..1
+   dryRun: boolean;
+   forceFull: boolean;
+   archive: boolean;
++  cleanup: boolean;
++  cleanupBackground: boolean;
+   yes: boolean;
+   listLimit: number;
+
+   deleteRemote: boolean;
+@@ -54,6 +56,16 @@ function env(name: string): string | undefined {
+   return v && v.trim().length ? v.trim() : undefined;
+ }
+
++function parseBool(v: any, def: boolean): boolean {
++  if (v === undefined || v === null) return def;
++  if (typeof v === "boolean") return v;
++  const s = String(v).trim().toLowerCase();
++  if (!s) return def;
++  return !(s === "0" || s === "false" || s === "no" || s === "off");
++}
++
+ function must(v: string | undefined, name: string): string {
+   if (!v) {
+     console.error(`Missing required "${name}". Set it via --${name} or DEPLOY_${name.toUpperCase()}.`);
+@@ -315,7 +327,7 @@ async function wipeRemote(o: Options): Promise<void> {
+   if (code !== 0) process.exit(code);
+ }
+
+-async function fullUploadArchive(o: Options): Promise<void> {
++async function fullUploadArchive(o: Options, curr: Manifest): Promise<void> {
+   // Create archive of local build contents (.) and extract into remote directory (overwrite).
+   // NOTE: This will NOT delete remote files that no longer exist locally.
+   const localAbs = path.resolve(o.local);
+   const cacheDir = path.resolve(".deploy-cache", o.profile);
+   await fs.mkdir(cacheDir, { recursive: true });
+
+   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+   const archiveLocal = path.join(cacheDir, `build-${stamp}.tgz`);
++  const keepLocal = path.join(cacheDir, `keep-${stamp}.txt`);
++  const cleanupLocal = path.join(cacheDir, `cleanup-${stamp}.sh`);
+
+   const remoteBaseRaw = o.remote.replace(/\/+$/, "");
+   const remoteTgzRaw = `${remoteBaseRaw}/.deploy-upload.tgz`;
++  const remoteKeepRaw = `${remoteBaseRaw}/.deploy-keep.txt`;
++  const remoteCleanupRaw = `${remoteBaseRaw}/.deploy-cleanup.sh`;
++  const remoteLogRaw = `${remoteBaseRaw}/.deploy-cleanup.log`;
+
+   const remoteBaseQ = remoteBaseRaw.replace(/"/g, '\\"');
+   const remoteTgzQ = remoteTgzRaw.replace(/"/g, '\\"');
++  const remoteKeepQ = remoteKeepRaw.replace(/"/g, '\\"');
++  const remoteCleanupQ = remoteCleanupRaw.replace(/"/g, '\\"');
++  const remoteLogQ = remoteLogRaw.replace(/"/g, '\\"');
+
++  // Build keep list from the manifest (paths are posix rel already)
++  const keepList = Object.keys(curr.files).sort().join("\n") + "\n";
++  await fs.writeFile(keepLocal, keepList, "utf8");
++
++  // Remote cleanup script: delete files not in keep list, prune empty dirs, remove temp files.
++  // Assumption: build output file names do not contain newlines (reasonable).
++  const cleanupScript = `#!/bin/sh
++set -e
++cd "${remoteBaseQ}" || exit 0
++
++# Normalize keep list
++sort ".deploy-keep.txt" > ".deploy-keep-sorted.txt"
++
++# List remote files (relative)
++find . -type f -print | sed 's|^\\./||' | sort > ".deploy-remote.txt"
++
++# Compute extras (remote - keep)
++comm -23 ".deploy-remote.txt" ".deploy-keep-sorted.txt" > ".deploy-delete.txt" || true
++
++if [ -s ".deploy-delete.txt" ]; then
++  while IFS= read -r f; do
++    [ -z "$f" ] && continue
++    case "$f" in
++      .deploy-*) continue ;;
++    esac
++    rm -f -- "$f" || true
++  done < ".deploy-delete.txt"
++fi
++
++# Remove empty directories
++find . -type d -empty -delete 2>/dev/null || true
++
++# Cleanup temp files (keep log)
++rm -f ".deploy-remote.txt" ".deploy-keep-sorted.txt" ".deploy-delete.txt" ".deploy-keep.txt" ".deploy-cleanup.sh" 2>/dev/null || true
++`;
++  await fs.writeFile(cleanupLocal, cleanupScript, "utf8");
+
+   // tar -czf <archive> -C <localAbs> .
+   let code = await run("tar", ["-czf", archiveLocal, "-C", localAbs, "."]);
+   if (code !== 0) process.exit(code);
+
+   // upload archive into the destination folder
+   code = await run("ssh", ["-p", String(o.port), sshTarget(o), `mkdir -p "${remoteBaseQ}"`]);
+   if (code !== 0) process.exit(code);
+
+   code = await run("scp", ["-P", String(o.port), archiveLocal, `${sshTarget(o)}:${remoteTgzRaw}`]);
+   if (code !== 0) process.exit(code);
++
++  // upload keep list + cleanup script
++  code = await run("scp", ["-P", String(o.port), keepLocal, `${sshTarget(o)}:${remoteKeepRaw}`]);
++  if (code !== 0) process.exit(code);
++  code = await run("scp", ["-P", String(o.port), cleanupLocal, `${sshTarget(o)}:${remoteCleanupRaw}`]);
++  if (code !== 0) process.exit(code);
+
+-  // extract in-place (overwrite), then remove the uploaded archive
+-  const extractCmd = `tar -xzf "${remoteTgzQ}" -C "${remoteBaseQ}" && rm -f "${remoteTgzQ}"`;
+-  code = await run("ssh", ["-p", String(o.port), sshTarget(o), extractCmd]);
++  // extract in-place (overwrite), then remove the uploaded archive
++  // then run cleanup (background by default) to delete remote files not present locally
++  const runCleanup =
++    o.cleanup
++      ? o.cleanupBackground
++        ? `if command -v nohup >/dev/null 2>&1; then nohup sh "${remoteCleanupQ}" > "${remoteLogQ}" 2>&1 & else sh "${remoteCleanupQ}" > "${remoteLogQ}" 2>&1 & fi; echo "Cleanup started: ${sshTarget(o)}:${remoteLogRaw}"`
++        : `sh "${remoteCleanupQ}" > "${remoteLogQ}" 2>&1; echo "Cleanup finished: ${sshTarget(o)}:${remoteLogRaw}"`
++      : `echo "Cleanup disabled."`;
++
++  const extractCmd =
++    `tar -xzf "${remoteTgzQ}" -C "${remoteBaseQ}" && rm -f "${remoteTgzQ}" && ${runCleanup}`;
++
++  code = await run("ssh", ["-p", String(o.port), sshTarget(o), extractCmd]);
+   if (code !== 0) process.exit(code);
+
+   await fs.rm(archiveLocal, { force: true });
++  await fs.rm(keepLocal, { force: true });
++  await fs.rm(cleanupLocal, { force: true });
+ }
+
+-async function fullUpload(o: Options): Promise<void> {
++async function fullUpload(o: Options, curr?: Manifest): Promise<void> {
+   await run("ssh", ["-p", String(o.port), sshTarget(o), `mkdir -p "${o.remote.replace(/"/g, '\\"')}"`]);
+
+   await wipeRemote(o);
+
+   if (o.archive) {
+-    await fullUploadArchive(o);
++    if (!curr) throw new Error("Archive mode requires current manifest.");
++    await fullUploadArchive(o, curr);
+     return;
+   }
+
+   const localAbs = path.resolve(o.local);
+   const source = path.join(localAbs, ".");
+   const dest = `${sshTarget(o)}:${o.remote.replace(/\/+$/, "")}/`;
+@@ -394,12 +406,19 @@ async function main() {
+   const thresholdBytes = Number((a as any)["threshold-bytes"] ?? env("DEPLOY_THRESHOLD_BYTES") ?? DEFAULTS.thresholdBytes);
+
+   const dryRun = Boolean((a as any)["dry-run"] ?? false);
+   const forceFull = Boolean((a as any).full ?? false);
+-  const archive = Boolean((a as any).archive ?? env("DEPLOY_ARCHIVE") ?? false);
++  const archive = parseBool((a as any).archive ?? env("DEPLOY_ARCHIVE"), false);
++  const cleanupWait = parseBool((a as any)["cleanup-wait"] ?? env("DEPLOY_CLEANUP_WAIT"), false);
++  const cleanup = parseBool((a as any).cleanup ?? env("DEPLOY_CLEANUP"), archive ? true : false);
++  const cleanupBackground = cleanup ? !cleanupWait : false;
+   const yes = Boolean((a as any).yes ?? env("DEPLOY_YES") ?? false);
+   const listLimit = Number((a as any)["list-limit"] ?? env("DEPLOY_LIST_LIMIT") ?? DEFAULTS.listLimit);
+
+   const deleteRemote = Boolean((a as any).delete ?? false);
+   const wipeRemoteFlag = Boolean((a as any)["wipe-remote"] ?? false);
+   const yesWipe = Boolean((a as any)["yes-wipe"] ?? false);
+
+   const o: Options = {
+     profile,
+     host,
+     user,
+     port,
+     remote,
+     local,
+     thresholdFiles,
+     thresholdBytes,
+     dryRun,
+     forceFull,
+     archive,
++    cleanup,
++    cleanupBackground,
+     yes,
+     listLimit,
+     deleteRemote,
+     wipeRemote: wipeRemoteFlag,
+     yesWipe
+   };
+@@ -481,7 +500,7 @@ async function main() {
+   if (!proceed) {
+     console.log("Cancelled. No upload performed, cache NOT updated.");
+     process.exit(0);
+   }
+
+   if (shouldFull) {
+-    await fullUpload(o);
++    await fullUpload(o, curr);
+   } else {
+     await patchUpload(o, d.changed, d.removed);
+   }
+
+   await saveManifest(cachePath, curr);
+   console.log("");
+   console.log("Done. Cache updated.");
+ }

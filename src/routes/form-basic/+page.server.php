@@ -1,11 +1,11 @@
 <?php
-function load($params) {
+function sk_form_basic_page_server_load($params) {
     return [
         'page_uuid' => uniqid('page_form_basic_', true)
     ];
 }
 
-function action_default($params) {
+function sk_form_basic_page_server_action_default($params) {
     $val = $params['post']['val'] ?? '';
     if ($val === 'fail') {
         return sk_fail(400, ['error' => 'invalid']);

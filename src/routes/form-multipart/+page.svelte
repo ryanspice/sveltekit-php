@@ -1,5 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { base } from '$app/paths';
 	export let form;
 </script>
 
@@ -23,7 +24,7 @@
 	{/if}
 
 	<br />
-	<a href="/">Back to Home</a>
+	<a href="{base}/">Back to Home</a>
 </div>
 
 <style>

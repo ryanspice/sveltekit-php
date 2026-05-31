@@ -1,5 +1,7 @@
 import { stripLeadingSlash } from './paths.js';
 import type { Builder, Route } from '../types.js';
+import { readFile, access } from 'fs/promises';
+import path from 'path';
 
 export function findRouteForNavPath(builder: Builder, navPath: string): Route | null {
 	// navPath is usually "/foo/" from builder.prerendered.pages.
@@ -77,4 +79,162 @@ export function buildLayoutChainCandidates(routeIdPosix: string) {
 		chain.push(seg); // "" means routes root
 	}
 	return chain;
+}
+
+export interface RouteManifestEntry {
+	re: string;
+	type: 'page' | 'negotiate' | 'endpoint';
+	shim?: string;
+	page?: string;
+	endpoint?: string;
+	trailingSlash?: 'never' | 'always' | 'ignore';
+}
+
+/**
+ * Check if a file exists using access
+ */
+async function fileExists(filePath: string): Promise<boolean> {
+	try {
+		await access(filePath);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Check if a route has a server endpoint file (+server.js or +server.ts)
+ */
+async function hasServerFile(routeId: string, routesBasePath: string): Promise<boolean> {
+	try {
+		const strippedRouteId = stripLeadingSlash(routeId);
+		const serverJsPath = path.join(routesBasePath, strippedRouteId, '+server.js');
+		const serverTsPath = path.join(routesBasePath, strippedRouteId, '+server.ts');
+		const serverPhpPath = path.join(routesBasePath, strippedRouteId, '+server.php');
+
+		if (await fileExists(serverJsPath)) return true;
+		if (await fileExists(serverTsPath)) return true;
+		if (await fileExists(serverPhpPath)) return true;
+
+		return false;
+	} catch (error) {
+		return false;
+	}
+}
+
+export async function generateRouteManifest(builder: Builder): Promise<RouteManifestEntry[]> {
+	const manifest: RouteManifestEntry[] = [];
+
+	// Process routes in order of specificity (longest path first)
+	const sortedRoutes = [...builder.routes].sort((a, b) => (b.id?.length ?? 0) - (a.id?.length ?? 0));
+
+	for (const route of sortedRoutes) {
+		const routeId = route.id.startsWith('/') ? route.id : `/${route.id}`;
+		const { phpRegex } = compilePhpRouteMatcher(route.id);
+
+		// Read trailingSlash configuration from route files
+		const routesBasePath = path.resolve(builder.config.kit.files.routes);
+		let trailingSlash = await readTrailingSlashFromRoute(routeId, routesBasePath);
+
+		// Default to config.kit.trailingSlash or 'never' if not specified
+		if (!trailingSlash) {
+			trailingSlash = builder.config.kit.trailingSlash || 'never';
+		}
+
+		// Check if this route has both page and server endpoints (negotiate type)
+		const base = builder.config.kit.paths.base;
+		let checkPath = routeId;
+		if (base) {
+			checkPath = path.posix.join(base, routeId);
+		}
+
+		const hasPage =
+			builder.prerendered.pages.has(routeId) ||
+			builder.prerendered.pages.has(`${routeId}/`) ||
+			builder.prerendered.pages.has(checkPath) ||
+			builder.prerendered.pages.has(`${checkPath}/`);
+
+		let hasServerEndpoint = false;
+		try {
+			hasServerEndpoint = await hasServerFile(routeId, routesBasePath);
+		} catch (error) {
+			hasServerEndpoint = false;
+		}
+
+		if (hasPage && hasServerEndpoint) {
+			// Negotiate type - both page and endpoint exist
+			manifest.push({
+				re: phpRegex,
+				type: 'negotiate',
+				page: path.posix.join(base || '', `/${stripLeadingSlash(route.id)}/index.html`),
+				endpoint: path.posix.join(base || '', `/${stripLeadingSlash(route.id)}/index.php`),
+				trailingSlash
+			});
+		} else if (hasServerEndpoint) {
+			// Endpoint only
+			manifest.push({
+				re: phpRegex,
+				type: 'endpoint',
+				shim: path.posix.join(base || '', `/${stripLeadingSlash(route.id)}/index.php`),
+				trailingSlash
+			});
+		} else {
+			// Page route (may be prerendered or SSR)
+			manifest.push({
+				re: phpRegex,
+				type: 'page',
+				shim: path.posix.join(base || '', `/${stripLeadingSlash(route.id)}/index.php`),
+				trailingSlash
+			});
+		}
+	}
+
+	return manifest;
+}
+
+/**
+ * Read trailingSlash configuration from route files
+ */
+export async function readTrailingSlashFromRoute(routeId: string, routesBasePath: string): Promise<'never' | 'always' | 'ignore' | undefined> {
+    const chain = buildLayoutChainCandidates(routeId); // e.g. ["a/b", "a", ""]
+    
+    for (const currentId of chain) {
+        // currentId is relative posix path, e.g. "a/b" or ""
+        const dir = path.join(routesBasePath, currentId);
+        
+        // If this is the leaf route (the one we are querying), check +page
+        // Note: routeId passed in might have leading slash, currentId from chain does not (it's from buildLayoutChainCandidates which strips it? No, check impl)
+        // buildLayoutChainCandidates uses stripLeadingSlash(routeIdPosix).split('/').
+        // So chain elements do NOT have leading slash.
+        // But routeId passed here MIGHT have leading slash (see generateRouteManifest).
+        
+        const normalizedRouteId = stripLeadingSlash(routeId);
+        const normalizedCurrentId = currentId; // chain elements are already stripped
+        
+        if (normalizedCurrentId === normalizedRouteId) {
+            const pageConfig = await checkFileForTrailingSlash(dir, '+page');
+            if (pageConfig) return pageConfig;
+        }
+        
+        // Check +layout
+        const layoutConfig = await checkFileForTrailingSlash(dir, '+layout');
+        if (layoutConfig) return layoutConfig;
+    }
+    
+	return undefined;
+}
+
+async function checkFileForTrailingSlash(dir: string, prefix: string): Promise<'never' | 'always' | 'ignore' | undefined> {
+    for (const ext of ['.js', '.ts']) {
+        try {
+            const content = await readFile(path.join(dir, prefix + ext), 'utf-8');
+            const match = content.match(/export\s+const\s+trailingSlash\s*=\s*['"](never|always|ignore)['"]/);
+            if (match) {
+                return match[1] as 'never' | 'always' | 'ignore';
+            }
+        } catch (error) {
+            // ignore missing files
+        }
+    }
+    return undefined;
 }

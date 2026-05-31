@@ -12,3 +12,4 @@ bun.lockb
 /adapter/index.js
 /adapter/src/runtime/php-templates.ts
 /docs/**/*.md
+debug_payload.json

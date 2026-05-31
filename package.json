@@ -7,8 +7,6 @@
 		"dev:vite": "vite dev",
 		"dev": "node scripts/dev-php.mjs",
 		"build": "vite build",
-		"serve:php": "php -S 127.0.0.1:8080 -t build router.php",
-		"prod": "bun run build:adapter && bun run build && bun run serve:php",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
@@ -16,12 +14,26 @@
 		"build:php": "vite build && node scripts/build-php.js",
 		"build:apache": "vite build && node scripts/build-apache.js",
 		"build:adapter": "bun build adapter/src/index.ts --outfile adapter/index.js --target node --format esm",
+		"build:e2e": "bun scripts/build-e2e.mjs",
 		"build:watch": "vite build --watch",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
-		"test": "playwright test",
-		"test:unit": "node --test --experimental-strip-types \"tests/unit/**/*.test.ts\"",
-		"test:ui": "playwright test --ui"
+		"test": "bun run verify:all",
+		"test:unit": "vitest run --dir tests/unit",
+		"test:php": "php -d display_errors=1 tests/unit/redeclare_test.php",
+		"test:sanity": "bun scripts/verify-all.mjs --mode=all --skipUnit --skipE2E",
+		"test:e2e": "playwright test",
+		"test:verify-output": "bun scripts/verify-build-output.mjs",
+		"pw": "playwright test",
+		"pw:ui": "playwright test --ui",
+		"verify": "bun scripts/verify-all.mjs --mode all",
+		"verify:build": "node scripts/verify-build-routes.mjs",
+		"verify:php-static": "bun scripts/verify-all.mjs --mode=php-static",
+		"verify:js-ssr": "bun scripts/verify-all.mjs --mode=js-ssr",
+		"verify:all": "bun scripts/verify-all.mjs --mode=all",
+		"verify:output": "bun scripts/verify-build-output.mjs",
+		"serve:php": "php -S 127.0.0.1:8080 -t build router.php",
+		"serve:e2e": "bun scripts/serve-e2e.mjs"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.0",
@@ -32,6 +44,7 @@
 		"@sveltejs/vite-plugin-svelte": "^6.2.1",
 		"@types/node": "^22",
 		"concurrently": "^9.2.1",
+		"dotenv": "^17.2.3",
 		"eslint": "^9.39.1",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.13.1",
@@ -44,7 +57,8 @@
 		"typescript": "^5.9.3",
 		"typescript-eslint": "^8.48.1",
 		"vite": "^7.2.6",
-		"vite-plugin-devtools-json": "^1.0.0"
+		"vite-plugin-devtools-json": "^1.0.0",
+		"vitest": "^3.0.0"
 	},
 	"dependencies": {
 		"devalue": "^5.6.1"

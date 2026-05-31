@@ -2,7 +2,7 @@ export function detectInlineDataModeFromHtml(html: string): 'nodes' | 'payload' 
 	// We need to find "const data =" OR "data:" followed by [ or {
 	// Because "data:" can appear in data-URIs, we must loop until we find a valid one.
 
-	const patterns = ['const data', 'data:'];
+	const patterns = ['const data', 'let data', 'var data', 'data:'];
 
 	for (const p of patterns) {
 		let startPos = 0;
@@ -39,7 +39,7 @@ export function replaceInlineConstData(html: string): string | null {
 	//    Actually, standard SvelteKit (latest) often puts `const data = [...]` inside a module script or standard script.
 
 	// We'll search for the signature of the data assignment.
-	const patterns = ['const data', 'data:'];
+	const patterns = ['const data', 'let data', 'var data', 'data:'];
 
 	for (const p of patterns) {
 		let startPos = 0;
@@ -127,7 +127,17 @@ export function replaceInlineConstData(html: string): string | null {
 			if (closeIdx !== -1) {
 				const before = html.slice(0, openIdx);
 				const after = html.slice(closeIdx + 1);
-				return `${before} <?php echo $dataPayload; ?>${after}`;
+
+				// Check if we are replacing "data:" (object property) or "const data =" (variable)
+				// We only want to append ", hydrate: true" if we are inside the start options object.
+				// "data:" implies object property.
+				const isProperty = /data\s*:\s*$/.test(before);
+
+				if (isProperty) {
+					return `${before} (function(){ const d = <?php echo $dataPayload; ?>; return d; })() , hydrate: true ${after}`;
+				} else {
+					return `${before} (function(){ const d = <?php echo $dataPayload; ?>; return d; })()${after}`;
+				}
 			}
 
 			startPos = startIdx + 1;

@@ -1,5 +1,22 @@
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
+	// Negotiation test support for js-ssr.
+	if (event.url.pathname.endsWith('/negotiate')) {
+		const accept = event.request.headers.get('accept') || '';
+		if (accept.includes('application/json')) {
+			return new Response(JSON.stringify({ message: 'Negotiated API' }), {
+				headers: {
+					'Content-Type': 'application/json',
+					'Vary': 'Accept'
+				}
+			});
+		}
+		// Ensure HTML response also has Vary: Accept
+		const response = await resolve(event);
+		response.headers.append('Vary', 'Accept');
+		return response;
+	}
+
 	const response = await resolve(event);
 
 	// Intercept 404 and 500 errors

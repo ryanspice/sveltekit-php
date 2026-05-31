@@ -3,7 +3,16 @@
 This repo ships a custom SvelteKit adapter that targets **PHP hosting** and supports two deploy styles:
 
 - **Mode A: `php-static`**: prerendered HTML + client assets, with **PHP bridges** for `__data.json`, actions, and endpoints.
-- **Mode B: `node-ssr`**: **PHP is the public entrypoint**, but a **Node/Bun “SSR sidecar”** runs the SvelteKit server output for **true SSR + streaming**, and PHP (or Apache/Nginx) reverse-proxies HTML/data/action requests to it.
+- **Mode B: `js-ssr`**: **PHP is the public entrypoint**, but a **JavaScript SSR sidecar** runs the SvelteKit server output for **true SSR + streaming**, and PHP (or Apache/Nginx) reverse-proxies HTML/data/action requests to it.
+
+`js-ssr` uses a JavaScript SSR sidecar behind the PHP entrypoint. Bun support is allowed by the architecture but must be verified separately before it is described as production-ready. Do not create a separate second SSR mode.
+
+## Support Policy
+
+- Official support floor: PHP 8.1+
+- Recommended production target: PHP 8.3+
+- Supported hosting styles: Apache, Nginx, shared hosting, and PHP-FPM-backed hosts
+- Historical notes under `docs/AUDIT-*` and `docs/CHAT-*` are archival snapshots only
 
 Adapters are build-time plugins and must use SvelteKit’s adapter contract (`adapt(builder)` and builder outputs).
 
@@ -50,7 +59,7 @@ const config = {
 			base: '/sveltekit-php'
 		},
 		adapter: adapter({
-			mode: 'php-static', // or 'node-ssr'
+			mode: 'php-static', // or 'js-ssr'
 			out: './build',
 			assets: './build',
 			precompress: true // Enable precompression support
@@ -65,17 +74,17 @@ export default config;
 
 ---
 
-## Mode B: `node-ssr` (Hybrid)
+## Mode B: `js-ssr` (Hybrid)
 
-In this mode, PHP serves as the primary entrypoint (handling static files, PHP APIs, and legacy logic) but proxies SvelteKit **page/data/action** requests to a **Node/Bun sidecar** that performs true SSR and streaming. `+server.php` endpoints remain in PHP.
+In this mode, PHP serves as the primary entrypoint (handling static files, PHP APIs, and legacy logic) but proxies SvelteKit **page/data/action** requests to a **JavaScript SSR sidecar** that performs true SSR and streaming. `+server.php` endpoints remain in PHP.
 
 ### 1. Build
 
-Set `mode: 'node-ssr'` in `svelte.config.js` (or via `ADAPTER_MODE` env var).
+Set `mode: 'js-ssr'` in `svelte.config.js` (or via `ADAPTER_MODE` env var).
 The build output will be:
 
 - `build/index.php`: The proxy script.
-- `build/server/handler.mjs`: The Node sidecar entrypoint.
+- `build/server/handler.mjs`: The JavaScript SSR sidecar entrypoint.
 - `build/server/index.js`: The SvelteKit server bundle.
 - `build/.htaccess`: Apache rules to route requests (supports subdirectory deployment).
 - `build/_app/**`: Client assets.
@@ -93,6 +102,8 @@ PORT=3000 node build/server/handler.mjs
 # Using Bun
 PORT=3000 bun run build/server/handler.mjs
 ```
+
+Node is the default verified runtime today. Treat the Bun command as an allowed target that still needs smoke-test evidence before production use.
 
 Ensure the port matches what `index.php` expects (default 3000).
 
@@ -223,7 +234,7 @@ Put Apache/Nginx in front to validate:
 2. Upload `build/` to your server under the desired subpath.
 3. The `.htaccess` file handles `__data.json` rewriting and routing.
 
-### Mode B: `node-ssr`
+### Mode B: `js-ssr`
 
 1. `bun run build` (adapter emits PHP output **and** a sidecar server bundle)
 2. Upload output to your server.
@@ -234,13 +245,13 @@ If you want “real streaming,” your proxy layer must not buffer responses.
 
 ---
 
-## Production Runbook (Mode B: `node-ssr`)
+## Production Runbook (Mode B: `js-ssr`)
 
 For robust production deployments, use a process manager and configure environment variables.
 
 ### Process Management
 
-Use `systemd` or `supervisor` to keep the Node sidecar running.
+Use `systemd` or `supervisor` to keep the JavaScript SSR sidecar running.
 
 #### Example: `systemd` service
 

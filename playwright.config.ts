@@ -1,11 +1,22 @@
 import { defineConfig, devices } from '@playwright/test';
+import { config as loadEnv } from 'dotenv';
+import { getBasePath, normalizeAdapterMode } from './scripts/utils/config.mjs';
 
-/**
- * See https://playwright.dev/docs/test-configuration.
- */
+loadEnv();
+
+const maxFailures = process.env.PW_MAX_FAILURES
+	? Number(process.env.PW_MAX_FAILURES)
+	: process.env.CI
+		? 1
+		: 0;
+const adapterMode = process.env.ADAPTER_MODE
+	? normalizeAdapterMode(process.env.ADAPTER_MODE)
+	: undefined;
+
 export default defineConfig({
-	testDir: './tests',
-	/* Run tests in files in parallel */
+	maxFailures,
+	testDir: './tests/e2e',
+	/* Run tests in parallel */
 	fullyParallel: true,
 	/* Fail the build on CI if you accidentally left test.only in the source code. */
 	forbidOnly: !!process.env.CI,
@@ -15,35 +26,59 @@ export default defineConfig({
 	workers: process.env.CI ? 1 : undefined,
 	/* Reporter to use. See https://playwright.dev/docs/test-reporters */
 	reporter: 'html',
-	/* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-	use: {
-		/* Base URL to use in actions like `await page.goto('')`. */
-		baseURL: 'http://127.0.0.1:8086',
 
-		/* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
+	/* Shared settings */
+	use: {
 		trace: 'on-first-retry'
 	},
 
-	/* Configure projects for major browsers */
+	/* Configure projects for different environments */
 	projects: [
 		{
-			name: 'chromium',
-			use: { ...devices['Desktop Chrome'] }
+			name: 'php-static',
+			testDir: './tests/e2e/php-static',
+			use: {
+				...devices['Desktop Chrome'],
+				baseURL: 'http://127.0.0.1:8086'
+			}
+		},
+		{
+			name: 'js-ssr-root',
+			testDir: './tests/e2e/js-ssr',
+			use: {
+				...devices['Desktop Chrome'],
+				baseURL: 'http://127.0.0.1:8087'
+			},
+			metadata: {
+				basePath: ''
+			}
+		},
+		{
+			name: 'js-ssr-subdir',
+			testDir: './tests/e2e/js-ssr',
+			use: {
+				...devices['Desktop Chrome'],
+				baseURL: 'http://127.0.0.1:8088'
+			},
+			metadata: {
+				basePath: getBasePath()
+			}
 		}
 	],
 
-	/* Run your local dev server before starting the tests */
+	/* Run local dev servers before starting the tests */
 	webServer: {
-		// Build the app and adapter, then start the PHP server
-		// We use a different port (8086) to avoid conflicts
-		command: 'bun run build:adapter && bun run build && php -S 127.0.0.1:8086 -t build router.php',
-		url: 'http://127.0.0.1:8086',
+		command: 'bun scripts/serve-e2e.mjs',
+		// Wait for the last port to be ready, but technically we wait for all.
+		// Playwright waits for the url to be available.
+		url: adapterMode === 'php-static'
+			? 'http://127.0.0.1:8086'
+			: adapterMode === 'js-ssr'
+				? (getBasePath() === '' || getBasePath() === '/' ? 'http://127.0.0.1:8087' : `http://127.0.0.1:8088${getBasePath()}`)
+				: `http://127.0.0.1:8088${getBasePath()}`,
 		reuseExistingServer: !process.env.CI,
 		stdout: 'pipe',
 		stderr: 'pipe',
-		// Pass APP_ENV=dev to enable debug tools in the app
-		env: {
-			APP_ENV: 'dev'
-		}
+		timeout: 60000 // Give time for 3 builds to verify/start
 	}
 });

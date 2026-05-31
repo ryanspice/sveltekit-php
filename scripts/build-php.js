@@ -2,6 +2,9 @@
 
 import { spawn } from 'child_process';
 import { resolve } from 'path';
+import { config } from 'dotenv';
+
+config();
 
 /**
  * Build script for PHP deployment
@@ -23,8 +26,11 @@ adapterProcess.on('close', (code) => {
 		console.log('✅ PHP build completed successfully');
 		console.log('📁 Files generated in:', BUILD_DIR);
 		console.log('');
+		const base = process.env.DEPLOY_BASE || '';
+		const url = `http://localhost:8000${base}`;
 		console.log('🌐 To test locally:');
 		console.log('  php -S localhost:8000 -t build router.php');
+		console.log(`  Then visit: ${url}`);
 		console.log('');
 		console.log('🚀 To deploy to Apache:');
 		console.log('  1. Upload all files from build/ to your Apache document root');

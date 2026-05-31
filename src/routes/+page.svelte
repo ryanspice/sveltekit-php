@@ -1,5 +1,11 @@
 <script lang="ts">
 	import { base } from '$app/paths';
+
+	const href = (p: string) => {
+		const path = p.startsWith('/') ? p : `/${p}`;
+		return `${base}${path}`;
+	};
+
 	export let data: { title?: string; description?: string; app_name?: string };
 </script>
 
@@ -14,23 +20,23 @@
 	<div class="menu">
 		<h2>Test Scenarios</h2>
 		<ul>
-			<li><a href="{base}/ssr-data">SSR Data Injection</a></li>
-			<li><a href="{base}/parent-child">Layout Merging (Level 1)</a></li>
-			<li><a href="{base}/parent-child/nested">Layout Merging (Level 2 Nested)</a></li>
-			<li><a href="{base}/stream">Streaming Response</a></li>
-			<li><a href="{base}/form-basic">Form Actions (POST)</a></li>
-			<li><a href="{base}/form-multipart">File Uploads</a></li>
-			<li><a href="{base}/client-side">Client-Side Rendering (Hydration)</a></li>
+			<li><a href={href('ssr-data')}>SSR Data Injection</a></li>
+			<li><a href={href('parent-child')}>Layout Merging (Level 1)</a></li>
+			<li><a href={href('parent-child/nested')}>Layout Merging (Level 2 Nested)</a></li>
+			<li><a href={href('stream')}>Streaming Response</a></li>
+			<li><a href={href('form-basic')}>Form Actions (POST)</a></li>
+			<li><a href={href('form-multipart')}>File Uploads</a></li>
+			<li><a href={href('client-side')}>Client-Side Rendering (Hydration)</a></li>
 			<li>
-				<a href="{base}/preload" data-sveltekit-preload-data="hover">Preload Data (Hover me)</a>
+				<a href={href('preload')} data-sveltekit-preload-data="hover">Preload Data (Hover me)</a>
 			</li>
-			<li><a href="{base}/api/ping" target="_blank">API Ping (JSON)</a></li>
-			<li><a href="{base}/redirect-me">Redirect Test</a></li>
-			<li><a href="{base}/status?code=404">404 Page</a></li>
-			<li><a href="{base}/matrix/ssr-on">Matrix: SSR On</a></li>
-			<li><a href="{base}/matrix/ssr-off">Matrix: SSR Off</a></li>
-			<li><a href="{base}/matrix/dynamic-ssr">Matrix: Dynamic SSR</a></li>
-			<li><a href="{base}/negotiate">Negotiation</a></li>
+			<li><a href={href('api/ping')} target="_blank">API Ping (JSON)</a></li>
+			<li><a href={href('redirect-me')}>Redirect Test</a></li>
+			<li><a href={href('status?code=404')}>404 Page</a></li>
+			<a href={href('matrix/ssr-off')}>Matrix SSR off</a>
+			<a href={href('matrix/ssr-on')}>Matrix SSR on</a>
+			<li><a href={href('matrix/dynamic-ssr')}>Matrix: Dynamic SSR</a></li>
+			<li><a href={href('negotiate')}>Negotiation</a></li>
 		</ul>
 	</div>
 </div>

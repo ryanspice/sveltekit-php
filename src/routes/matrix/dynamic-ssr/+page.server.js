@@ -1,4 +1,6 @@
-export const prerender = process.env.ADAPTER_MODE === 'node-ssr' ? false : true;
+const adapterMode = process.env.ADAPTER_MODE;
+
+export const prerender = adapterMode === 'js-ssr' ? false : true;
 
 export function load() {
 	return {

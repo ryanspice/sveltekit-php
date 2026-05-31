@@ -2,14 +2,27 @@
 declare(strict_types=1);
 
 if (!defined('SK_PHP_MIN_VERSION')) {
-	define('SK_PHP_MIN_VERSION', 70400);
+	define('SK_PHP_MIN_VERSION', 80100);
 }
 
 if (PHP_VERSION_ID < SK_PHP_MIN_VERSION) {
 	http_response_code(500);
 	header('Content-Type: text/plain; charset=utf-8');
-	echo 'This app requires PHP 7.4+.';
+	echo 'This app requires PHP 8.1+.';
 	exit;
+}
+
+function sk_debug_enabled(): bool {
+	$value = getenv('SK_DEBUG');
+	if ($value === false) $value = getenv('ADAPTER_DEBUG');
+	if ($value === false) return false;
+	return in_array(strtolower((string)$value), ['1', 'true', 'yes', 'on'], true);
+}
+
+function sk_debug_log(string $message): void {
+	if (sk_debug_enabled()) {
+		error_log($message);
+	}
 }
 
 if (!function_exists('str_starts_with')) {
@@ -131,6 +144,75 @@ function sk_redirect(int $status, string $location): void {
 function sk_error(int $status, $body): void {
 	throw new SK_Error($status, $body);
 }
+
+/**
+ * Get the base path for the application.
+ * If SK_BASE_PATH environment variable is set, use that.
+ * Otherwise compute from SCRIPT_NAME and SK_REL_TO_ROOT.
+ * Returns empty string when at domain root.
+ */
+function sk_base_path(): string {
+	// Check environment variable first
+	$envPath = getenv('SK_BASE_PATH');
+	if ($envPath !== false) {
+		return rtrim($envPath, '/');
+	}
+
+	// If SK_REL_TO_ROOT is defined, compute from SCRIPT_NAME
+	if (defined('SK_REL_TO_ROOT')) {
+		$scriptName = $_SERVER['SCRIPT_NAME'] ?? '';
+		$relToRoot = SK_REL_TO_ROOT;
+
+		// Count ../ segments in SK_REL_TO_ROOT
+		$upSegments = substr_count($relToRoot, '../');
+
+		// Get directory of current script
+		$scriptDir = dirname($scriptName);
+
+		// Remove up segments from script directory
+		$pathParts = explode('/', trim($scriptDir, '/'));
+		$keepParts = count($pathParts) - $upSegments;
+		$baseParts = array_slice($pathParts, 0, $keepParts);
+
+		$basePath = '/' . implode('/', $baseParts);
+		return rtrim($basePath, '/');
+	}
+
+	// Fallback to empty string (domain root)
+	return '';
+}
+
+/**
+ * Get the base href for HTML base tag and asset URLs.
+ * Returns '/' for domain root, or '/base-path/' for subdirectory.
+ */
+function sk_base_href(): string {
+	$basePath = sk_base_path();
+	return $basePath === '' ? '/' : $basePath . '/';
+}
+
+function sk_extract_params(string $request_uri, string $base, string $regex, array $map): array {
+	$path = parse_url($request_uri, PHP_URL_PATH) ?? '';
+	if ($base !== '' && str_starts_with($path, $base)) {
+		$path = substr($path, strlen($base));
+		if ($path === '') $path = '/';
+	}
+	if ($path !== '/' && str_ends_with($path, '/')) $path = rtrim($path, '/');
+	if ($path === '') $path = '/';
+
+	$m = [];
+	if (!preg_match($regex, $path, $m)) return [];
+
+	$params = [];
+	foreach ($map as $idx => $name) {
+		$i = (int)$idx;
+		if (!isset($m[$i])) continue;
+		if ($m[$i] === '') continue;
+		$params[(string)$name] = rawurldecode($m[$i]);
+	}
+	return $params;
+}
+
 
 function &sk_locals(): array {
 	if (!array_key_exists('__SK_LOCALS', $GLOBALS)) {

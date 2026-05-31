@@ -1,0 +1,3 @@
+RewriteRule ^_app/ - [L]
+RewriteRule ^sveltekit/_app/ - [L]
+RewriteRule ^sveltekit/ - [L]

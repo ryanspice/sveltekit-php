@@ -1,12 +1,17 @@
 <script>
 	import { enhance } from '$app/forms';
+	import { base } from '$app/paths';
 	export let form;
 </script>
+
+<svelte:head>
+	<meta name="sk-route" content="form-basic" />
+</svelte:head>
 
 <div class="container">
 	<h1>Form Actions</h1>
 
-	<form method="POST" action="?/default" use:enhance>
+	<form method="POST" use:enhance>
 		<label>
 			Enter Value:
 			<input name="val" placeholder="Type something..." />
@@ -25,7 +30,7 @@
 	{/if}
 
 	<br />
-	<a href="/">Back to Home</a>
+	<a href="{base}/">Back to Home</a>
 </div>
 
 <style>
