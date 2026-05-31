@@ -3458,16 +3458,22 @@ function sveltekitPhpAdapter(options = {}) {
       const phpMap = new Map;
       for (const rel of allPhpRel) {
         const key = serverKey(rel);
-        if (!phpMap.has(key))
-          phpMap.set(key, []);
-        phpMap.get(key).push(rel);
+        const list = phpMap.get(key);
+        if (!list) {
+          phpMap.set(key, [rel]);
+        } else {
+          list.push(rel);
+        }
       }
       const tsMap = new Map;
       for (const rel of validTsFiles) {
         const key = serverKey(rel);
-        if (!tsMap.has(key))
-          tsMap.set(key, []);
-        tsMap.get(key).push(rel);
+        const list = tsMap.get(key);
+        if (!list) {
+          tsMap.set(key, [rel]);
+        } else {
+          list.push(rel);
+        }
       }
       const effectivePhpFiles = new Set;
       const effectiveTsFiles = new Set;

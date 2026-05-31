@@ -1,11 +1,22 @@
-<script>
+<script lang="ts">
 	import { onMount } from 'svelte';
 
-	export let data;
+	interface StreamedMessage {
+		message: string;
+	}
+
+	interface StreamData {
+		serverTime: string;
+		streamId: string;
+		streamed: Promise<StreamedMessage>;
+	}
+
+	type StreamMessage = { id: number; text: string; timestamp: string };
+
+	export let data: StreamData;
 
 	let streamStatus = 'Connecting...';
-	let messages = [];
-	let eventSource;
+	let messages: StreamMessage[] = [];
 
 	onMount(() => {
 		// Simulate a streaming connection
@@ -37,9 +48,6 @@
 
 		return () => {
 			clearInterval(interval);
-			if (eventSource) {
-				eventSource.close();
-			}
 		};
 	});
 </script>

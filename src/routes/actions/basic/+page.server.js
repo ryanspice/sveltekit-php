@@ -6,7 +6,17 @@ export const actions = {
 		const message = formData.get('message');
 
 		// Basic validation
-		if (!name || !email || !message) {
+		if (typeof name !== 'string' || typeof email !== 'string' || typeof message !== 'string') {
+			return {
+				success: false,
+				message: 'All fields are required'
+			};
+		}
+		const cleanedName = name.trim();
+		const cleanedEmail = email.trim().toLowerCase();
+		const cleanedMessage = message.trim();
+
+		if (!cleanedName || !cleanedEmail || !cleanedMessage) {
 			return {
 				success: false,
 				message: 'All fields are required'
@@ -20,11 +30,11 @@ export const actions = {
 		return {
 			success: true,
 			data: {
-				name: name.trim(),
-				email: email.trim().toLowerCase(),
-				message: message.trim(),
+				name: cleanedName,
+				email: cleanedEmail,
+				message: cleanedMessage,
 				processedAt: new Date().toISOString(),
-				messageLength: message.length
+				messageLength: cleanedMessage.length
 			}
 		};
 	}

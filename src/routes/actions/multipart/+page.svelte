@@ -1,12 +1,42 @@
-<script>
+<script lang="ts">
 	import { enhance } from '$app/forms';
-	export let form;
-	let loading = false;
-	let selectedFile = null;
-	let previewUrl = null;
+	import type { ActionResult } from '@sveltejs/kit';
 
-	function handleFileSelect(event) {
-		const file = event.target.files[0];
+	type MultipartActionForm = {
+		type: ActionResult['type'];
+		data?: {
+			success?: boolean;
+			error?: string;
+			uploadedFile?: {
+				name: string;
+				size: number;
+				type: string;
+			};
+			title?: string;
+			description?: string;
+		};
+	};
+
+	type MultipartActionResult = {
+		success?: boolean;
+		error?: string;
+		uploadedFile?: {
+			name: string;
+			size: number;
+			type: string;
+		};
+		title?: string;
+		description?: string;
+	};
+
+	export let form: MultipartActionResult | null = null;
+	let loading = false;
+	let selectedFile: File | null = null;
+	let previewUrl: string | null = null;
+
+	function handleFileSelect(event: Event) {
+		const input = event.currentTarget as HTMLInputElement | null;
+		const file = input?.files?.[0] ?? null;
 		if (file) {
 			selectedFile = file;
 			previewUrl = URL.createObjectURL(file);
@@ -15,7 +45,8 @@
 
 	function handleSubmit() {
 		loading = true;
-		return async ({ result }) => {
+		return async (opts: { result: MultipartActionForm; [key: string]: unknown }) => {
+			const { result } = opts;
 			loading = false;
 			if (result.type === 'success') {
 				selectedFile = null;

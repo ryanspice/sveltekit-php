@@ -68,7 +68,8 @@ function createBuilder(tempRoot: string) {
 		config: {
 			kit: {
 				paths: {
-					base: ''
+					base: '',
+					assets: ''
 				},
 				files: {
 					routes: fixtureRoutes

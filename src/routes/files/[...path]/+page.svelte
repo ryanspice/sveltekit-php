@@ -1,11 +1,15 @@
-<script>
+<script lang="ts">
 	import { base } from '$app/paths';
 
-	export let data = { path: [] };
+	interface FileBrowserData {
+		path: string[];
+	}
+
+	export let data: FileBrowserData = { path: [] };
 
 	// Get the path parameter from server data
-	$: pathSegments = Array.isArray(data?.path) ? data.path : [];
-	$: filePath = pathSegments.join('/');
+	let pathSegments: string[] = Array.isArray(data?.path) ? data.path : [];
+	let filePath = pathSegments.join('/');
 </script>
 
 <svelte:head>

@@ -36,6 +36,9 @@ export interface Builder {
 	writePrerendered(dest: string): void;
 	copy(src: string, dest: string): void;
 	compress(dest: string): void;
+	generateFallback(fallbackSrc: string): Promise<void> | void;
+	writeServer(dest: string): void;
+	generateManifest(options?: { relativePath: string }): string;
 
 	config: {
 		kit: {
@@ -44,7 +47,7 @@ export interface Builder {
 			};
 			paths: {
 				base: string;
-				assets: string;
+				assets?: string;
 			};
 			trailingSlash?: 'never' | 'always' | 'ignore';
 		};

@@ -1,7 +1,15 @@
-<script>
+<script lang="ts">
 	import { enhance } from '$app/forms';
+	import type { ActionResult } from '@sveltejs/kit';
 
-	export let form;
+	type NamedActionResult = {
+		success?: boolean;
+		message?: string;
+		action?: string;
+		data?: Record<string, unknown>;
+	};
+
+	export let form: NamedActionResult | null = null;
 
 	let activeAction = 'process';
 	let loading = false;
@@ -9,7 +17,10 @@
 	function handleSubmit() {
 		loading = true;
 		// The form action will be set by the selected button
-		return async ({ result }) => {
+		return async (opts: {
+			result: { type: ActionResult['type']; data?: Record<string, unknown> };
+		}) => {
+			const { result } = opts;
 			loading = false;
 			// Handle the result
 			console.log('Action result:', result);
