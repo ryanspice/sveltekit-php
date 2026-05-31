@@ -85,6 +85,22 @@ function runCmd(label, cmd, env) {
 	log('OK\n', COLORS.green);
 }
 
+function extractAppAssetPath(html, { codeAssetOnly = false } = {}) {
+	const attrRegex = /\b(?:href|src)="([^"]+)"/g;
+
+	for (const match of html.matchAll(attrRegex)) {
+		const assetPath = match[1].replace(/&amp;/g, '&');
+		const cleanPath = assetPath.split(/[?#]/, 1)[0].replace(/\\/g, '/');
+
+		if (!/(^|[/.>])_app\//.test(cleanPath)) continue;
+		if (codeAssetOnly && !/\.(?:css|js)$/i.test(cleanPath)) continue;
+
+		return assetPath;
+	}
+
+	return null;
+}
+
 const opts = {
 	mode:
 		argValue('mode') === 'all' || !argValue('mode')
@@ -340,11 +356,10 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 
 			// Check for asset loading (CSS/JS)
 			// Find a link or script that looks like a local asset
-			const assetRegex = /(?:href|src)="([^"]+?\/_app\/[^"]+\.(?:css|js))"/;
-			const assetMatch = homeHtml.match(assetRegex);
+			const assetMatch = extractAppAssetPath(homeHtml, { codeAssetOnly: true });
 
 			if (assetMatch) {
-				let assetPath = assetMatch[1];
+				let assetPath = assetMatch;
 				// Handle XML entities if any (simple unescape)
 				assetPath = assetPath.replace(/&amp;/g, '&');
 
@@ -600,11 +615,9 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 			// 6.3 Asset Load (extract from HTML)
 			// Look for <script src="..." or <link href="..." or <img src="..."
 			// We specifically want an app asset like _app/...
-			// Regex: (src|href)="([^"]+)"
-			// Filter for containing "_app"
-			const assetMatch = baseBody.match(/(?:src|href)="([^"]*\/_app\/[^"]+)"/);
+			const assetMatch = extractAppAssetPath(baseBody);
 			if (assetMatch) {
-				let assetUrl = assetMatch[1];
+				let assetUrl = assetMatch;
 				// Handle relative URLs if any (browser would resolve them)
 				// But our HTML usually has absolute paths or root-relative paths
 				// If it starts with ., resolve it relative to base
