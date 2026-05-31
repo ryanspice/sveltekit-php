@@ -91,6 +91,7 @@ const opts = {
 			? argValue('mode') || 'all'
 			: normalizeAdapterMode(argValue('mode')),
 	basePath: argValue('basePath') ?? getBasePath(),
+	basePathOverride: argValue('basePath'),
 	phpPort: argValue('phpPort') || '0',
 	nodePort: argValue('nodePort') || '0',
 	skipBuild: hasFlag('skipBuild'),
@@ -773,8 +774,8 @@ async function run() {
 			if (opts.mode !== 'all') {
 				buildCmd += ` --mode=${opts.mode}`;
 			}
-			if (opts.basePath !== undefined) {
-				buildCmd += ` --basePath=${opts.basePath}`;
+			if (opts.basePathOverride !== null) {
+				buildCmd += ` --basePath=${opts.basePathOverride}`;
 			}
 			runCmd('Building artifacts...', buildCmd, process.env);
 		} else {

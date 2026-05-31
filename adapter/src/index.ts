@@ -14,6 +14,7 @@ import {
 	buildLayoutChainCandidates,
 	compilePhpRouteMatcher,
 	generateRouteManifest,
+	readTrailingSlashFromRoute,
 	type RouteManifestEntry
 } from './utils/routing.js';
 import { detectInlineDataModeFromHtml, replaceInlineConstData } from './utils/html.js';
@@ -61,8 +62,9 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			const tmpDir = builder.getBuildDirectory('sveltekit-php');
 			const basePath =
 				baseMode === 'fixed' ? (options.basePath ?? builder.config.kit.paths.base ?? '') : '';
-			const trailingSlash = builder.config.kit.trailingSlash || 'never';
-			debug(`DEBUG: trailingSlash from config: ${trailingSlash}`);
+			const routesBasePath = path.resolve(builder.config.kit.files.routes);
+			const trailingSlash = (await readTrailingSlashFromRoute('/', routesBasePath)) ?? 'ignore';
+			debug(`DEBUG: trailingSlash from root route: ${trailingSlash}`);
 			const buildTimeBase = options.basePath ?? builder.config.kit.paths.base ?? '';
 			const compatCandidates = [
 				fileURLToPath(new URL('./runtime/php-compat.php', import.meta.url)),

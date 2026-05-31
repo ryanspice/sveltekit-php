@@ -3296,8 +3296,9 @@ function sveltekitPhpAdapter(options = {}) {
       const assetsDir = path3.resolve(assets);
       const tmpDir = builder.getBuildDirectory("sveltekit-php");
       const basePath = baseMode === "fixed" ? options.basePath ?? builder.config.kit.paths.base ?? "" : "";
-      const trailingSlash = builder.config.kit.trailingSlash || "never";
-      debug(`DEBUG: trailingSlash from config: ${trailingSlash}`);
+      const routesBasePath = path3.resolve(builder.config.kit.files.routes);
+      const trailingSlash = await readTrailingSlashFromRoute("/", routesBasePath) ?? "ignore";
+      debug(`DEBUG: trailingSlash from root route: ${trailingSlash}`);
       const buildTimeBase = options.basePath ?? builder.config.kit.paths.base ?? "";
       const compatCandidates = [
         fileURLToPath(new URL("./runtime/php-compat.php", import.meta.url)),

@@ -1,6 +1,8 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
-import { getEnvForMode } from './utils/config.mjs';
+import { getBasePath, getEnvForMode } from './utils/config.mjs';
+
+const defaultBasePath = getBasePath();
 
 // Define build configurations
 const builds = [
@@ -8,7 +10,7 @@ const builds = [
 		name: 'php-static',
 		mode: 'php-static',
 		out: 'build-e2e-php-static',
-		base: '/dev/sveltekit',
+		base: defaultBasePath,
 		fallback: '200.html',
 		baseMode: 'fixed'
 	},

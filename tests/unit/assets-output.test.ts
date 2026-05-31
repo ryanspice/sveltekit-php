@@ -139,4 +139,11 @@ describe('htaccess precompress rules', () => {
 		expect(htaccess).toContain('Header set Cache-Control "no-store" env=SK_DATA');
 		expect(htaccess).toContain('Header set Cache-Control "no-store" env=SK_ACTION');
 	});
+
+	it('emits trailing slash redirects when requested', () => {
+		const htaccess = getHtaccess('php-static', '', false, 'router.php', 'always');
+		expect(htaccess).toContain('# trailingSlash: always');
+		expect(htaccess).toContain('RewriteCond %{REQUEST_URI} !/$');
+		expect(htaccess).toContain('RewriteRule ^(.*[^/])$ /$1/ [L,R=308]');
+	});
 });

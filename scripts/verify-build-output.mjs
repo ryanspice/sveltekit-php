@@ -59,21 +59,28 @@ async function run() {
 
 	// 1. .htaccess Checks
 	const htaccess = checkFileExists('.htaccess');
-	checkContent(
-		htaccess,
-		/# trailingSlash: (always|never|ignore)/,
-		'htaccess: trailingSlash marker'
-	);
+	const trailingSlashMatch = htaccess.match(/# trailingSlash: (always|never|ignore)/);
+	if (!trailingSlashMatch) fail('htaccess: Missing trailingSlash marker');
+	pass('htaccess: trailingSlash marker: Verified');
 
-	// The rewrite rule might differ based on base path configuration
-	// In the build, we see: RewriteRule ^(.*)/$ /dev/sveltekit/$1 [L,R=308]
-	// This is because base path is /dev/sveltekit
-	// Let's check for the general structure of the redirect rule
-	checkContent(
-		htaccess,
-		/RewriteRule \^\(\.\*\)\/\$ .*\[L,R=308\]/,
-		'htaccess: trailingSlash rule (308 redirect)'
-	);
+	const trailingSlashMode = trailingSlashMatch[1];
+	if (trailingSlashMode === 'always') {
+		checkContent(
+			htaccess,
+			/RewriteRule \^\(\.\*\[\^\/\]\)\$ .*\[L,R=308\]/,
+			'htaccess: trailingSlash always rule (308 redirect)'
+		);
+	} else if (trailingSlashMode === 'never') {
+		checkContent(
+			htaccess,
+			/RewriteRule \^\(\.\*\)\/\$ .*\[L,R=308\]/,
+			'htaccess: trailingSlash never rule (308 redirect)'
+		);
+	} else {
+		if (/R=308/.test(htaccess))
+			fail('htaccess: trailingSlash ignore should not emit redirect rules');
+		pass('htaccess: trailingSlash ignore requires no redirect rule');
+	}
 
 	checkContent(
 		htaccess,
