@@ -157,6 +157,25 @@ describe('assets output in js-ssr', () => {
 		await instance.adapt(builder as AdapterBuilder);
 		expect(fs.existsSync(path.join(outDir, '_app', 'immutable', 'entry', 'app.js'))).toBe(true);
 	});
+
+	it('fails fast when generated output violates a build identity contract', async () => {
+		const { builder, outDir } = createBuilder(tempRoot);
+		const instance = adapter({
+			mode: 'php-static',
+			out: outDir,
+			assets: outDir,
+			strict: false,
+			buildIdentity: {
+				name: 'canopy-static-skin',
+				required: ['site-shell--canopy'],
+				forbidden: ['site-shell--ryan']
+			}
+		});
+
+		await expect(instance.adapt(builder as AdapterBuilder)).rejects.toThrow(
+			/Build identity contract "canopy-static-skin" failed/
+		);
+	});
 });
 
 describe('htaccess precompress rules', () => {
@@ -209,5 +228,17 @@ describe('runtime hardening templates', () => {
 		expect(compat).toContain('SK_FETCH_TIMEOUT_MS');
 		expect(compat).toContain('$timeoutMs =');
 		expect(compat).toContain("'timeout' => $timeoutMs / 1000");
+		expect(compat).toContain('sk_fetch_with_curl');
+		expect(compat).toContain('allow_url_fopen is disabled and the curl extension is unavailable');
+		expect(compat).toContain('x-sveltekit-php-fetch-error');
+	});
+
+	it('documents action raw-body fallback and serializer cycle guards in generated templates', () => {
+		const templates = fs.readFileSync(path.resolve('adapter/src/runtime/php-templates.ts'), 'utf8');
+		expect(templates).toContain('sk_action_parse_body');
+		expect(templates).toContain("file_get_contents('php://input')");
+		expect(templates).toContain("'rawBody' => sk_action_raw_body()");
+		expect(templates).toContain('Possible cyclic or too-deep JSON value');
+		expect(templates).toContain('Cannot serialize cyclic object graph');
 	});
 });

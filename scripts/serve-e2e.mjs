@@ -4,6 +4,8 @@ import { getBasePath, normalizeAdapterMode } from './utils/config.mjs';
 
 const BASE = getBasePath();
 const BASE_PREFIX = BASE === '/' ? '' : BASE;
+const JS_SSR_SUBDIR_BASE = process.env.E2E_JS_SSR_SUBDIR_BASE || '/dev/sveltekit';
+const JS_SSR_SUBDIR_PREFIX = JS_SSR_SUBDIR_BASE === '/' ? '' : JS_SSR_SUBDIR_BASE;
 
 // Standard E2E Configuration
 const CONFIGS = [
@@ -40,10 +42,10 @@ const CONFIGS = [
 			PORT: '3002',
 			PHP_PORT: '8088',
 			ADAPTER_OUT: 'build-e2e-js-ssr-subdir',
-			SK_BASE_PATH: BASE
+			SK_BASE_PATH: JS_SSR_SUBDIR_BASE
 		},
 		// Probe /ssr-data to ensure SSR + Sidecar bridge are alive in subdir
-		checkUrl: `http://127.0.0.1:8088${BASE_PREFIX}/ssr-data`
+		checkUrl: `http://127.0.0.1:8088${JS_SSR_SUBDIR_PREFIX}/ssr-data`
 	}
 ];
 

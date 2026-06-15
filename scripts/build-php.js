@@ -3,8 +3,13 @@
 import { spawn } from 'child_process';
 import { resolve } from 'path';
 import { config } from 'dotenv';
+import { assertOptionalEnvIsConcrete } from './utils/config.mjs';
 
 config();
+assertOptionalEnvIsConcrete(
+	['SK_BASE_PATH', 'DEPLOY_BASE', 'ADAPTER_MODE', 'ADAPTER_OUT', 'ADAPTER_ASSETS'],
+	'PHP build environment'
+);
 
 /**
  * Build script for PHP deployment
@@ -13,7 +18,7 @@ config();
 
 const BUILD_DIR = resolve('build');
 
-console.log('🚀 Building PHP deployment...');
+console.log('Building PHP deployment...');
 
 // Run the adapter
 const adapterProcess = spawn('node', ['adapter/index.js'], {
@@ -23,26 +28,26 @@ const adapterProcess = spawn('node', ['adapter/index.js'], {
 
 adapterProcess.on('close', (code) => {
 	if (code === 0) {
-		console.log('✅ PHP build completed successfully');
-		console.log('📁 Files generated in:', BUILD_DIR);
+		console.log('PHP build completed successfully');
+		console.log('Files generated in:', BUILD_DIR);
 		console.log('');
 		const base = process.env.DEPLOY_BASE || '';
 		const url = `http://localhost:8000${base}`;
-		console.log('🌐 To test locally:');
+		console.log('To test locally:');
 		console.log('  php -S localhost:8000 -t build router.php');
 		console.log(`  Then visit: ${url}`);
 		console.log('');
-		console.log('🚀 To deploy to Apache:');
+		console.log('To deploy to Apache:');
 		console.log('  1. Upload all files from build/ to your Apache document root');
 		console.log('  2. Ensure mod_rewrite is enabled');
 		console.log('  3. Check APACHE_DEPLOYMENT.md for detailed instructions');
 	} else {
-		console.error('❌ PHP build failed with code:', code);
+		console.error('PHP build failed with code:', code);
 		process.exit(1);
 	}
 });
 
 adapterProcess.on('error', (err) => {
-	console.error('❌ Failed to run adapter:', err);
+	console.error('Failed to run adapter:', err);
 	process.exit(1);
 });

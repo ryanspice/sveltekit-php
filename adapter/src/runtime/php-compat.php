@@ -249,6 +249,50 @@ final class SK_FetchResponse {
 	}
 }
 
+function sk_fetch_error_response(string $message): SK_FetchResponse {
+	sk_debug_log('sk_fetch failed: '.$message);
+	return new SK_FetchResponse(0, ['x-sveltekit-php-fetch-error: '.$message], '');
+}
+
+function sk_fetch_with_curl(string $input, string $method, array $headerLines, $body, int $timeoutMs): ?SK_FetchResponse {
+	if (!function_exists('curl_init')) {
+		return null;
+	}
+
+	$curl = curl_init($input);
+	if ($curl === false) {
+		return sk_fetch_error_response('curl_init failed');
+	}
+
+	curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+	curl_setopt($curl, CURLOPT_HEADER, true);
+	curl_setopt($curl, CURLOPT_CUSTOMREQUEST, $method);
+	curl_setopt($curl, CURLOPT_FOLLOWLOCATION, false);
+	curl_setopt($curl, CURLOPT_TIMEOUT_MS, $timeoutMs);
+	curl_setopt($curl, CURLOPT_HTTPHEADER, $headerLines);
+
+	if ($body !== null) {
+		curl_setopt($curl, CURLOPT_POSTFIELDS, is_string($body) ? $body : json_encode($body));
+	}
+
+	$raw = curl_exec($curl);
+	if ($raw === false) {
+		$error = curl_error($curl) ?: 'curl_exec failed';
+		curl_close($curl);
+		return sk_fetch_error_response($error);
+	}
+
+	$status = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+	$headerSize = (int)curl_getinfo($curl, CURLINFO_HEADER_SIZE);
+	curl_close($curl);
+
+	$headerText = substr((string)$raw, 0, $headerSize);
+	$responseBody = substr((string)$raw, $headerSize);
+	$respHeaders = array_values(array_filter(array_map('trim', explode("\r\n", $headerText))));
+
+	return new SK_FetchResponse($status, $respHeaders, $responseBody);
+}
+
 function sk_fetch(string $input, array $init = []): SK_FetchResponse {
 	$method = $init['method'] ?? 'GET';
 	$headers = $init['headers'] ?? [];
@@ -278,9 +322,28 @@ function sk_fetch(string $input, array $init = []): SK_FetchResponse {
 		$opts['http']['content'] = is_string($body) ? $body : json_encode($body);
 	}
 
-	$context = stream_context_create($opts);
-	$responseBody = @file_get_contents($input, false, $context);
-	$respHeaders = $http_response_header ?? [];
+	$responseBody = false;
+	$respHeaders = [];
+	$allowUrlFopen = filter_var(ini_get('allow_url_fopen'), FILTER_VALIDATE_BOOLEAN);
+
+	if ($allowUrlFopen) {
+		$context = stream_context_create($opts);
+		$responseBody = @file_get_contents($input, false, $context);
+		$respHeaders = $http_response_header ?? [];
+	}
+
+	if ($responseBody === false) {
+		$curlResponse = sk_fetch_with_curl($input, (string)$method, $headerLines, $body, $timeoutMs);
+		if ($curlResponse !== null) {
+			return $curlResponse;
+		}
+
+		if (!$allowUrlFopen) {
+			return sk_fetch_error_response('allow_url_fopen is disabled and the curl extension is unavailable');
+		}
+
+		return sk_fetch_error_response('file_get_contents failed and the curl extension is unavailable');
+	}
 
 	$status = 0;
 	if (isset($respHeaders[0]) && preg_match('/\s(\d{3})\s/', $respHeaders[0], $m)) {

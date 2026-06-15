@@ -55,7 +55,7 @@ type Options = {
 };
 
 const DEFAULTS = {
-	profile: 'mark8t-dev',
+	profile: 'default',
 	local: './build',
 	port: 22,
 	thresholdFiles: 0.35,
@@ -97,11 +97,12 @@ function env(name: string): string | undefined {
 }
 
 function must(v: string | undefined, name: string): string {
-	if (!v) {
+	const value = typeof v === 'string' ? v.trim() : '';
+	if (!value || /^(<.*>|\$\{.*\}|changeme|change_me|change-me|todo|tbd|placeholder|example|example\..*|your_.+|undefined|null)$/i.test(value)) {
 		console.error(`Missing required "${name}". Set via --${name} or DEPLOY_${name.toUpperCase()}.`);
 		process.exit(2);
 	}
-	return v;
+	return value;
 }
 
 function parseBool(v: unknown, def: boolean): boolean {
@@ -731,9 +732,9 @@ async function main() {
 
 	const profile = String(a.profile ?? env('DEPLOY_PROFILE') ?? DEFAULTS.profile);
 
-	const host = must(String(a.host ?? env('DEPLOY_HOST')), 'host');
-	const user = must(String(a.user ?? env('DEPLOY_USER')), 'user');
-	const remote = must(String(a.remote ?? env('DEPLOY_REMOTE')), 'remote');
+	const host = must(a.host === true ? undefined : (a.host as string | undefined) ?? env('DEPLOY_HOST'), 'host');
+	const user = must(a.user === true ? undefined : (a.user as string | undefined) ?? env('DEPLOY_USER'), 'user');
+	const remote = must(a.remote === true ? undefined : (a.remote as string | undefined) ?? env('DEPLOY_REMOTE'), 'remote');
 
 	const port = parseNum(a.port ?? env('DEPLOY_PORT'), DEFAULTS.port);
 	const local = String(a.local ?? env('DEPLOY_LOCAL') ?? DEFAULTS.local);

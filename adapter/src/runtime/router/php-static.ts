@@ -7,10 +7,16 @@ export function getRouterPhpStaticPhp(fallback?: string | boolean, fallbackFile?
 $root = __DIR__;
 $q = $_SERVER['QUERY_STRING'] ?? '';
 
-if ($base !== '' && ($uri === $base || strpos($uri, $base . '/') === 0)) {
-	$uri = substr($uri, strlen($base));
-	if ($uri === '' || $uri === false) $uri = '/';
-	router_log("Stripped URI: $uri");
+if ($base !== '') {
+	if ($uri === $base || strpos($uri, $base . '/') === 0) {
+		$uri = substr($uri, strlen($base));
+		if ($uri === '' || $uri === false) $uri = '/';
+		router_log("Stripped URI: $uri");
+	} else {
+		http_response_code(404);
+		echo "404 Not Found";
+		return;
+	}
 }
 
 if (strlen($uri) > 0 && $uri[0] !== '/') {
@@ -54,12 +60,19 @@ function router_mime_type($path) {
 
 if (!function_exists('router_send_file')) {
 function router_send_file($path, $mime = null) {
+	$file = router_safe_path(__DIR__, $path);
+	if ($file === null || !is_file($file)) {
+		http_response_code(404);
+		return false;
+	}
+	$path = $file;
 	$mime = $mime ?? router_mime_type($path);
 	header('Content-Type: '.$mime);
 	header('Content-Length: '.filesize($path));
 	if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
 		readfile($path);
 	}
+	return true;
 }
 }
 
@@ -114,6 +127,7 @@ foreach ($manifest as $route) {
         } elseif ($route['type'] === 'negotiate') {
             // Negotiation logic
             // Check Accept header
+            header('Vary: Accept', false);
             $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
             $prefersHtml = (strpos($accept, 'text/html') !== false);
 

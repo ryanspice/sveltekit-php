@@ -42,9 +42,10 @@ if (!function_exists('router_has_bad_path')) {
             if ($next === $decoded) break;
             $decoded = $next;
         }
+        if (preg_match('/[\\x00-\\x1f\\x7f]/', $decoded)) return true;
         $decoded = str_replace('\\\\', '/', $decoded);
         foreach (explode('/', $decoded) as $segment) {
-            if ($segment === '..') return true;
+            if ($segment === '..' || $segment === '.') return true;
         }
         return false;
     }
@@ -67,13 +68,60 @@ if (!function_exists('router_safe_path')) {
     }
 }
 
+if (!function_exists('router_mime_type')) {
+    function router_mime_type($path) {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimes = [
+            'js' => 'application/javascript',
+            'mjs' => 'application/javascript',
+            'cjs' => 'application/javascript',
+            'css' => 'text/css',
+            'json' => 'application/json',
+            'html' => 'text/html',
+            'htm' => 'text/html',
+            'xml' => 'text/xml',
+            'txt' => 'text/plain',
+            'svg' => 'image/svg+xml',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'ico' => 'image/x-icon',
+            'woff2' => 'font/woff2',
+            'woff' => 'font/woff',
+            'ttf' => 'font/ttf',
+            'eot' => 'application/vnd.ms-fontobject'
+        ];
+        return $mimes[$ext] ?? (function_exists('mime_content_type') ? mime_content_type($path) : 'application/octet-stream');
+    }
+}
+
+if (!function_exists('router_send_file')) {
+    function router_send_file($path, $mime = null) {
+        $file = router_safe_path(__DIR__, $path);
+        if ($file === null || !is_file($file)) {
+            http_response_code(404);
+            return false;
+        }
+
+        $mime = $mime ?? router_mime_type($file);
+        header('Content-Type: '.$mime);
+        header('Content-Length: '.filesize($file));
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
+            readfile($file);
+        }
+        return true;
+    }
+}
+
 if (router_has_bad_path($path) || router_has_bad_path($uri_raw)) {
 	http_response_code(400);
 	echo "Bad Request";
 	return;
 }
 
-if (strpos($uri_raw, '/_protected/') !== false) {
+if (preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)) {
 	http_response_code(403);
 	echo "Access Denied";
 	return;
@@ -118,7 +166,13 @@ if ($base !== '' && ($uri === '/' || $uri === '')) {
     return;
 }
 
-if (strpos($uri, '/_protected/') === 0 || ($base !== '' && strpos($uri, $base . '/_protected/') === 0)) {
+if ($base !== '' && $uri !== $base && strpos($uri, $base . '/') !== 0) {
+	http_response_code(404);
+	echo "404 Not Found";
+	return;
+}
+
+if (preg_match('#^/_protected(?:/|$)#', $uri) || ($base !== '' && preg_match('#^' . preg_quote($base, '#') . '/_protected(?:/|$)#', $uri))) {
 	http_response_code(403);
     echo "Access Denied";
 	return;

@@ -26,6 +26,10 @@ jobs:
         run: bun run check
       - name: Build adapter
         run: bun run build:adapter
+      - name: Verify generated artifacts
+        run: bun run verify:artifacts -- --strict
+      - name: Verify alpha release prep
+        run: bun run verify:release-prep
       - name: Build E2E artifacts
         run: bun run build:e2e
       - name: Install Playwright Browsers

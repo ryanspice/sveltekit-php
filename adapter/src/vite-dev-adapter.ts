@@ -2,9 +2,30 @@ import path from 'node:path';
 import { writeFile, mkdir } from 'node:fs/promises';
 import type { AdapterOptions, Builder } from './types.js';
 
+function assertDevAdapterAllowed(name: string) {
+	const allow = process.env.SK_PHP_ALLOW_DEV_ADAPTER === 'true';
+	const nodeEnv = process.env.NODE_ENV ?? 'development';
+	const ci = process.env.CI === 'true';
+
+	if (!allow && (nodeEnv === 'production' || ci)) {
+		throw new Error(
+			`${name} is dev-only. Use the production adapter for builds, or set SK_PHP_ALLOW_DEV_ADAPTER=true for an explicit local override.`
+		);
+	}
+}
+
+function getViteDevRouterPhp() {
+	return `<?php
+declare(strict_types=1);
+
+http_response_code(503);
+header('Content-Type: text/plain; charset=utf-8');
+echo "The Vite PHP dev adapter is a development-only stub. Start the repo dev workflow with bun run dev, or build with the production adapter before serving PHP output.";
+`;
+}
+
 /**
- * Vite-integrated development adapter for faster builds
- * Works with Vite's dev server for instant feedback
+ * Vite-integrated development adapter for local development only.
  */
 export default function sveltekitViteDevAdapter(options: AdapterOptions = {}) {
 	const { ssr = true, out = './build', assets = './build' } = options;
@@ -12,103 +33,21 @@ export default function sveltekitViteDevAdapter(options: AdapterOptions = {}) {
 	return {
 		name: '@ryanspice/sveltekit-adapter-php-vite-dev',
 		async adapt(builder: Builder) {
+			assertDevAdapterAllowed('@ryanspice/sveltekit-adapter-php-vite-dev');
+
 			const outDir = path.resolve(out);
 			const assetsDir = path.resolve(assets);
 
-			builder.log.minor('🚀 Vite dev adapter - optimized for development');
-
-			// 1) Client assets (fast)
-			builder.log.minor('Writing client assets');
+			builder.log.minor('Vite dev adapter: writing client assets and explicit PHP stub');
 			builder.writeClient(assetsDir);
 
-			// 2) Create development PHP router
 			if (ssr) {
-				const devRouter = `<?php
-/**
- * Vite Development PHP Router
- * Provides instant feedback during development
- */
-
-// Enable error reporting for development
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
-$root = __DIR__;
-$uri = urldecode(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH));
-
-// Log requests for debugging (optional, can be disabled)
-if (isset($_GET['debug'])) {
-    error_log("[PHP Dev] Request: " . $_SERVER['REQUEST_METHOD'] . " " . $uri);
-}
-
-// 1. Direct file access (JS, CSS, images, etc.)
-$target = $root . $uri;
-if (is_file($target)) {
-    // Set appropriate content type
-    $ext = pathinfo($target, PATHINFO_EXTENSION);
-    switch ($ext) {
-        case 'js': header('Content-Type: application/javascript'); break;
-        case 'css': header('Content-Type: text/css'); break;
-        case 'json': header('Content-Type: application/json'); break;
-        case 'php': break; // Let PHP handle PHP files
-        default: 
-            $mime = mime_content_type($target);
-            if ($mime) header('Content-Type: ' . $mime);
-    }
-    return false; // Serve static file
-}
-
-// 2. PHP files (including __data.php, __action.php)
-if (is_file($target . '.php')) {
-    include $target . '.php';
-    return;
-}
-
-// 3. Directory with index.php
-if (is_dir($target) && is_file($target . '/index.php')) {
-    include $target . '/index.php';
-    return;
-}
-
-// 4. Development fallback - serve index.html with dev indicator
-$indexFile = $root . '/index.html';
-if (file_exists($indexFile)) {
-    $content = file_get_contents($indexFile);
-    
-    // Add development indicator
-    $devIndicator = '<!-- VITE DEV MODE - PHP Adapter Active -->';
-    if (strpos($content, $devIndicator) === false) {
-        $content = str_replace('<head>', '<head>' . $devIndicator, $content);
-    }
-    
-    // Inject development script for hot reload
-    $devScript = '
-<script>
-    // Development hot reload indicator
-    if (typeof window !== "undefined" && window.console) {
-        console.log("🚀 PHP Dev Adapter Active - Vite Dev Server Running");
-    }
-</script>';
-    
-    $content = str_replace('</body>', $devScript . '</body>', $content);
-    
-    echo $content;
-    return;
-}
-
-// 5. 404 for development
-http_response_code(404);
-echo '<h1>404 - Development Mode</h1>';
-echo '<p>File not found: ' . htmlspecialchars($uri) . '</p>';
-echo '<p><small>PHP Dev Adapter - Vite Integration</small></p>';
-?>`;
-
 				await mkdir(outDir, { recursive: true });
-				await writeFile(path.join(outDir, 'dev-router.php'), devRouter, 'utf8');
-				builder.log.minor('Created Vite-integrated development router');
+				await writeFile(path.join(outDir, 'dev-router.php'), getViteDevRouterPhp(), 'utf8');
+				builder.log.minor('Created Vite development-only PHP stub');
 			}
 
-			builder.log.minor('✅ Vite dev adapter complete - ready for development');
+			builder.log.minor('Vite dev adapter complete');
 		}
 	};
 }
