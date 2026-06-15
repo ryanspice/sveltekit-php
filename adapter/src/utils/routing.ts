@@ -21,6 +21,10 @@ function escapeRegexSegment(s: string) {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function normalizeParamName(raw: string): string {
+	return raw.split('=')[0] ?? raw;
+}
+
 export function compilePhpRouteMatcher(routeId: string) {
 	const id = routeId.startsWith('/') ? routeId : `/${routeId}`;
 	const parts = stripLeadingSlash(id).split('/').filter(Boolean);
@@ -36,7 +40,7 @@ export function compilePhpRouteMatcher(routeId: string) {
 		const restMatch = seg.match(/^\[\.\.\.(.+)\]$/);
 		if (restMatch) {
 			groupIdx += 1;
-			map.push({ idx: groupIdx, name: restMatch[1] });
+			map.push({ idx: groupIdx, name: normalizeParamName(restMatch[1]) });
 			re += `(?:/(.*))?`;
 			continue;
 		}
@@ -44,7 +48,7 @@ export function compilePhpRouteMatcher(routeId: string) {
 		const optMatch = seg.match(/^\[\[(.+)\]\]$/);
 		if (optMatch) {
 			groupIdx += 1;
-			map.push({ idx: groupIdx, name: optMatch[1] });
+			map.push({ idx: groupIdx, name: normalizeParamName(optMatch[1]) });
 			re += `(?:/([^/]+))?`;
 			continue;
 		}
@@ -52,7 +56,7 @@ export function compilePhpRouteMatcher(routeId: string) {
 		const dynMatch = seg.match(/^\[(.+)\]$/);
 		if (dynMatch) {
 			groupIdx += 1;
-			map.push({ idx: groupIdx, name: dynMatch[1] });
+			map.push({ idx: groupIdx, name: normalizeParamName(dynMatch[1]) });
 			re += `/([^/]+)`;
 			continue;
 		}

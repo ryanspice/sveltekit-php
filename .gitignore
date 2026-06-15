@@ -32,6 +32,13 @@ debug_env.txt
 debug_payload.json
 router.log
 router_e2e.log
+/report/
+
+# Local scratch/audit leftovers
+.htaccess.test
+test.php
+verbose/.last-run.json
+tools/*.patch
 
 # Playwright
 /test-results/

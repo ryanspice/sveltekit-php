@@ -795,6 +795,8 @@ async function run() {
 			log('Skipping Build (--skipBuild)', COLORS.yellow);
 		}
 
+		runCmd('Generated artifact sync...', 'bun run verify:artifacts', process.env);
+
 		if (!opts.skipUnit) {
 			runCmd('Unit tests...', 'bun run test:unit', process.env);
 			// Also run PHP regression tests

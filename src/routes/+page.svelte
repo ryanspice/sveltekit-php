@@ -20,6 +20,7 @@
 	<div class="menu">
 		<h2>Test Scenarios</h2>
 		<ul>
+			<li><a href={href('alpha-readiness')}>1.0.0 Alpha Readiness Report</a></li>
 			<li><a href={href('ssr-data')}>SSR Data Injection</a></li>
 			<li><a href={href('parent-child')}>Layout Merging (Level 1)</a></li>
 			<li><a href={href('parent-child/nested')}>Layout Merging (Level 2 Nested)</a></li>

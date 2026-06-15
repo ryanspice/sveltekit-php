@@ -2,37 +2,16 @@ export function getRouterJsSsrPhp() {
 	return `
 // 0. Try to serve exact file match; preserves base path nesting
 $full_path = __DIR__ . $uri;
-if ($uri !== '/' && file_exists($full_path)) {
-    if (is_file($full_path)) {
-        $real = realpath($full_path);
-        if ($real === false || strpos($real, realpath(__DIR__)) !== 0) {
-            http_response_code(403);
-            return;
-        }
-
-        $ext = pathinfo($full_path, PATHINFO_EXTENSION);
-        switch ($ext) {
-            case 'js': $mime = 'application/javascript'; break;
-            case 'css': $mime = 'text/css'; break;
-            case 'html': $mime = 'text/html'; break;
-            case 'json': $mime = 'application/json'; break;
-            case 'png': $mime = 'image/png'; break;
-            case 'jpg': $mime = 'image/jpeg'; break;
-            case 'svg': $mime = 'image/svg+xml'; break;
-            case 'ico': $mime = 'image/x-icon'; break;
-            case 'txt': $mime = 'text/plain'; break;
-            case 'xml': $mime = 'text/xml'; break;
-            default: $mime = 'application/octet-stream';
-        }
-
-        header("Content-Type: $mime");
-        readfile($full_path);
+if ($uri !== '/') {
+    $real_full_path = router_safe_path(__DIR__, $full_path);
+    if ($real_full_path !== null && is_file($real_full_path)) {
+        router_send_file($real_full_path);
         return;
-    } elseif (is_dir($full_path)) {
+    } elseif ($real_full_path !== null && is_dir($real_full_path)) {
         // If accessing directory, check for index
         foreach (["/index.php", "/index.html"] as $idx) {
-            $candidate = $full_path . $idx;
-            if (is_file($candidate)) {
+            $candidate = router_safe_path(__DIR__, $real_full_path . $idx);
+            if ($candidate !== null && is_file($candidate)) {
                 if (substr($uri, -1) !== '/') {
                     // Redirect to slash
                     $target = $uri . '/';
@@ -44,12 +23,11 @@ if ($uri !== '/' && file_exists($full_path)) {
                 }
 
                 if (substr($candidate, -4) === ".php") {
-                    $_SERVER["SCRIPT_FILENAME"] = realpath($candidate);
+                    $_SERVER["SCRIPT_FILENAME"] = $candidate;
                     require $candidate;
                     return;
                 }
-                header("Content-Type: text/html; charset=utf-8");
-                readfile($candidate);
+                router_send_file($candidate, 'text/html; charset=utf-8');
                 return;
             }
         }
@@ -64,48 +42,27 @@ if (strlen($uri) > 0 && $uri[0] !== '/') {
     $uri = '/' . $uri;
 }
 $path = __DIR__ . $uri;
-if ($uri !== '/' && is_dir($path)) {
+if ($uri !== '/') {
+    $real_path = router_safe_path(__DIR__, $path);
+} else {
+    $real_path = null;
+}
+if ($real_path !== null && is_dir($real_path)) {
     foreach (["/index.html", "/index.php"] as $idx) {
-        $candidate = $path . $idx;
-        if (is_file($candidate)) {
+        $candidate = router_safe_path(__DIR__, $real_path . $idx);
+        if ($candidate !== null && is_file($candidate)) {
             if (substr($candidate, -4) === ".php") {
-                $requested_file = realpath($candidate);
-                if ($requested_file) {
-                    $_SERVER["SCRIPT_FILENAME"] = $requested_file;
-                    require $requested_file;
-                    return;
-                }
+                $_SERVER["SCRIPT_FILENAME"] = $candidate;
+                require $candidate;
+                return;
             }
-            header("Content-Type: text/html; charset=utf-8");
-            readfile($candidate);
+            router_send_file($candidate, 'text/html; charset=utf-8');
             return;
         }
     }
 }
-if (file_exists($path) && is_file($path)) {
-    $real = realpath($path);
-    if ($real === false || strpos($real, realpath(__DIR__)) !== 0) {
-        http_response_code(403);
-        return;
-    }
-
-    $ext = pathinfo($path, PATHINFO_EXTENSION);
-    switch ($ext) {
-        case 'js': $mime = 'application/javascript'; break;
-        case 'css': $mime = 'text/css'; break;
-        case 'html': $mime = 'text/html'; break;
-        case 'json': $mime = 'application/json'; break;
-        case 'png': $mime = 'image/png'; break;
-        case 'jpg': $mime = 'image/jpeg'; break;
-        case 'svg': $mime = 'image/svg+xml'; break;
-        case 'ico': $mime = 'image/x-icon'; break;
-        case 'txt': $mime = 'text/plain'; break;
-        case 'xml': $mime = 'text/xml'; break;
-        default: $mime = 'application/octet-stream';
-    }
-
-    header("Content-Type: $mime");
-    readfile($path);
+if ($real_path !== null && is_file($real_path)) {
+    router_send_file($real_path);
     return;
 }
 

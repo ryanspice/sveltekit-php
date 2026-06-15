@@ -3,6 +3,7 @@
 import { spawn } from 'child_process';
 import { resolve } from 'path';
 import { writeFile } from 'fs/promises';
+import { assertOptionalEnvIsConcrete } from './utils/config.mjs';
 
 /**
  * Build script for Apache deployment
@@ -10,11 +11,15 @@ import { writeFile } from 'fs/promises';
  */
 
 const BUILD_DIR = resolve('build');
+assertOptionalEnvIsConcrete(
+	['SK_BASE_PATH', 'DEPLOY_BASE', 'ADAPTER_MODE', 'ADAPTER_OUT', 'ADAPTER_ASSETS'],
+	'Apache build environment'
+);
 
-console.log('🚀 Building Apache deployment...');
+console.log('Building Apache deployment...');
 
 // First run the standard build
-console.log('📋 Running standard build...');
+console.log('Running standard build...');
 const buildProcess = spawn('vite', ['build'], {
 	stdio: 'inherit',
 	env: { ...process.env, NODE_ENV: 'production' }
@@ -22,10 +27,10 @@ const buildProcess = spawn('vite', ['build'], {
 
 buildProcess.on('close', async (code) => {
 	if (code === 0) {
-		console.log('✅ Standard build completed');
+		console.log('Standard build completed');
 
 		// Now enhance with Apache-specific files
-		console.log('🔧 Adding Apache-specific files...');
+		console.log('Adding Apache-specific files...');
 
 		try {
 			// Create .htaccess file
@@ -75,7 +80,7 @@ php_value error_log error.log
 `;
 
 			await writeFile(resolve(BUILD_DIR, '.htaccess'), htaccess, 'utf8');
-			console.log('✅ Created .htaccess file');
+			console.log('Created .htaccess file');
 
 			// Create Apache deployment guide
 			const deploymentGuide = `# Apache Deployment Guide
@@ -114,7 +119,12 @@ php_value error_log error.log
 
 ## Required Rewrites
 - Ensure requests for \`__data.json\` are routed to the PHP bridge (the generated \`.htaccess\` handles this).
-- If you deploy to a subdirectory, set \`BASE_PATH\` during build so paths are correct.
+- If you deploy to a subdirectory, set \`SK_BASE_PATH\` or \`DEPLOY_BASE\` during build so paths are correct.
+
+## Environment
+- Keep real deployment values in process environment variables or CI secrets.
+- Use \`.env.example\` as the public template.
+- Run \`bun run precheck:deploy\` before deploy automation.
 
 ## Protecting \`_protected/\`
 - Confirm \`build/_protected/.htaccess\` includes \`Require all denied\`.
@@ -127,23 +137,23 @@ php_value error_log error.log
 `;
 
 			await writeFile(resolve(BUILD_DIR, 'APACHE_DEPLOYMENT.md'), deploymentGuide, 'utf8');
-			console.log('✅ Created deployment guide');
+			console.log('Created deployment guide');
 
 			console.log('');
-			console.log('🚀 Apache deployment ready!');
-			console.log('📖 Check build/APACHE_DEPLOYMENT.md for detailed instructions');
-			console.log('📁 Upload all files from build/ to your Apache server');
+			console.log('Apache deployment ready.');
+			console.log('Check build/APACHE_DEPLOYMENT.md for detailed instructions.');
+			console.log('Upload all files from build/ to your Apache server.');
 		} catch (error) {
-			console.error('❌ Failed to create Apache files:', error);
+			console.error('Failed to create Apache files:', error);
 			process.exit(1);
 		}
 	} else {
-		console.error('❌ Build failed with code:', code);
+		console.error('Build failed with code:', code);
 		process.exit(1);
 	}
 });
 
 buildProcess.on('error', (err) => {
-	console.error('❌ Failed to build:', err);
+	console.error('Failed to build:', err);
 	process.exit(1);
 });

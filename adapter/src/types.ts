@@ -8,9 +8,17 @@ export interface AdapterOptions {
 	strict?: boolean;
 	basePath?: string;
 	baseMode?: 'fixed' | 'auto';
+	buildIdentity?: BuildIdentityContract | false;
 }
 
 export type AdapterMode = 'php-static' | 'js-ssr';
+
+export interface BuildIdentityContract {
+	name?: string;
+	required?: string[];
+	forbidden?: string[];
+	extensions?: string[];
+}
 
 export interface Route {
 	id: string;

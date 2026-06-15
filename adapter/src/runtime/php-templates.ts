@@ -150,7 +150,10 @@ function sk_defer(callable $fn): __SK_Deferred { return new __SK_Deferred($fn); 
 
 
 if (!function_exists('sk_assert_jsonable')) {
-function sk_assert_jsonable($value, string $path = ''): void {
+function sk_assert_jsonable($value, string $path = '', int $depth = 0): void {
+	if ($depth > 256) {
+		throw new RuntimeException("Possible cyclic or too-deep JSON value at $path");
+	}
 	if ($value instanceof __SK_Deferred || $value instanceof __SK_Deferred_Placeholder) return;
 	if (is_null($value) || is_bool($value) || is_int($value) || is_string($value)) return;
 	if (is_float($value)) {
@@ -162,13 +165,13 @@ function sk_assert_jsonable($value, string $path = ''): void {
 	if (is_array($value)) {
 		foreach ($value as $k => $v) {
 			$next = $path === '' ? (string)$k : ($path . '.' . (string)$k);
-			sk_assert_jsonable($v, $next);
+			sk_assert_jsonable($v, $next, $depth + 1);
 		}
 		return;
 	}
 	if (is_object($value)) {
 		if ($value instanceof JsonSerializable) {
-			sk_assert_jsonable($value->jsonSerialize(), $path);
+			sk_assert_jsonable($value->jsonSerialize(), $path, $depth + 1);
 			return;
 		}
 		throw new RuntimeException("Non-JSON object at $path");
@@ -228,6 +231,7 @@ if (!function_exists('sk_serialize')) {
 function sk_serialize($value): array {
 	$flattened = [];
 	$map = [];
+	$object_stack = [];
 
 	$add_primitive = function($val) use (&$flattened, &$map) {
 		$key = is_string($val)
@@ -245,9 +249,14 @@ function sk_serialize($value): array {
 		return $idx;
 	};
 
-	// Recursive closure to flatten the structure
-	// We use a reference for $flattened to append values
-	$fn = function($val) use (&$flattened, &$map, &$fn, $add_primitive) {
+	// Recursive closure to flatten the structure.
+	// Composite identity is intentionally not deduped into shared references; this keeps output
+	// devalue-compatible enough for SvelteKit hydration while avoiding incorrect identity claims.
+	$fn = function($val, int $depth = 0) use (&$flattened, &$map, &$object_stack, &$fn, $add_primitive) {
+		if ($depth > 256) {
+			throw new RuntimeException('Cannot serialize cyclic or too-deep data structure');
+		}
+
 		// Primitives
 		if (is_string($val) || is_int($val) || is_float($val) || is_bool($val) || is_null($val)) {
 			return $add_primitive($val);
@@ -259,20 +268,35 @@ function sk_serialize($value): array {
 			return count($flattened) - 1;
 		}
 
+		if (!is_array($val) && !is_object($val)) {
+			throw new RuntimeException('Cannot serialize unsupported value type');
+		}
+
+		if (is_object($val)) {
+			$oid = spl_object_id($val);
+			if (isset($object_stack[$oid])) {
+				throw new RuntimeException('Cannot serialize cyclic object graph');
+			}
+			$object_stack[$oid] = true;
+		}
+
 		// Arrays / Objects
 		// Detect if it's a list (array) or object (associative)
 		$is_list = is_array($val) && array_is_list($val);
 		$flattened[] = $is_list ? [] : (object)[];
 		$idx = count($flattened) - 1;
-		$map['o_'.$idx] = $idx; // Object identity is hard to dedupe perfectly, simplified
+		$map['o_'.$idx] = $idx;
 
 		foreach ($val as $k => $v) {
-			$vIdx = $fn($v);
+			$vIdx = $fn($v, $depth + 1);
 			if (is_array($flattened[$idx])) {
 				$flattened[$idx][] = $vIdx;
 			} else {
 				$flattened[$idx]->{$k} = $vIdx;
 			}
+		}
+		if (is_object($val)) {
+			unset($object_stack[spl_object_id($val)]);
 		}
 		return $idx;
 	};
@@ -635,6 +659,52 @@ function sk_action_serialize($value): string {
 }
 }
 
+if (!function_exists('sk_action_content_type')) {
+function sk_action_content_type(): string {
+	$raw = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+	$parts = explode(';', (string)$raw, 2);
+	return strtolower(trim($parts[0]));
+}
+}
+
+if (!function_exists('sk_action_raw_body')) {
+function sk_action_raw_body(): string {
+	static $body = null;
+	if ($body === null) $body = file_get_contents('php://input') ?: '';
+	return $body;
+}
+}
+
+if (!function_exists('sk_action_parse_body')) {
+function sk_action_parse_body() {
+	$contentType = sk_action_content_type();
+
+	if ($contentType === 'application/json' || str_ends_with($contentType, '+json')) {
+		$decoded = json_decode(sk_action_raw_body(), true);
+		return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+	}
+
+	if ($contentType === 'application/x-www-form-urlencoded' && empty($_POST)) {
+		$parsed = [];
+		parse_str(sk_action_raw_body(), $parsed);
+		return $parsed;
+	}
+
+	if (!empty($_POST)) return $_POST;
+
+	$raw = sk_action_raw_body();
+	return $raw === '' ? [] : ['_body' => $raw];
+}
+}
+
+if (!function_exists('sk_action_form_data')) {
+function sk_action_form_data(): array {
+	$parsed = sk_action_parse_body();
+	$form = is_array($parsed) ? $parsed : ['_body' => $parsed];
+	return array_merge($form, $_FILES);
+}
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	http_response_code(405);
 	exit('Method Not Allowed');
@@ -665,19 +735,29 @@ if (!function_exists($fnName)) {
 }
 
 // 3. Execute
-// We need to parse body (multipart or urlencoded)
-// PHP does this automatically into $_POST and $_FILES
+// PHP populates $_POST only for form-urlencoded and multipart bodies.
+// Fall back to php://input so JSON/raw action posts do not silently become empty input.
 
 try {
 	$params = sk_extract_params($_SERVER['REQUEST_URI'] ?? '', SK_BASE_PATH, SK_ROUTE_REGEX, SK_ROUTE_PARAM_MAP);
 	$method = $_SERVER['REQUEST_METHOD'] ?? 'POST';
 	$locals = &sk_locals();
+	$actionBody = sk_action_parse_body();
+	$actionFormData = sk_action_form_data();
 
 	$result = $fnName([
 		'request' => (object)[
 			'method' => $method,
 			'formData' => function () {
-				return array_merge($_POST, $_FILES);
+				return sk_action_form_data();
+			},
+			'body' => $actionBody,
+			'rawBody' => sk_action_raw_body(),
+			'json' => function () {
+				return json_decode(sk_action_raw_body(), true);
+			},
+			'text' => function () {
+				return sk_action_raw_body();
 			}
 		],
 		'url' => (object)[
@@ -696,7 +776,10 @@ try {
 			return sk_fetch($input, $init ?? []);
 		},
 		'cookies' => new SK_Cookies($_COOKIE),
-		'post' => $_POST,
+		'post' => is_array($actionBody) ? $actionBody : ['_body' => $actionBody],
+		'body' => $actionBody,
+		'rawBody' => sk_action_raw_body(),
+		'formData' => $actionFormData,
 		'files' => $_FILES
     ]);
 

@@ -2,7 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import glob from 'tiny-glob';
-import { readFile, writeFile, rename, stat } from 'node:fs/promises';
+import { readFile, writeFile, rename, stat, readdir } from 'node:fs/promises';
 import {
 	posixify,
 	stripLeadingSlash,
@@ -10,6 +10,7 @@ import {
 	phpRelToRootFromNav,
 	phpArrayString
 } from './utils/paths.js';
+import { normalizePhpHandlerSource } from './utils/php-handlers.js';
 import {
 	findRouteForNavPath,
 	buildLayoutChainCandidates,
@@ -31,7 +32,143 @@ import {
 } from './runtime/php-templates.js';
 import { getNodeHandlerMjs, getPhpProxy, getStandaloneApiPhp } from './runtime/js-ssr-templates.js';
 import { getHtaccess } from './runtime/htaccess-templates.js';
-import type { AdapterMode, AdapterOptions, Builder } from './types.js';
+import type { AdapterMode, AdapterOptions, Builder, BuildIdentityContract } from './types.js';
+
+const ADAPTER_VERSION = '1.0.0-alpha.1';
+const DEFAULT_BUILD_IDENTITY_EXTENSIONS = ['.php', '.html', '.json'];
+
+type ResolvedBuildIdentityContract = Required<
+	Pick<BuildIdentityContract, 'required' | 'forbidden' | 'extensions'>
+> &
+	Pick<BuildIdentityContract, 'name'>;
+
+function normalizeMarkerList(value: unknown): string[] {
+	if (value == null) return [];
+	if (Array.isArray(value)) {
+		return value
+			.flatMap((item) => normalizeMarkerList(item))
+			.map((item) => item.trim())
+			.filter(Boolean);
+	}
+	if (typeof value !== 'string') return [];
+
+	const trimmed = value.trim();
+	if (!trimmed) return [];
+
+	try {
+		const parsed = JSON.parse(trimmed);
+		if (Array.isArray(parsed)) return normalizeMarkerList(parsed);
+	} catch {
+		// Treat non-JSON values as delimiter-separated marker lists.
+	}
+
+	return trimmed
+		.split(/\r?\n|;;/)
+		.map((item) => item.trim())
+		.filter(Boolean);
+}
+
+function resolveBuildIdentityContract(
+	buildIdentity: AdapterOptions['buildIdentity']
+): ResolvedBuildIdentityContract | null {
+	if (buildIdentity === false) return null;
+	const option = buildIdentity && typeof buildIdentity === 'object' ? buildIdentity : undefined;
+
+	const envRequired = normalizeMarkerList(process.env.SVELTEKIT_PHP_BUILD_REQUIRED_MARKERS);
+	const envForbidden = normalizeMarkerList(process.env.SVELTEKIT_PHP_BUILD_FORBIDDEN_MARKERS);
+	const optionRequired = normalizeMarkerList(option?.required);
+	const optionForbidden = normalizeMarkerList(option?.forbidden);
+	const required = [...optionRequired, ...envRequired];
+	const forbidden = [...optionForbidden, ...envForbidden];
+
+	if (required.length === 0 && forbidden.length === 0) return null;
+
+	const extensions = normalizeMarkerList(option?.extensions).map((extension) =>
+		extension.startsWith('.') ? extension.toLowerCase() : `.${extension.toLowerCase()}`
+	);
+
+	return {
+		name: option?.name ?? process.env.SVELTEKIT_PHP_BUILD_IDENTITY ?? 'generated-output',
+		required,
+		forbidden,
+		extensions: extensions.length > 0 ? extensions : DEFAULT_BUILD_IDENTITY_EXTENSIONS
+	};
+}
+
+async function verifyBuildIdentityContract(
+	outDir: string,
+	contract: ResolvedBuildIdentityContract,
+	builder: Builder
+) {
+	const extensions = new Set(contract.extensions);
+	const textFiles: string[] = [];
+
+	const collectTextFiles = async (dir: string) => {
+		let entries: string[];
+		try {
+			entries = await readdir(dir);
+		} catch {
+			// Ignore transient directories removed by user hooks or post-processing.
+			return;
+		}
+
+		for (const entry of entries) {
+			const file = path.join(dir, entry);
+			try {
+				const info = await stat(file);
+				if (info.isDirectory()) {
+					await collectTextFiles(file);
+				} else if (info.isFile() && extensions.has(path.extname(file).toLowerCase())) {
+					textFiles.push(file);
+				}
+			} catch {
+				// Ignore transient files removed by user hooks or post-processing.
+			}
+		}
+	};
+
+	await collectTextFiles(outDir);
+
+	let corpus = '';
+	for (const file of textFiles) {
+		corpus += `\n/* ${path.relative(outDir, file)} */\n`;
+		corpus += await readFile(file, 'utf8');
+	}
+
+	const missing = contract.required.filter((marker) => !corpus.includes(marker));
+	const presentForbidden = contract.forbidden.filter((marker) => corpus.includes(marker));
+
+	if (missing.length > 0 || presentForbidden.length > 0) {
+		const lines = [`Build identity contract "${contract.name ?? 'generated-output'}" failed.`];
+		if (missing.length > 0) lines.push(`Missing required markers: ${missing.join(', ')}`);
+		if (presentForbidden.length > 0)
+			lines.push(`Forbidden markers present: ${presentForbidden.join(', ')}`);
+		throw new Error(lines.join('\n'));
+	}
+
+	builder.log.minor(
+		`Build identity contract "${contract.name ?? 'generated-output'}" passed (${textFiles.length} files scanned)`
+	);
+}
+
+function buildStamp(mode: AdapterMode, basePath: string, buildIdentity: ResolvedBuildIdentityContract | null) {
+	return {
+		mode,
+		basePath: basePath || '',
+		adapterVersion: ADAPTER_VERSION,
+		publicSiteId: process.env.PUBLIC_SITE_ID ?? null,
+		publicSiteUrl: process.env.PUBLIC_SITE_URL ?? null,
+		buildIdentity: buildIdentity
+			? {
+					name: buildIdentity.name,
+					requiredMarkers: buildIdentity.required,
+					forbiddenMarkers: buildIdentity.forbidden,
+					extensions: buildIdentity.extensions
+				}
+			: null,
+		builtAt: new Date().toISOString()
+	};
+}
 
 export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 	const {
@@ -45,6 +182,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 	} = options;
 	const mode: AdapterMode = options.mode ?? 'php-static';
 	const debugEnabled = process.env.ADAPTER_DEBUG === 'true' || process.env.SK_DEBUG === 'true';
+	const buildIdentity = resolveBuildIdentityContract(options.buildIdentity);
 
 	return {
 		name: '@ryanspice/sveltekit-adapter-php',
@@ -405,6 +543,20 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					builder.log.warn(errorLines.join('\n'));
 					builder.log.warn('Continuing because strict mode is disabled.');
 				}
+			}
+
+			const normalizedPhpSourceCache = new Map<string, string>();
+			for (const rel of effectivePhpFiles) {
+				const normalized = normalizeServerRel(rel);
+				const prefix = fnPrefixMap.get(normalized);
+				if (!prefix) {
+					throw new Error(`Missing PHP handler prefix for ${normalized}`);
+				}
+
+				const absFs = path.join(routesBaseFs, stripLeadingSlash(rel));
+				const src = await readFile(absFs, 'utf8');
+				const normalizedSource = normalizePhpHandlerSource(src, normalized, prefix);
+				normalizedPhpSourceCache.set(normalized, normalizedSource);
 			}
 
 			// JS/TS server files will be processed after maps are created
@@ -1068,14 +1220,14 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				builder.mkdirp(manifestDir);
 				await writeFile(path.join(manifestDir, 'route-manifest.php'), manifestPhp, 'utf8');
 
+				if (buildIdentity) {
+					builder.log.minor('Verifying build identity contract');
+					await verifyBuildIdentityContract(outDir, buildIdentity, builder);
+				}
+
 				// Write Build Stamp
 				builder.log.minor('Writing build stamp');
-				const stamp = {
-					mode,
-					basePath: basePath || '',
-					adapterVersion: '0.0.1', // TODO: Read from package.json or inject
-					builtAt: new Date().toISOString()
-				};
+				const stamp = buildStamp(mode, basePath, buildIdentity);
 				// Ensure _runtime exists (it should, but just in case)
 				builder.mkdirp(path.join(outDir, '_runtime'));
 				await writeFile(
@@ -2170,6 +2322,8 @@ if (sk_prefers_html($accept)) {
 
 				const conversions = [];
 				for (const relPosix of usedServerFiles) {
+					if (!relPosix.endsWith('.php')) continue;
+
 					const absFs = path.join(routesBaseFs, stripLeadingSlash(relPosix));
 					const protectedRel = protectedMap.get(relPosix);
 					const prefix = fnPrefixMap.get(relPosix);
@@ -2182,16 +2336,9 @@ if (sk_prefers_html($accept)) {
 
 					conversions.push(
 						(async () => {
-							let src = await readFile(absFs, 'utf8');
-							src = src.replace(/function\s+load\s*\(/m, 'function ' + prefix + '_load(');
-							src = src.replace(
-								/function\s+action_([A-Za-z0-9_]+)\s*\(/g,
-								(_, name) => 'function ' + prefix + '_action_' + name + '('
-							);
-							src = src.replace(
-								/function\s+(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)\s*\(/g,
-								(_, name) => 'function ' + prefix + '_' + name + '('
-							);
+							const src =
+								normalizedPhpSourceCache.get(relPosix) ??
+								normalizePhpHandlerSource(await readFile(absFs, 'utf8'), relPosix, prefix);
 							await writeFile(outFs, src, 'utf8');
 						})()
 					);
@@ -2274,14 +2421,14 @@ if (sk_prefers_html($accept)) {
 				builder.log.minor('Compressing assets');
 				await builder.compress(outDir);
 
+				if (buildIdentity) {
+					builder.log.minor('Verifying build identity contract');
+					await verifyBuildIdentityContract(outDir, buildIdentity, builder);
+				}
+
 				// 10) Write Build Stamp
 				builder.log.minor('Writing build stamp');
-				const stamp = {
-					mode,
-					basePath: basePath || '',
-					adapterVersion: '0.0.1', // TODO: Read from package.json or inject
-					builtAt: new Date().toISOString()
-				};
+				const stamp = buildStamp(mode, basePath, buildIdentity);
 				await writeFile(
 					path.join(outDir, '_runtime', 'build-stamp.json'),
 					JSON.stringify(stamp, null, 2),

@@ -226,7 +226,9 @@ async function inferBasePathFromBuild(dir) {
 	const routerPath = path.join(dir, 'router.php');
 	if (!(await exists(routerPath))) return '';
 	const router = await readFile(routerPath, 'utf8');
-	const match = router.match(/\$base\s*=\s*getenv\('SK_BASE_PATH'\)\s*\?:\s*'([^']*)'/);
+	const match =
+		router.match(/\$base\s*=\s*getenv\('SK_BASE_PATH'\)\s*\?:\s*'([^']*)'/) ??
+		router.match(/\$base\s*=\s*\$base_env\s*!==\s*false\s*\?\s*\$base_env\s*:\s*'([^']*)'/);
 	if (match?.[1] != null) return match[1];
 	return '';
 }

@@ -380,7 +380,7 @@ var import_tiny_glob = __toESM(require_tiny_glob(), 1);
 import path3 from "node:path";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
-import { readFile as readFile2, writeFile, rename, stat } from "node:fs/promises";
+import { readFile as readFile2, writeFile, rename, stat, readdir } from "node:fs/promises";
 
 // adapter/src/utils/paths.ts
 import path from "node:path";
@@ -421,6 +421,109 @@ function phpArrayString(obj) {
   return "null";
 }
 
+// adapter/src/utils/php-handlers.ts
+var HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"];
+var PHP_FUNCTION_RE = /\bfunction\s+(&\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function kindForServerFile(rel) {
+  if (rel.endsWith("+server.php"))
+    return "endpoint";
+  if (rel.includes("+layout"))
+    return "layout";
+  return "page";
+}
+function actionName(name, prefix, kind) {
+  const canonical = name.match(/^action_([A-Za-z0-9_]+)$/);
+  if (canonical)
+    return canonical[1];
+  const expected = name.match(new RegExp(`^${escapeRegExp(prefix)}_action_([A-Za-z0-9_]+)$`));
+  if (expected)
+    return expected[1];
+  const legacy = name.match(new RegExp(`^sk_[A-Za-z0-9_]+_${kind}_server_action_([A-Za-z0-9_]+)$`));
+  return legacy?.[1] ?? null;
+}
+function loadTarget(name, prefix, kind) {
+  if (name === "load" || name === `${prefix}_load`)
+    return `${prefix}_load`;
+  if (new RegExp(`^sk_[A-Za-z0-9_]+_${kind}_server_load$`).test(name)) {
+    return `${prefix}_load`;
+  }
+  return null;
+}
+function endpointTarget(name, prefix) {
+  if (HTTP_METHODS.includes(name))
+    return `${prefix}_${name}`;
+  const expected = name.match(new RegExp(`^${escapeRegExp(prefix)}_(${HTTP_METHODS.join("|")})$`));
+  if (expected)
+    return `${prefix}_${expected[1]}`;
+  const legacy = name.match(new RegExp(`^sk_[A-Za-z0-9_]+_server_(${HTTP_METHODS.join("|")})$`));
+  if (legacy)
+    return `${prefix}_${legacy[1]}`;
+  return null;
+}
+function handlerTarget(name, kind, prefix) {
+  if (kind === "endpoint")
+    return endpointTarget(name, prefix);
+  const load = loadTarget(name, prefix, kind);
+  if (load)
+    return load;
+  const action = actionName(name, prefix, kind);
+  return action ? `${prefix}_action_${action}` : null;
+}
+function looksLikeUnsupportedHandler(name, kind) {
+  if (kind === "endpoint") {
+    if (HTTP_METHODS.some((method) => method.toLowerCase() === name.toLowerCase()))
+      return true;
+    return /^sk_[A-Za-z0-9_]+_server_(get|post|put|delete|patch|options|head)$/i.test(name);
+  }
+  if (name === "action" || /^action[A-Z]/.test(name))
+    return true;
+  return /_(page|layout)_server_(load|action)(_|$)/.test(name);
+}
+function normalizePhpHandlerSource(source, rel, prefix) {
+  const kind = kindForServerFile(rel);
+  const renames = new Map;
+  const referenceRenames = new Map;
+  const targets = new Map;
+  const errors = [];
+  for (const match of source.matchAll(PHP_FUNCTION_RE)) {
+    const name = match[2];
+    const target = handlerTarget(name, kind, prefix);
+    if (!target) {
+      if (looksLikeUnsupportedHandler(name, kind)) {
+        errors.push(`Unsupported PHP handler export "${name}" in ${rel}`);
+      }
+      continue;
+    }
+    const existing = targets.get(target);
+    if (existing && existing !== name) {
+      errors.push(`Duplicate PHP handler export for "${target}" in ${rel}: ${existing}, ${name}`);
+    }
+    targets.set(target, name);
+    renames.set(name, target);
+    if (name !== target) {
+      referenceRenames.set(name, target);
+    }
+  }
+  if (targets.size === 0) {
+    errors.push(`No callable PHP handler exports found in ${rel}`);
+  }
+  if (errors.length > 0) {
+    throw new Error(errors.join(`
+`));
+  }
+  let normalized = source.replace(PHP_FUNCTION_RE, (full, byRef, name) => {
+    const target = renames.get(name);
+    return target ? full.replace(name, target) : full;
+  });
+  for (const [from, to] of referenceRenames) {
+    normalized = normalized.replace(new RegExp(`\\b${escapeRegExp(from)}\\s*\\(`, "g"), (call) => call.replace(from, to));
+  }
+  return normalized;
+}
+
 // adapter/src/utils/routing.ts
 import { readFile, access } from "fs/promises";
 import path2 from "path";
@@ -432,6 +535,9 @@ function findRouteForNavPath(builder, navPath) {
 }
 function escapeRegexSegment(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function normalizeParamName(raw) {
+  return raw.split("=")[0] ?? raw;
 }
 function compilePhpRouteMatcher(routeId) {
   const id = routeId.startsWith("/") ? routeId : `/${routeId}`;
@@ -446,21 +552,21 @@ function compilePhpRouteMatcher(routeId) {
     const restMatch = seg.match(/^\[\.\.\.(.+)\]$/);
     if (restMatch) {
       groupIdx += 1;
-      map.push({ idx: groupIdx, name: restMatch[1] });
+      map.push({ idx: groupIdx, name: normalizeParamName(restMatch[1]) });
       re += `(?:/(.*))?`;
       continue;
     }
     const optMatch = seg.match(/^\[\[(.+)\]\]$/);
     if (optMatch) {
       groupIdx += 1;
-      map.push({ idx: groupIdx, name: optMatch[1] });
+      map.push({ idx: groupIdx, name: normalizeParamName(optMatch[1]) });
       re += `(?:/([^/]+))?`;
       continue;
     }
     const dynMatch = seg.match(/^\[(.+)\]$/);
     if (dynMatch) {
       groupIdx += 1;
-      map.push({ idx: groupIdx, name: dynMatch[1] });
+      map.push({ idx: groupIdx, name: normalizeParamName(dynMatch[1]) });
       re += `/([^/]+)`;
       continue;
     }
@@ -715,37 +821,16 @@ function getRouterJsSsrPhp() {
   return `
 // 0. Try to serve exact file match; preserves base path nesting
 $full_path = __DIR__ . $uri;
-if ($uri !== '/' && file_exists($full_path)) {
-    if (is_file($full_path)) {
-        $real = realpath($full_path);
-        if ($real === false || strpos($real, realpath(__DIR__)) !== 0) {
-            http_response_code(403);
-            return;
-        }
-
-        $ext = pathinfo($full_path, PATHINFO_EXTENSION);
-        switch ($ext) {
-            case 'js': $mime = 'application/javascript'; break;
-            case 'css': $mime = 'text/css'; break;
-            case 'html': $mime = 'text/html'; break;
-            case 'json': $mime = 'application/json'; break;
-            case 'png': $mime = 'image/png'; break;
-            case 'jpg': $mime = 'image/jpeg'; break;
-            case 'svg': $mime = 'image/svg+xml'; break;
-            case 'ico': $mime = 'image/x-icon'; break;
-            case 'txt': $mime = 'text/plain'; break;
-            case 'xml': $mime = 'text/xml'; break;
-            default: $mime = 'application/octet-stream';
-        }
-
-        header("Content-Type: $mime");
-        readfile($full_path);
+if ($uri !== '/') {
+    $real_full_path = router_safe_path(__DIR__, $full_path);
+    if ($real_full_path !== null && is_file($real_full_path)) {
+        router_send_file($real_full_path);
         return;
-    } elseif (is_dir($full_path)) {
+    } elseif ($real_full_path !== null && is_dir($real_full_path)) {
         // If accessing directory, check for index
         foreach (["/index.php", "/index.html"] as $idx) {
-            $candidate = $full_path . $idx;
-            if (is_file($candidate)) {
+            $candidate = router_safe_path(__DIR__, $real_full_path . $idx);
+            if ($candidate !== null && is_file($candidate)) {
                 if (substr($uri, -1) !== '/') {
                     // Redirect to slash
                     $target = $uri . '/';
@@ -757,12 +842,11 @@ if ($uri !== '/' && file_exists($full_path)) {
                 }
 
                 if (substr($candidate, -4) === ".php") {
-                    $_SERVER["SCRIPT_FILENAME"] = realpath($candidate);
+                    $_SERVER["SCRIPT_FILENAME"] = $candidate;
                     require $candidate;
                     return;
                 }
-                header("Content-Type: text/html; charset=utf-8");
-                readfile($candidate);
+                router_send_file($candidate, 'text/html; charset=utf-8');
                 return;
             }
         }
@@ -777,48 +861,27 @@ if (strlen($uri) > 0 && $uri[0] !== '/') {
     $uri = '/' . $uri;
 }
 $path = __DIR__ . $uri;
-if ($uri !== '/' && is_dir($path)) {
+if ($uri !== '/') {
+    $real_path = router_safe_path(__DIR__, $path);
+} else {
+    $real_path = null;
+}
+if ($real_path !== null && is_dir($real_path)) {
     foreach (["/index.html", "/index.php"] as $idx) {
-        $candidate = $path . $idx;
-        if (is_file($candidate)) {
+        $candidate = router_safe_path(__DIR__, $real_path . $idx);
+        if ($candidate !== null && is_file($candidate)) {
             if (substr($candidate, -4) === ".php") {
-                $requested_file = realpath($candidate);
-                if ($requested_file) {
-                    $_SERVER["SCRIPT_FILENAME"] = $requested_file;
-                    require $requested_file;
-                    return;
-                }
+                $_SERVER["SCRIPT_FILENAME"] = $candidate;
+                require $candidate;
+                return;
             }
-            header("Content-Type: text/html; charset=utf-8");
-            readfile($candidate);
+            router_send_file($candidate, 'text/html; charset=utf-8');
             return;
         }
     }
 }
-if (file_exists($path) && is_file($path)) {
-    $real = realpath($path);
-    if ($real === false || strpos($real, realpath(__DIR__)) !== 0) {
-        http_response_code(403);
-        return;
-    }
-
-    $ext = pathinfo($path, PATHINFO_EXTENSION);
-    switch ($ext) {
-        case 'js': $mime = 'application/javascript'; break;
-        case 'css': $mime = 'text/css'; break;
-        case 'html': $mime = 'text/html'; break;
-        case 'json': $mime = 'application/json'; break;
-        case 'png': $mime = 'image/png'; break;
-        case 'jpg': $mime = 'image/jpeg'; break;
-        case 'svg': $mime = 'image/svg+xml'; break;
-        case 'ico': $mime = 'image/x-icon'; break;
-        case 'txt': $mime = 'text/plain'; break;
-        case 'xml': $mime = 'text/xml'; break;
-        default: $mime = 'application/octet-stream';
-    }
-
-    header("Content-Type: $mime");
-    readfile($path);
+if ($real_path !== null && is_file($real_path)) {
+    router_send_file($real_path);
     return;
 }
 
@@ -837,10 +900,16 @@ function getRouterPhpStaticPhp(fallback, fallbackFile) {
 $root = __DIR__;
 $q = $_SERVER['QUERY_STRING'] ?? '';
 
-if ($base !== '' && ($uri === $base || strpos($uri, $base . '/') === 0)) {
-	$uri = substr($uri, strlen($base));
-	if ($uri === '' || $uri === false) $uri = '/';
-	router_log("Stripped URI: $uri");
+if ($base !== '') {
+	if ($uri === $base || strpos($uri, $base . '/') === 0) {
+		$uri = substr($uri, strlen($base));
+		if ($uri === '' || $uri === false) $uri = '/';
+		router_log("Stripped URI: $uri");
+	} else {
+		http_response_code(404);
+		echo "404 Not Found";
+		return;
+	}
 }
 
 if (strlen($uri) > 0 && $uri[0] !== '/') {
@@ -884,12 +953,19 @@ function router_mime_type($path) {
 
 if (!function_exists('router_send_file')) {
 function router_send_file($path, $mime = null) {
+	$file = router_safe_path(__DIR__, $path);
+	if ($file === null || !is_file($file)) {
+		http_response_code(404);
+		return false;
+	}
+	$path = $file;
 	$mime = $mime ?? router_mime_type($path);
 	header('Content-Type: '.$mime);
 	header('Content-Length: '.filesize($path));
 	if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
 		readfile($path);
 	}
+	return true;
 }
 }
 
@@ -944,6 +1020,7 @@ foreach ($manifest as $route) {
         } elseif ($route['type'] === 'negotiate') {
             // Negotiation logic
             // Check Accept header
+            header('Vary: Accept', false);
             $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
             $prefersHtml = (strpos($accept, 'text/html') !== false);
 
@@ -1242,9 +1319,10 @@ if (!function_exists('router_has_bad_path')) {
             if ($next === $decoded) break;
             $decoded = $next;
         }
+        if (preg_match('/[\\x00-\\x1f\\x7f]/', $decoded)) return true;
         $decoded = str_replace('\\\\', '/', $decoded);
         foreach (explode('/', $decoded) as $segment) {
-            if ($segment === '..') return true;
+            if ($segment === '..' || $segment === '.') return true;
         }
         return false;
     }
@@ -1267,13 +1345,60 @@ if (!function_exists('router_safe_path')) {
     }
 }
 
+if (!function_exists('router_mime_type')) {
+    function router_mime_type($path) {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimes = [
+            'js' => 'application/javascript',
+            'mjs' => 'application/javascript',
+            'cjs' => 'application/javascript',
+            'css' => 'text/css',
+            'json' => 'application/json',
+            'html' => 'text/html',
+            'htm' => 'text/html',
+            'xml' => 'text/xml',
+            'txt' => 'text/plain',
+            'svg' => 'image/svg+xml',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'ico' => 'image/x-icon',
+            'woff2' => 'font/woff2',
+            'woff' => 'font/woff',
+            'ttf' => 'font/ttf',
+            'eot' => 'application/vnd.ms-fontobject'
+        ];
+        return $mimes[$ext] ?? (function_exists('mime_content_type') ? mime_content_type($path) : 'application/octet-stream');
+    }
+}
+
+if (!function_exists('router_send_file')) {
+    function router_send_file($path, $mime = null) {
+        $file = router_safe_path(__DIR__, $path);
+        if ($file === null || !is_file($file)) {
+            http_response_code(404);
+            return false;
+        }
+
+        $mime = $mime ?? router_mime_type($file);
+        header('Content-Type: '.$mime);
+        header('Content-Length: '.filesize($file));
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'HEAD') {
+            readfile($file);
+        }
+        return true;
+    }
+}
+
 if (router_has_bad_path($path) || router_has_bad_path($uri_raw)) {
 	http_response_code(400);
 	echo "Bad Request";
 	return;
 }
 
-if (strpos($uri_raw, '/_protected/') !== false) {
+if (preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)) {
 	http_response_code(403);
 	echo "Access Denied";
 	return;
@@ -1318,7 +1443,13 @@ if ($base !== '' && ($uri === '/' || $uri === '')) {
     return;
 }
 
-if (strpos($uri, '/_protected/') === 0 || ($base !== '' && strpos($uri, $base . '/_protected/') === 0)) {
+if ($base !== '' && $uri !== $base && strpos($uri, $base . '/') !== 0) {
+	http_response_code(404);
+	echo "404 Not Found";
+	return;
+}
+
+if (preg_match('#^/_protected(?:/|$)#', $uri) || ($base !== '' && preg_match('#^' . preg_quote($base, '#') . '/_protected(?:/|$)#', $uri))) {
 	http_response_code(403);
     echo "Access Denied";
 	return;
@@ -1471,7 +1602,10 @@ function sk_defer(callable $fn): __SK_Deferred { return new __SK_Deferred($fn); 
 
 
 if (!function_exists('sk_assert_jsonable')) {
-function sk_assert_jsonable($value, string $path = ''): void {
+function sk_assert_jsonable($value, string $path = '', int $depth = 0): void {
+	if ($depth > 256) {
+		throw new RuntimeException("Possible cyclic or too-deep JSON value at $path");
+	}
 	if ($value instanceof __SK_Deferred || $value instanceof __SK_Deferred_Placeholder) return;
 	if (is_null($value) || is_bool($value) || is_int($value) || is_string($value)) return;
 	if (is_float($value)) {
@@ -1483,13 +1617,13 @@ function sk_assert_jsonable($value, string $path = ''): void {
 	if (is_array($value)) {
 		foreach ($value as $k => $v) {
 			$next = $path === '' ? (string)$k : ($path . '.' . (string)$k);
-			sk_assert_jsonable($v, $next);
+			sk_assert_jsonable($v, $next, $depth + 1);
 		}
 		return;
 	}
 	if (is_object($value)) {
 		if ($value instanceof JsonSerializable) {
-			sk_assert_jsonable($value->jsonSerialize(), $path);
+			sk_assert_jsonable($value->jsonSerialize(), $path, $depth + 1);
 			return;
 		}
 		throw new RuntimeException("Non-JSON object at $path");
@@ -1549,6 +1683,7 @@ if (!function_exists('sk_serialize')) {
 function sk_serialize($value): array {
 	$flattened = [];
 	$map = [];
+	$object_stack = [];
 
 	$add_primitive = function($val) use (&$flattened, &$map) {
 		$key = is_string($val)
@@ -1566,9 +1701,14 @@ function sk_serialize($value): array {
 		return $idx;
 	};
 
-	// Recursive closure to flatten the structure
-	// We use a reference for $flattened to append values
-	$fn = function($val) use (&$flattened, &$map, &$fn, $add_primitive) {
+	// Recursive closure to flatten the structure.
+	// Composite identity is intentionally not deduped into shared references; this keeps output
+	// devalue-compatible enough for SvelteKit hydration while avoiding incorrect identity claims.
+	$fn = function($val, int $depth = 0) use (&$flattened, &$map, &$object_stack, &$fn, $add_primitive) {
+		if ($depth > 256) {
+			throw new RuntimeException('Cannot serialize cyclic or too-deep data structure');
+		}
+
 		// Primitives
 		if (is_string($val) || is_int($val) || is_float($val) || is_bool($val) || is_null($val)) {
 			return $add_primitive($val);
@@ -1580,20 +1720,35 @@ function sk_serialize($value): array {
 			return count($flattened) - 1;
 		}
 
+		if (!is_array($val) && !is_object($val)) {
+			throw new RuntimeException('Cannot serialize unsupported value type');
+		}
+
+		if (is_object($val)) {
+			$oid = spl_object_id($val);
+			if (isset($object_stack[$oid])) {
+				throw new RuntimeException('Cannot serialize cyclic object graph');
+			}
+			$object_stack[$oid] = true;
+		}
+
 		// Arrays / Objects
 		// Detect if it's a list (array) or object (associative)
 		$is_list = is_array($val) && array_is_list($val);
 		$flattened[] = $is_list ? [] : (object)[];
 		$idx = count($flattened) - 1;
-		$map['o_'.$idx] = $idx; // Object identity is hard to dedupe perfectly, simplified
+		$map['o_'.$idx] = $idx;
 
 		foreach ($val as $k => $v) {
-			$vIdx = $fn($v);
+			$vIdx = $fn($v, $depth + 1);
 			if (is_array($flattened[$idx])) {
 				$flattened[$idx][] = $vIdx;
 			} else {
 				$flattened[$idx]->{$k} = $vIdx;
 			}
+		}
+		if (is_object($val)) {
+			unset($object_stack[spl_object_id($val)]);
 		}
 		return $idx;
 	};
@@ -1952,6 +2107,52 @@ function sk_action_serialize($value): string {
 }
 }
 
+if (!function_exists('sk_action_content_type')) {
+function sk_action_content_type(): string {
+	$raw = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+	$parts = explode(';', (string)$raw, 2);
+	return strtolower(trim($parts[0]));
+}
+}
+
+if (!function_exists('sk_action_raw_body')) {
+function sk_action_raw_body(): string {
+	static $body = null;
+	if ($body === null) $body = file_get_contents('php://input') ?: '';
+	return $body;
+}
+}
+
+if (!function_exists('sk_action_parse_body')) {
+function sk_action_parse_body() {
+	$contentType = sk_action_content_type();
+
+	if ($contentType === 'application/json' || str_ends_with($contentType, '+json')) {
+		$decoded = json_decode(sk_action_raw_body(), true);
+		return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+	}
+
+	if ($contentType === 'application/x-www-form-urlencoded' && empty($_POST)) {
+		$parsed = [];
+		parse_str(sk_action_raw_body(), $parsed);
+		return $parsed;
+	}
+
+	if (!empty($_POST)) return $_POST;
+
+	$raw = sk_action_raw_body();
+	return $raw === '' ? [] : ['_body' => $raw];
+}
+}
+
+if (!function_exists('sk_action_form_data')) {
+function sk_action_form_data(): array {
+	$parsed = sk_action_parse_body();
+	$form = is_array($parsed) ? $parsed : ['_body' => $parsed];
+	return array_merge($form, $_FILES);
+}
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 	http_response_code(405);
 	exit('Method Not Allowed');
@@ -1982,19 +2183,29 @@ if (!function_exists($fnName)) {
 }
 
 // 3. Execute
-// We need to parse body (multipart or urlencoded)
-// PHP does this automatically into $_POST and $_FILES
+// PHP populates $_POST only for form-urlencoded and multipart bodies.
+// Fall back to php://input so JSON/raw action posts do not silently become empty input.
 
 try {
 	$params = sk_extract_params($_SERVER['REQUEST_URI'] ?? '', SK_BASE_PATH, SK_ROUTE_REGEX, SK_ROUTE_PARAM_MAP);
 	$method = $_SERVER['REQUEST_METHOD'] ?? 'POST';
 	$locals = &sk_locals();
+	$actionBody = sk_action_parse_body();
+	$actionFormData = sk_action_form_data();
 
 	$result = $fnName([
 		'request' => (object)[
 			'method' => $method,
 			'formData' => function () {
-				return array_merge($_POST, $_FILES);
+				return sk_action_form_data();
+			},
+			'body' => $actionBody,
+			'rawBody' => sk_action_raw_body(),
+			'json' => function () {
+				return json_decode(sk_action_raw_body(), true);
+			},
+			'text' => function () {
+				return sk_action_raw_body();
 			}
 		],
 		'url' => (object)[
@@ -2013,7 +2224,10 @@ try {
 			return sk_fetch($input, $init ?? []);
 		},
 		'cookies' => new SK_Cookies($_COOKIE),
-		'post' => $_POST,
+		'post' => is_array($actionBody) ? $actionBody : ['_body' => $actionBody],
+		'body' => $actionBody,
+		'rawBody' => sk_action_raw_body(),
+		'formData' => $actionFormData,
 		'files' => $_FILES
     ]);
 
@@ -3293,6 +3507,105 @@ function getHtaccess(mode, base, precompress = false, fallback, trailingSlash = 
 }
 
 // adapter/src/index.ts
+var ADAPTER_VERSION = "1.0.0-alpha.1";
+var DEFAULT_BUILD_IDENTITY_EXTENSIONS = [".php", ".html", ".json"];
+function normalizeMarkerList(value) {
+  if (value == null)
+    return [];
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => normalizeMarkerList(item)).map((item) => item.trim()).filter(Boolean);
+  }
+  if (typeof value !== "string")
+    return [];
+  const trimmed = value.trim();
+  if (!trimmed)
+    return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed))
+      return normalizeMarkerList(parsed);
+  } catch {}
+  return trimmed.split(/\r?\n|;;/).map((item) => item.trim()).filter(Boolean);
+}
+function resolveBuildIdentityContract(buildIdentity) {
+  if (buildIdentity === false)
+    return null;
+  const option = buildIdentity && typeof buildIdentity === "object" ? buildIdentity : undefined;
+  const envRequired = normalizeMarkerList(process.env.SVELTEKIT_PHP_BUILD_REQUIRED_MARKERS);
+  const envForbidden = normalizeMarkerList(process.env.SVELTEKIT_PHP_BUILD_FORBIDDEN_MARKERS);
+  const optionRequired = normalizeMarkerList(option?.required);
+  const optionForbidden = normalizeMarkerList(option?.forbidden);
+  const required = [...optionRequired, ...envRequired];
+  const forbidden = [...optionForbidden, ...envForbidden];
+  if (required.length === 0 && forbidden.length === 0)
+    return null;
+  const extensions = normalizeMarkerList(option?.extensions).map((extension) => extension.startsWith(".") ? extension.toLowerCase() : `.${extension.toLowerCase()}`);
+  return {
+    name: option?.name ?? process.env.SVELTEKIT_PHP_BUILD_IDENTITY ?? "generated-output",
+    required,
+    forbidden,
+    extensions: extensions.length > 0 ? extensions : DEFAULT_BUILD_IDENTITY_EXTENSIONS
+  };
+}
+async function verifyBuildIdentityContract(outDir, contract, builder) {
+  const extensions = new Set(contract.extensions);
+  const textFiles = [];
+  const collectTextFiles = async (dir) => {
+    let entries;
+    try {
+      entries = await readdir(dir);
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const file = path3.join(dir, entry);
+      try {
+        const info = await stat(file);
+        if (info.isDirectory()) {
+          await collectTextFiles(file);
+        } else if (info.isFile() && extensions.has(path3.extname(file).toLowerCase())) {
+          textFiles.push(file);
+        }
+      } catch {}
+    }
+  };
+  await collectTextFiles(outDir);
+  let corpus = "";
+  for (const file of textFiles) {
+    corpus += `
+/* ${path3.relative(outDir, file)} */
+`;
+    corpus += await readFile2(file, "utf8");
+  }
+  const missing = contract.required.filter((marker) => !corpus.includes(marker));
+  const presentForbidden = contract.forbidden.filter((marker) => corpus.includes(marker));
+  if (missing.length > 0 || presentForbidden.length > 0) {
+    const lines = [`Build identity contract "${contract.name ?? "generated-output"}" failed.`];
+    if (missing.length > 0)
+      lines.push(`Missing required markers: ${missing.join(", ")}`);
+    if (presentForbidden.length > 0)
+      lines.push(`Forbidden markers present: ${presentForbidden.join(", ")}`);
+    throw new Error(lines.join(`
+`));
+  }
+  builder.log.minor(`Build identity contract "${contract.name ?? "generated-output"}" passed (${textFiles.length} files scanned)`);
+}
+function buildStamp(mode, basePath, buildIdentity) {
+  return {
+    mode,
+    basePath: basePath || "",
+    adapterVersion: ADAPTER_VERSION,
+    publicSiteId: process.env.PUBLIC_SITE_ID ?? null,
+    publicSiteUrl: process.env.PUBLIC_SITE_URL ?? null,
+    buildIdentity: buildIdentity ? {
+      name: buildIdentity.name,
+      requiredMarkers: buildIdentity.required,
+      forbiddenMarkers: buildIdentity.forbidden,
+      extensions: buildIdentity.extensions
+    } : null,
+    builtAt: new Date().toISOString()
+  };
+}
 function sveltekitPhpAdapter(options = {}) {
   const {
     ssr = true,
@@ -3305,6 +3618,7 @@ function sveltekitPhpAdapter(options = {}) {
   } = options;
   const mode = options.mode ?? "php-static";
   const debugEnabled = process.env.ADAPTER_DEBUG === "true" || process.env.SK_DEBUG === "true";
+  const buildIdentity = resolveBuildIdentityContract(options.buildIdentity);
   return {
     name: "@ryanspice/sveltekit-adapter-php",
     async adapt(builder) {
@@ -3582,6 +3896,18 @@ function sveltekitPhpAdapter(options = {}) {
 `));
           builder.log.warn("Continuing because strict mode is disabled.");
         }
+      }
+      const normalizedPhpSourceCache = new Map;
+      for (const rel of effectivePhpFiles) {
+        const normalized = normalizeServerRel(rel);
+        const prefix = fnPrefixMap.get(normalized);
+        if (!prefix) {
+          throw new Error(`Missing PHP handler prefix for ${normalized}`);
+        }
+        const absFs = path3.join(routesBaseFs, stripLeadingSlash(rel));
+        const src = await readFile2(absFs, "utf8");
+        const normalizedSource = normalizePhpHandlerSource(src, normalized, prefix);
+        normalizedPhpSourceCache.set(normalized, normalizedSource);
       }
       function getRouteDeps(routeIdPosix) {
         const chain = buildLayoutChainCandidates(routeIdPosix);
@@ -3987,13 +4313,12 @@ return ${phpArrayString(routeManifest)};
         const manifestDir = path3.join(outDir, "adapter");
         builder.mkdirp(manifestDir);
         await writeFile(path3.join(manifestDir, "route-manifest.php"), manifestPhp, "utf8");
+        if (buildIdentity) {
+          builder.log.minor("Verifying build identity contract");
+          await verifyBuildIdentityContract(outDir, buildIdentity, builder);
+        }
         builder.log.minor("Writing build stamp");
-        const stamp = {
-          mode,
-          basePath: basePath || "",
-          adapterVersion: "0.0.1",
-          builtAt: new Date().toISOString()
-        };
+        const stamp = buildStamp(mode, basePath, buildIdentity);
         builder.mkdirp(path3.join(outDir, "_runtime"));
         await writeFile(path3.join(outDir, "_runtime", "build-stamp.json"), JSON.stringify(stamp, null, 2), "utf8");
         if (mode === "js-ssr") {
@@ -4795,6 +5120,8 @@ if (sk_prefers_html($accept)) {
 `, "utf8");
         const conversions = [];
         for (const relPosix of usedServerFiles) {
+          if (!relPosix.endsWith(".php"))
+            continue;
           const absFs = path3.join(routesBaseFs, stripLeadingSlash(relPosix));
           const protectedRel = protectedMap.get(relPosix);
           const prefix = fnPrefixMap.get(relPosix);
@@ -4804,10 +5131,7 @@ if (sk_prefers_html($accept)) {
           const outDir2 = path3.dirname(outFs);
           builder.mkdirp(outDir2);
           conversions.push((async () => {
-            let src = await readFile2(absFs, "utf8");
-            src = src.replace(/function\s+load\s*\(/m, "function " + prefix + "_load(");
-            src = src.replace(/function\s+action_([A-Za-z0-9_]+)\s*\(/g, (_, name) => "function " + prefix + "_action_" + name + "(");
-            src = src.replace(/function\s+(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)\s*\(/g, (_, name) => "function " + prefix + "_" + name + "(");
+            const src = normalizedPhpSourceCache.get(relPosix) ?? normalizePhpHandlerSource(await readFile2(absFs, "utf8"), relPosix, prefix);
             await writeFile(outFs, src, "utf8");
           })());
         }
@@ -4867,13 +5191,12 @@ return ${phpArrayString(filteredManifest)};
         await writeFile(path3.join(outDir, "router.php"), router, "utf8");
         builder.log.minor("Compressing assets");
         await builder.compress(outDir);
+        if (buildIdentity) {
+          builder.log.minor("Verifying build identity contract");
+          await verifyBuildIdentityContract(outDir, buildIdentity, builder);
+        }
         builder.log.minor("Writing build stamp");
-        const stamp = {
-          mode,
-          basePath: basePath || "",
-          adapterVersion: "0.0.1",
-          builtAt: new Date().toISOString()
-        };
+        const stamp = buildStamp(mode, basePath, buildIdentity);
         await writeFile(path3.join(outDir, "_runtime", "build-stamp.json"), JSON.stringify(stamp, null, 2), "utf8");
       }
       builder.log.minor("Done");

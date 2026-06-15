@@ -12,6 +12,7 @@ const maxFailures = process.env.PW_MAX_FAILURES
 const adapterMode = process.env.ADAPTER_MODE
 	? normalizeAdapterMode(process.env.ADAPTER_MODE)
 	: undefined;
+const jsSsrSubdirBase = process.env.E2E_JS_SSR_SUBDIR_BASE || '/dev/sveltekit';
 
 export default defineConfig({
 	maxFailures,
@@ -61,7 +62,7 @@ export default defineConfig({
 				baseURL: 'http://127.0.0.1:8088'
 			},
 			metadata: {
-				basePath: getBasePath()
+				basePath: jsSsrSubdirBase
 			}
 		}
 	],
@@ -78,7 +79,7 @@ export default defineConfig({
 					? getBasePath() === '' || getBasePath() === '/'
 						? 'http://127.0.0.1:8087'
 						: `http://127.0.0.1:8088${getBasePath()}`
-					: `http://127.0.0.1:8088${getBasePath()}`,
+					: `http://127.0.0.1:8088${jsSsrSubdirBase}`,
 		reuseExistingServer: !process.env.CI,
 		stdout: 'pipe',
 		stderr: 'pipe',
