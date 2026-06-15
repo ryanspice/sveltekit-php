@@ -50,7 +50,7 @@ export type AlphaReadinessReport = {
 export type AlphaReleasePolicy = {
 	marker: 'alpha-over-rc-release-policy';
 	channel: 'alpha';
-	track: '1.0.0-alpha';
+	track: '1.0.2-alpha';
 	rank: 'above-rc';
 	requiredTargetPattern: string;
 	requiredEvidence: string[];
@@ -68,20 +68,20 @@ export type AlphaProofLedgerItem = {
 	stableBlocker: string;
 };
 
-export const alphaTarget = '1.0.0-alpha.1';
+export const alphaTarget = '1.0.2-alpha.0';
 export const reportIssued = '2026-06-01';
 export const bridgeSource = 'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge';
 
 export const alphaReleasePolicy: AlphaReleasePolicy = {
 	marker: 'alpha-over-rc-release-policy',
 	channel: 'alpha',
-	track: '1.0.0-alpha',
+	track: '1.0.2-alpha',
 	rank: 'above-rc',
 	requiredTargetPattern: '^1\\.0\\.0-alpha\\.\\d+$',
 	requiredEvidence: requiredAlphaEvidence,
 	disallowedChannels: ['rc', 'stable', 'latest'],
 	releaseRule:
-		'1.0.0-alpha is the explicit release track for this corrective pass and must not be downgraded into an RC-shaped handoff.',
+		'1.0.2-alpha is the explicit release track for this corrective pass and must not be downgraded into an RC-shaped handoff.',
 	stablePromotionRule:
 		'Stable 1.0.0 remains blocked until the full alpha gate, hosted PHP smoke, artifact sync, packed consumer smoke, and clean deployment evidence pass.'
 };
@@ -91,7 +91,7 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		id: 'alpha-channel-policy',
 		marker: 'alpha-over-rc-release-policy',
 		status: 'alpha-ready',
-		proves: 'The requested release track is 1.0.0-alpha and is explicitly separated from RC, stable, and latest channels.',
+		proves: 'The requested release track is 1.0.2-alpha and is explicitly separated from RC, stable, and latest channels.',
 		evidence: [
 			'package.json version',
 			'/alpha-readiness/report.json releasePolicy',
@@ -407,3 +407,4 @@ export function buildAlphaReadinessReport(): AlphaReadinessReport {
 		limitations: alphaLimitations
 	};
 }
+

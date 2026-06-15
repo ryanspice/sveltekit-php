@@ -170,8 +170,8 @@ function validateSafeCommittedValue(key, value) {
 		}
 	}
 
-	if (key === 'ALPHA_SMOKE_EXPECTED_VERSION' && !/^1\.0\.0-alpha\.\d+$/.test(value)) {
-		throw new Error(`${key} must stay on the 1.0.0-alpha track, empty, or a placeholder.`);
+	if (key === 'ALPHA_SMOKE_EXPECTED_VERSION' && !/^1\.0\.2-alpha\.\d+$/.test(value)) {
+		throw new Error(`${key} must stay on the 1.0.2-alpha track, empty, or a placeholder.`);
 	}
 
 	if (key === 'ALPHA_SMOKE_TIMEOUT_MS') {
@@ -225,8 +225,8 @@ async function verifyPackageMetadata() {
 		throw new Error(`Unexpected package name: ${packageJson.name}`);
 	}
 
-	if (!/^1\.0\.0-alpha\.\d+$/.test(packageJson.version)) {
-		throw new Error(`Package version must stay on the 1.0.0-alpha track, received ${packageJson.version}.`);
+	if (!/^1\.0\.2-alpha\.\d+$/.test(packageJson.version)) {
+		throw new Error(`Package version must stay on the 1.0.2-alpha track, received ${packageJson.version}.`);
 	}
 
 	if (packageJson.private !== false) {
@@ -241,7 +241,7 @@ async function verifyPackageMetadata() {
 	if (
 		releasePolicy?.marker !== 'alpha-over-rc-release-policy' ||
 		releasePolicy?.channel !== 'alpha' ||
-		releasePolicy?.track !== '1.0.0-alpha' ||
+		releasePolicy?.track !== '1.0.2-alpha' ||
 		releasePolicy?.rank !== 'above-rc' ||
 		!(releasePolicy?.disallowedDistTags ?? []).includes('latest') ||
 		!(releasePolicy?.disallowedDistTags ?? []).includes('rc') ||
@@ -308,7 +308,7 @@ async function verifyPackageMetadata() {
 async function verifyAlphaReleaseChecklistDoc() {
 	const checklist = await readFile(path.join(repoRoot, 'docs', 'ALPHA-RELEASE-CHECKLIST.md'), 'utf8');
 	const requiredMarkers = [
-		'1.0.0-alpha release checklist',
+		'1.0.2-alpha release checklist',
 		'alpha-over-rc-release-policy',
 		'desktop-shell-ui-command-mapping',
 		'community-analytics-csv-linkage',
@@ -360,7 +360,7 @@ async function verifyAlphaReleaseChecklistRuntimeContract() {
 	].join('\n');
 	const requiredMarkers = [
 		'renderAlphaReleaseChecklistMarkdown',
-		'1.0.0-alpha release checklist',
+		'1.0.2-alpha release checklist',
 		'alpha-over-rc-release-policy',
 		'desktop-shell-ui-command-mapping',
 		'community-analytics-csv-linkage',
@@ -504,7 +504,7 @@ async function verifyRemoteSmokeCoverage() {
 		'source-to-keyword-edge',
 		"path: 'alpha-readiness/release-notes.md'",
 		'alpha-over-rc-release-policy',
-		'track 1.0.0-alpha',
+		'track 1.0.2-alpha',
 		'rank above-rc',
 		'Alpha proof ledger',
 		'alpha-runtime-gate-ledger',
@@ -552,14 +552,14 @@ async function verifyRemoteSmokeCoverage() {
 		'releasePolicy',
 		'proofLedger',
 		'alpha-over-rc-release-policy',
-		'1.0.0-alpha',
+		'1.0.2-alpha',
 		'above-rc',
 		'mustNotUseCandidateLabels',
 		'disallowedCandidateLabels',
 		'projectRankPolicy',
 		'alphaOverRcPolicyProof',
 		'SemVer note',
-		'1.0.0-alpha is the required pre-stable release label',
+		'1.0.2-alpha is the required pre-stable release label',
 		'Project-rank policy',
 		'alpha-runtime-gate-ledger',
 		'hosted-php-smoke-proof-required',
@@ -612,7 +612,7 @@ async function verifyRemoteSmokeCoverage() {
 		"path: 'alpha-readiness/review-index.md'",
 		'alpha reviewer index',
 		'releasePolicy.channel=alpha',
-		'releasePolicy.track=1.0.0-alpha',
+		'releasePolicy.track=1.0.2-alpha',
 		'releasePolicy.rank=above-rc',
 		'Alpha proof ledger',
 		'alpha-runtime-gate-ledger',
@@ -892,3 +892,4 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
+

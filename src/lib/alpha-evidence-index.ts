@@ -27,7 +27,7 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 				manifestEndpoint: '/alpha-readiness/release-manifest.json',
 				packageContractEndpoint: '/alpha-readiness/package-contract.json',
 				markers: [
-					'1.0.0-alpha release checklist',
+					'1.0.2-alpha release checklist',
 					'alpha-over-rc-release-policy',
 					'desktop-shell-ui-command-mapping',
 					'community-analytics-csv-linkage',
@@ -58,7 +58,7 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 					'requiredEvidence',
 					'alpha-over-rc-release-policy',
 					'projectRankPolicy',
-					'1.0.0-alpha',
+					'1.0.2-alpha',
 					'above-rc',
 					'disallowedCandidateLabels',
 					'mustNotUseCandidateLabels',
@@ -77,7 +77,7 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 				proofStage: 'release-policy-evidence-boundary',
 				trustLevel: 'deterministic-runtime-evidence',
 				proofUse:
-					'Central index of the evidence required before the 1.0.0-alpha track can be treated as alpha-reviewable rather than a generic adapter smoke test.'
+					'Central index of the evidence required before the 1.0.2-alpha track can be treated as alpha-reviewable rather than a generic adapter smoke test.'
 			},
 			{
 				id: 'native-host-bridge-status',
@@ -535,7 +535,7 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			'Community analytics freshness contract must stay visible across the research pack, analytics Markdown, source-map SVG, manifest, evidence index, and hosted smoke checklist.',
 			'Required alpha evidence must stay synchronized across package metadata, package contract, release manifest, evidence index, hosted smoke checklist, and remote smoke.',
 			'The alpha release checklist must stay synchronized with package files, package contract, release manifest, evidence index, release-prep, and hosted smoke expectations.',
-			'Alpha-over-RC policy must stay explicit: projectRankPolicy above-rc, 1.0.0-alpha track, alpha dist-tag, and disallowed RC/latest/stable candidate labels.',
+			'Alpha-over-RC policy must stay explicit: projectRankPolicy above-rc, 1.0.2-alpha track, alpha dist-tag, and disallowed RC/latest/stable candidate labels.',
 			'Desktop shell helper mappings must stay explicit through getDesktopShellUiCommandMapping, desktopShellUiHelper, desktopShellUiEvidence, and nativeHostBridgeMapping evidence.',
 			'The native host bridge status is proof of a host seam/fallback, not proof of real OS-native Mica or macOS chrome until a wrapper supplies handlers.',
 			'Every generated artifact must be regenerated after source changes before the report bundle is current.',
@@ -544,3 +544,4 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 		]
 	};
 }
+

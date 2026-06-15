@@ -22,7 +22,7 @@ const generatedArtifacts = [
 			'router_safe_path(__DIR__',
 			'Build identity contract',
 			'buildIdentity',
-			'1.0.0-alpha.1'
+			'1.0.2-alpha.0'
 		]
 	}
 ];
@@ -104,3 +104,4 @@ if (failures.length > 0) {
 } else {
 	console.log(`Generated artifacts are synchronized: ${generatedArtifacts.length} checked.`);
 }
+

@@ -34,7 +34,7 @@ import { getNodeHandlerMjs, getPhpProxy, getStandaloneApiPhp } from './runtime/j
 import { getHtaccess } from './runtime/htaccess-templates.js';
 import type { AdapterMode, AdapterOptions, Builder, BuildIdentityContract } from './types.js';
 
-const ADAPTER_VERSION = '1.0.0-alpha.1';
+const ADAPTER_VERSION = '1.0.2-alpha.0';
 const DEFAULT_BUILD_IDENTITY_EXTENSIONS = ['.php', '.html', '.json'];
 
 type ResolvedBuildIdentityContract = Required<
@@ -2440,3 +2440,4 @@ if (sk_prefers_html($accept)) {
 		}
 	};
 }
+

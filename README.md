@@ -4,7 +4,7 @@
 
 This project implements a **SvelteKit adapter for PHP**, allowing you to deploy SvelteKit applications to standard PHP hosting environments (Apache, Nginx, Shared Hosting) while maintaining a modern development experience.
 
-Current package track: `1.0.0-alpha.1`.
+Current package track: `1.0.2-alpha.0`.
 
 ## Support Policy
 
@@ -122,7 +122,7 @@ The project includes a suite of fixture routes to verify functionality.
 
 ### Alpha evidence track
 
-The `1.0.0-alpha.1` track is broader than a basic adapter smoke test. Before treating the package as alpha-ready, regenerate and verify the full evidence bundle:
+The `1.0.2-alpha.0` track is broader than a basic adapter smoke test. Before treating the package as alpha-ready, regenerate and verify the full evidence bundle:
 
 ```bash
 bun run alpha:report:full
@@ -143,7 +143,7 @@ The alpha surface is expected to prove:
 
 ### Alpha Readiness Surface
 
-The `/alpha-readiness` fixture is the operator-facing report surface for the 1.0.0-alpha track. It adapts the Windows 11 Mica/macOS chrome and structured-report patterns from `B:\Dev\GPTLIGHTINGSTRENGTHTEST\lg-ultragear-bridge` without adding Tauri as a dependency to this PHP adapter demo.
+The `/alpha-readiness` fixture is the operator-facing report surface for the 1.0.2-alpha track. It adapts the Windows 11 Mica/macOS chrome and structured-report patterns from `B:\Dev\GPTLIGHTINGSTRENGTHTEST\lg-ultragear-bridge` without adding Tauri as a dependency to this PHP adapter demo.
 
 The page provides:
 
@@ -332,4 +332,5 @@ The precheck requires non-empty `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REMOTE`, a
 - `scripts/`: Build and verification scripts.
   - `dev-php.mjs`: The hybrid dev server orchestrator.
 - `src/lib/server/php-dev.ts`: The bridge connecting Vite to PHP in dev.
+
 

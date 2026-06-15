@@ -17,7 +17,7 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 				channel: report.releasePolicy.channel,
 				track: report.releasePolicy.track,
 				rank: report.releasePolicy.rank,
-				projectRankPolicy: '1.0.0-alpha ranks above any RC for this project release track',
+				projectRankPolicy: '1.0.2-alpha ranks above any RC for this project release track',
 				semverNote:
 					'Project policy intentionally overrides ordinary alpha-vs-rc naming expectations for this adapter alpha gate.',
 				requiredTargetPattern: report.releasePolicy.requiredTargetPattern,
@@ -52,7 +52,7 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 			trustLevel: 'deterministic-local-check',
 			proves: [
 				'docs/ALPHA-RELEASE-CHECKLIST.md records the human alpha release checklist for policy, native mapping, CSV linkage, router safety, artifact sync, deploy preflight, and hosted proof',
-				'package metadata remains on the 1.0.0-alpha track',
+				'package metadata remains on the 1.0.2-alpha track',
 				'publishConfig.tag remains alpha and never latest, rc, or stable',
 				'package-level release policy records alpha-over-rc-release-policy with rank above-rc',
 				'package-level release policy records required alpha evidence for native host guide, native shell styling, report graphics, community analytics freshness, and hosted PHP smoke proof',
@@ -72,7 +72,7 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 			mustNotUseDistTags: report.releasePolicy.disallowedChannels,
 			mustNotUseCandidateLabels: ['rc', 'release-candidate', 'latest', 'stable'],
 			proves: [
-				'The package contract treats 1.0.0-alpha as the required pre-stable track above any RC label for this project.',
+				'The package contract treats 1.0.2-alpha as the required pre-stable track above any RC label for this project.',
 				'publishConfig.tag must stay alpha for this candidate.',
 				'RC, latest, and stable labels remain blocked until hosted PHP smoke proof and required alpha evidence are complete.'
 			]
@@ -111,7 +111,7 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 			documentationArtifact: 'docs/ALPHA-RELEASE-CHECKLIST.md',
 			source: 'src/lib/alpha-release-checklist.ts',
 			markers: [
-				'1.0.0-alpha release checklist',
+				'1.0.2-alpha release checklist',
 				'alpha-over-rc-release-policy',
 				'desktop-shell-ui-command-mapping',
 				'community-analytics-csv-linkage',
@@ -125,7 +125,7 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 				'ALPHA_SMOKE_BASE_URL'
 			],
 			proves: [
-				'/alpha-readiness/release-checklist.md exposes the project-specific 1.0.0-alpha policy and proof checklist as runtime evidence',
+				'/alpha-readiness/release-checklist.md exposes the project-specific 1.0.2-alpha policy and proof checklist as runtime evidence',
 				'report/alpha-release-checklist.md is regenerated with the report bundle rather than manually patched',
 				'docs/ALPHA-RELEASE-CHECKLIST.md remains the source-controlled human checklist packaged for release review'
 			]
@@ -221,3 +221,4 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 		]
 	};
 }
+

@@ -55,16 +55,16 @@ const documentationEvidence = ['docs/ALPHA-RELEASE-CHECKLIST.md'];
 function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 	return [
 		{
-			claim: '1.0.0-alpha is the explicit channel and must not drift into RC or stable release semantics.',
+			claim: '1.0.2-alpha is the explicit channel and must not drift into RC or stable release semantics.',
 			status: 'present',
 			evidence: [
 				'alpha-over-rc-release-policy',
 				'docs/ALPHA-RELEASE-CHECKLIST.md',
 				'releasePolicy.channel=alpha',
-				'releasePolicy.track=1.0.0-alpha',
+				'releasePolicy.track=1.0.2-alpha',
 				'releasePolicy.rank=above-rc',
 				'projectRankPolicy=above-rc',
-				'1.0.0-alpha is the required pre-stable release label',
+				'1.0.2-alpha is the required pre-stable release label',
 				'disallowedCandidateLabels=rc/latest/stable',
 				'alphaOverRcPolicyProof',
 				'requiredEvidence',
@@ -80,7 +80,7 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			status: 'present',
 			evidence: [
 				'docs/ALPHA-RELEASE-CHECKLIST.md',
-				'1.0.0-alpha release checklist',
+				'1.0.2-alpha release checklist',
 				'desktop-shell-ui-command-mapping',
 				'community-analytics-csv-linkage',
 				'router-path-safety-artifact-sync',
@@ -105,7 +105,7 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: '1.0.0-alpha package track is explicit and reviewable.',
+			claim: '1.0.2-alpha package track is explicit and reviewable.',
 			status: 'present',
 			evidence: [`package.json version should match ${report.target}`, '/alpha-readiness/report.json']
 		},
@@ -287,3 +287,4 @@ export function renderAlphaReviewIndexMarkdown(report: AlphaReadinessReport) {
 
 	return lines.join('\n');
 }
+

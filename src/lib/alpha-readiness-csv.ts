@@ -50,7 +50,7 @@ export function renderReadinessCsv(report: AlphaReadinessReport) {
 			marker,
 			'required',
 			'',
-			'Required alpha evidence marker for the 1.0.0-alpha review boundary.',
+			'Required alpha evidence marker for the 1.0.2-alpha review boundary.',
 			'Must remain synchronized across canonical report JSON, live page, generated reports, graphics, manifest, evidence index, gate matrix, package contract, hosted smoke checklist, and remote smoke.',
 			marker,
 			'requiredEvidence | required-alpha-evidence'
@@ -179,3 +179,4 @@ export function renderCommunitySourcesCsv(report: AlphaReadinessReport) {
 
 	return `${rows.map((row) => row.map(csvCell).join(',')).join('\n')}\n`;
 }
+

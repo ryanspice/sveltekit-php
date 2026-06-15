@@ -1,10 +1,10 @@
-# SvelteKit PHP 1.0.0-alpha readiness track
+# SvelteKit PHP 1.0.2-alpha readiness track
 
 This document defines the current alpha-facing product surface for the adapter.
 
 ## Current position
 
-The package metadata is now set to `1.0.0-alpha.1`. Keep it there only while `bun run alpha:gate` remains green from the current checkout and before any publish/tag action.
+The package metadata is now set to `1.0.2-alpha.0`. Keep it there only while `bun run alpha:gate` remains green from the current checkout and before any publish/tag action.
 
 SemVer orders `alpha` before `rc`. In this repo, the alpha track is being used as the broader product-hardening milestone: runtime correctness plus operator-facing reporting, native-styled presentation, and community signal mapping.
 
@@ -74,7 +74,7 @@ The route `/alpha-readiness` is now the visible report surface for alpha reviewe
 - Windows 11 Mica-style browser fallback.
 - macOS traffic-light window rhythm.
 - Live native-host handoff controls for `set-window-effect`, `set-progress`, `clear-progress`, and `report-ready`.
-- A live required alpha evidence panel with `data-required-alpha-evidence`, `requiredEvidence`, `required-alpha-evidence`, and the proof markers required before `1.0.0-alpha` can be treated as alpha-reviewable.
+- A live required alpha evidence panel with `data-required-alpha-evidence`, `requiredEvidence`, `required-alpha-evidence`, and the proof markers required before `1.0.2-alpha` can be treated as alpha-reviewable.
 - A live UltraGear source-parity panel with `data-ultragear-source-parity` and `ultraGearParityContract` markers.
 - A live desktop-shell helper binding panel and native shell marker set with `data-desktop-shell-ui-binding`, `desktopShellUiBinding`, `@scriptgpt/desktop-shell-ui`, `installSvelteKitPhpNativeHost`, `enableMicaWindowChrome`, `syncTaskbarProgress`, `toggleWindowMaximize`, `data-drag-block-selector`, `caption-button`, and indeterminate `progressStatus` markers.
 - A live community keyword-search graph panel with `data-community-keyword-search-graph`, `keywordSearchGraph`, `source-to-keyword-edge`, `analytics-linked-keyword-graph`, `community-analytics-freshness-contract`, `curated-signal-score`, `collected-demand-score`, and `directional-community-signal` markers.
@@ -153,9 +153,9 @@ The SVG release-card graphic also carries `data-required-alpha-evidence`, `requi
 
 The manifest also carries `nativePlatformProvenance` with `lg-ultragear-native-platform-provenance`, keeping the Mica/effects cues (`Effect.Mica`, `win.setEffects`, `--window-bg-mica`, and `--window-wash-inactive`), macOS-style control cues (`data-native-platform` and `data-window-control-group`), drag/window action cues (`dragBlockSelector` and `win.startDragging`), and report/progress handoff cues (`win.setProgressBar`, `reportJson`, and `reportUrl`) visible in the release evidence bundle.
 
-Package metadata mirrors the same policy: `package.json` uses `version: 1.0.0-alpha.1`, `publishConfig.tag: alpha`, and `sveltekitPhpReleasePolicy` with `alpha-over-rc-release-policy`, `rank: above-rc`, disallowed `latest`, `rc`, and `stable` dist-tags, plus `requiredEvidence` for native host binding guide, Windows 11 Mica browser-safe shell, macOS-style titlebar rhythm, report graphics, community keyword graph, analytics freshness contract, and hosted PHP smoke proof. `alpha-package-contract.json` exposes that package policy so release-prep and hosted smoke can reject accidental `latest`/RC/stable drift or missing alpha evidence requirements before any publish.
+Package metadata mirrors the same policy: `package.json` uses `version: 1.0.2-alpha.0`, `publishConfig.tag: alpha`, and `sveltekitPhpReleasePolicy` with `alpha-over-rc-release-policy`, `rank: above-rc`, disallowed `latest`, `rc`, and `stable` dist-tags, plus `requiredEvidence` for native host binding guide, Windows 11 Mica browser-safe shell, macOS-style titlebar rhythm, report graphics, community keyword graph, analytics freshness contract, and hosted PHP smoke proof. `alpha-package-contract.json` exposes that package policy so release-prep and hosted smoke can reject accidental `latest`/RC/stable drift or missing alpha evidence requirements before any publish.
 
-The manifest also carries `releasePolicy` with `alpha-over-rc-release-policy`, `channel: alpha`, `track: 1.0.0-alpha`, `rank: above-rc`, explicit `rc` / `stable` / `latest` disallowed channels, and the same `requiredEvidence` list. This keeps the release target aligned with `1.0.0-alpha.1` and prevents alpha evidence from being treated as an RC or stable `latest` handoff before the native host guide, native-styled graphics, community freshness contract, and hosted PHP smoke evidence exist.
+The manifest also carries `releasePolicy` with `alpha-over-rc-release-policy`, `channel: alpha`, `track: 1.0.2-alpha`, `rank: above-rc`, explicit `rc` / `stable` / `latest` disallowed channels, and the same `requiredEvidence` list. This keeps the release target aligned with `1.0.2-alpha.0` and prevents alpha evidence from being treated as an RC or stable `latest` handoff before the native host guide, native-styled graphics, community freshness contract, and hosted PHP smoke evidence exist.
 
 The manifest and full reports also carry `proofLedger`. It marks which evidence is already alpha-reviewable (`alpha-over-rc-release-policy`, `native-visual-matrix`, `analytics-linked-keyword-graph`) and which evidence is still a blocker before stable (`alpha-runtime-gate-ledger`, `hosted-php-smoke-proof-required`). This is the review boundary between "ready to evaluate as alpha" and "not yet proven as stable 1.0.0".
 
@@ -204,7 +204,7 @@ The hosted checklist also records content expectations for the evidence endpoint
 
 Hosted content expectations now require the native platform provenance markers directly: `lg-ultragear-native-platform-provenance`, `Effect.Mica`, `win.setEffects`, `--window-bg-mica`, `--window-wash-inactive`, `data-native-platform`, `data-window-control-group`, `dragBlockSelector`, `data-drag-block-selector`, `caption-button`, `win.startDragging`, `win.setProgressBar`, `progressStatus`, `indeterminate`, `reportJson`, and `reportUrl`. Community analytics expectations also require `sourceToKeywordEdge`, `analyticsLinkageMarker`, `weightedDemandScore`, `freshnessMaxAgeHours`, `trustBoundary`, and `manualReviewRequired` so keyword searches, source descriptors, freshness windows, directional trust boundaries, and collected demand scores stay linked. This prevents the UltraGear parity evidence and analytics evidence from drifting back to generic source names without the concrete Windows 11 Mica, macOS chrome, host-window action, taskbar busy-progress, report/progress, and open-source research cues.
 
-The CSV exports are spreadsheet-friendly handoff files: `alpha-readiness.csv` and `/alpha-readiness/readiness.csv` list readiness areas with status, score, description, and gap, then append `proof-ledger` rows with `marker` and `evidence` columns for `alpha-over-rc-release-policy`, `native-visual-matrix`, `analytics-linked-keyword-graph`, `alpha-runtime-gate-ledger`, and `hosted-php-smoke-proof-required`, plus `required-evidence` rows for every `requiredEvidence` / `required-alpha-evidence` marker that defines the `1.0.0-alpha` proof boundary; `alpha-community-signals.csv` and `/alpha-readiness/community-signals.csv` list curated keyword metrics, collected demand score when available, `analytics-linked-keyword-graph`, `curated-signal-score`, `collected-demand-score`, `directional-community-signal`, and the open-source/community search links behind each signal; `alpha-community-sources.csv` and `/alpha-readiness/community-sources.csv` list each source with provider, source host, mode, evidence kind, collection risk, collection priority, endpoint, research link, proof use, reviewer action, and collector note.
+The CSV exports are spreadsheet-friendly handoff files: `alpha-readiness.csv` and `/alpha-readiness/readiness.csv` list readiness areas with status, score, description, and gap, then append `proof-ledger` rows with `marker` and `evidence` columns for `alpha-over-rc-release-policy`, `native-visual-matrix`, `analytics-linked-keyword-graph`, `alpha-runtime-gate-ledger`, and `hosted-php-smoke-proof-required`, plus `required-evidence` rows for every `requiredEvidence` / `required-alpha-evidence` marker that defines the `1.0.2-alpha` proof boundary; `alpha-community-signals.csv` and `/alpha-readiness/community-signals.csv` list curated keyword metrics, collected demand score when available, `analytics-linked-keyword-graph`, `curated-signal-score`, `collected-demand-score`, `directional-community-signal`, and the open-source/community search links behind each signal; `alpha-community-sources.csv` and `/alpha-readiness/community-sources.csv` list each source with provider, source host, mode, evidence kind, collection risk, collection priority, endpoint, research link, proof use, reviewer action, and collector note.
 
 `alpha-community-research-pack.json` and `/alpha-readiness/community-research-pack.json` group the keyword searches by source mode: supported public JSON APIs versus manual research links. Every source includes `sourceHost`, provider, evidence kind, collection risk, collection priority, proof use, reviewer action, and collector note; supported sources include the exact public API endpoint that `bun run alpha:analytics` will query, while manual sources keep their browser research link and `endpoint: null`. The pack also includes `keywordSearchGraph` with nodes for each alpha keyword and edges to every supported API endpoint or manual research link, tying the graphic, CSV, Markdown analytics handoff, source descriptors, curated signal scores, collected demand-score fields, the `community-analytics-freshness-contract`, and `directional-community-signal` trust model together. Its `community-analytics-graphic-linkage-contract` names the review path across `/alpha-readiness/community-source-map.svg`, `/alpha-readiness/community-analytics.md`, `/alpha-readiness/community-signals.csv`, and `/alpha-readiness/community-sources.csv`, so reviewers can prove the graphic, keyword searches, collected analytics, freshness boundary, and spreadsheet handoffs are linked. This gives reviewers a repeatable checklist for open-source demand/support research without pretending every community source is automatically collectible.
 
@@ -261,7 +261,7 @@ The community links are explicit research entrypoints, not live telemetry. They 
 
 ## Alpha release gate
 
-Before publishing or tagging `1.0.0-alpha.1`, prove:
+Before publishing or tagging `1.0.2-alpha.0`, prove:
 
 - Clean install from the detected package manager.
 - Adapter build succeeds and generated output is synchronized.
@@ -296,4 +296,5 @@ Stable `1.0.0` needs stronger evidence than alpha:
 Alpha hosted/deploy commands must fail before runtime work when required environment is empty or placeholder-only. Keep `.env` local and operational only; use `.env.example` for safe defaults, and provide real `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REMOTE`, `DEPLOY_LOCAL`, and `ALPHA_SMOKE_BASE_URL` values through the local shell or CI secrets.
 
 `ALPHA_SMOKE_BASE_URL` must be an HTTP(S) origin/path without embedded credentials or query tokens. Hosted smoke report paths must stay within the workspace/report output tree and must not use parent-directory segments.
+
 

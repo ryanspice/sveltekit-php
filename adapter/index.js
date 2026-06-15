@@ -3507,7 +3507,7 @@ function getHtaccess(mode, base, precompress = false, fallback, trailingSlash = 
 }
 
 // adapter/src/index.ts
-var ADAPTER_VERSION = "1.0.0-alpha.1";
+var ADAPTER_VERSION = "1.0.2-alpha.0";
 var DEFAULT_BUILD_IDENTITY_EXTENSIONS = [".php", ".html", ".json"];
 function normalizeMarkerList(value) {
   if (value == null)

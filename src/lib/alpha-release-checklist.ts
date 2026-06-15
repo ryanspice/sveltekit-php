@@ -2,9 +2,9 @@ import { requiredAlphaEvidence } from './alpha-required-evidence';
 
 export function renderAlphaReleaseChecklistMarkdown() {
 	const lines = [
-		'# SvelteKit PHP 1.0.0-alpha release checklist',
+		'# SvelteKit PHP 1.0.2-alpha release checklist',
 		'',
-		'This checklist defines the project-specific `1.0.0-alpha` bar. In this repo, `1.0.0-alpha` is the required pre-stable release track and is treated as above any RC label for project planning. This is a project policy, not generic SemVer prerelease ordering.',
+		'This checklist defines the project-specific `1.0.2-alpha` bar. In this repo, `1.0.2-alpha` is the required pre-stable release track and is treated as above any RC label for project planning. This is a project policy, not generic SemVer prerelease ordering.',
 		'',
 		'## Required evidence markers',
 		'',
@@ -80,3 +80,4 @@ export function renderAlphaReleaseChecklistMarkdown() {
 
 	return lines.join('\n');
 }
+

@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const args = new Set(process.argv.slice(2));
 const allowMissing = args.has('--allow-missing');
 const forceSkip = args.has('--skip');
-const expectedVersion = process.env.ALPHA_SMOKE_EXPECTED_VERSION || '1.0.0-alpha.1';
+const expectedVersion = process.env.ALPHA_SMOKE_EXPECTED_VERSION || '1.0.2-alpha.0';
 const timeoutMs = Number(process.env.ALPHA_SMOKE_TIMEOUT_MS || 15000);
 const baseUrlInput = process.env.ALPHA_SMOKE_BASE_URL;
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -119,7 +119,7 @@ const pageChecks = [
 			'hosted-php-smoke-proof',
 			'proofLedger',
 			'alpha-over-rc-release-policy',
-			'1.0.0-alpha',
+			'1.0.2-alpha',
 			'above-rc',
 			'alpha-runtime-gate-ledger',
 			'hosted-php-smoke-proof-required'
@@ -133,7 +133,7 @@ const pageChecks = [
 			expectedVersion,
 			'Release policy',
 			'alpha-over-rc-release-policy',
-			'1.0.0-alpha',
+			'1.0.2-alpha',
 			'above-rc',
 			'Required alpha evidence',
 			'requiredEvidence',
@@ -197,10 +197,10 @@ const pageChecks = [
 			'/alpha-readiness/release-checklist.md',
 			'release-checklist-markdown-endpoint',
 			'alpha-over-rc-release-policy',
-			'track 1.0.0-alpha',
+			'track 1.0.2-alpha',
 			'rank above-rc',
 			'Project-rank policy',
-			'1.0.0-alpha is the required pre-stable release label',
+			'1.0.2-alpha is the required pre-stable release label',
 			'SemVer note',
 			'RC, latest, and stable channels remain disallowed',
 			'Alpha proof ledger',
@@ -217,7 +217,7 @@ const pageChecks = [
 		expectedContentType: 'text/markdown',
 		requiredText: [
 			expectedVersion,
-			'1.0.0-alpha release checklist',
+			'1.0.2-alpha release checklist',
 			'alpha-over-rc-release-policy',
 			'desktop-shell-ui-command-mapping',
 			'community-analytics-csv-linkage',
@@ -240,7 +240,7 @@ const pageChecks = [
 			'Native-styled release report',
 			'Release policy',
 			'alpha-over-rc-release-policy',
-			'1.0.0-alpha',
+			'1.0.2-alpha',
 			'above-rc',
 			'Alpha proof ledger',
 			'alpha-runtime-gate-ledger',
@@ -378,7 +378,7 @@ const pageChecks = [
 			'releasePolicy',
 			'proofLedger',
 			'alpha-over-rc-release-policy',
-			'1.0.0-alpha',
+			'1.0.2-alpha',
 			'above-rc',
 			'projectRankPolicy',
 			'disallowedCandidateLabels',
@@ -506,7 +506,7 @@ const pageChecks = [
 			'community-source-map.svg',
 			'alpha-over-rc-release-policy',
 			'releasePolicy.channel=alpha',
-			'releasePolicy.track=1.0.0-alpha',
+			'releasePolicy.track=1.0.2-alpha',
 			'releasePolicy.rank=above-rc',
 			'projectRankPolicy=above-rc',
 			'alphaOverRcPolicyProof',
@@ -782,7 +782,7 @@ const pageChecks = [
 			'alpha-remote-smoke.json',
 			'contentExpectations',
 			'/alpha-readiness/release-checklist.md',
-			'1.0.0-alpha release checklist',
+			'1.0.2-alpha release checklist',
 			'alpha-over-rc-release-policy',
 			'desktop-shell-ui-command-mapping',
 			'community-analytics-csv-linkage',
@@ -1201,3 +1201,4 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
+

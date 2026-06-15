@@ -73,12 +73,12 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		`Release policy: ${report.releasePolicy.marker}; channel ${report.releasePolicy.channel}; track ${report.releasePolicy.track}; rank ${report.releasePolicy.rank}.`,
 		`Rule: ${report.releasePolicy.releaseRule}`,
 		`Stable promotion rule: ${report.releasePolicy.stablePromotionRule}`,
-		`Project-rank policy: 1.0.0-alpha is the required pre-stable release label and ranks above any RC for this project; RC, latest, and stable channels remain disallowed until the required alpha evidence is proven.`,
+		`Project-rank policy: 1.0.2-alpha is the required pre-stable release label and ranks above any RC for this project; RC, latest, and stable channels remain disallowed until the required alpha evidence is proven.`,
 		`SemVer note: this is an explicit project release policy, not a claim that generic SemVer prerelease comparison orders alpha above rc.`,
 		'',
 		'## Required alpha evidence',
 		'',
-		'These `requiredEvidence` markers define the `required-alpha-evidence` boundary for treating this as a real `1.0.0-alpha` candidate rather than a generic adapter smoke test.',
+		'These `requiredEvidence` markers define the `required-alpha-evidence` boundary for treating this as a real `1.0.2-alpha` candidate rather than a generic adapter smoke test.',
 		'',
 		...requiredEvidence.map((marker) => `- ${marker}`),
 		'',
@@ -355,3 +355,4 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 	lines.push('');
 	return lines.join('\n');
 }
+

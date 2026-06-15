@@ -62,10 +62,10 @@ export function buildReleaseManifest(
 		releasePolicy: {
 			...report.releasePolicy,
 			requiredEvidence: requiredAlphaEvidence,
-			projectRankPolicy: '1.0.0-alpha is the required pre-stable release track and ranks above any RC for this project.',
+			projectRankPolicy: '1.0.2-alpha is the required pre-stable release track and ranks above any RC for this project.',
 			semverNote:
 				'This is a project release policy marker, not a claim that SemVer prerelease comparison ranks alpha above rc.',
-			disallowedCandidateLabels: ['1.0.0-rc', '1.0.0-rc.0', '1.0.0-rc.1', 'latest', 'stable'],
+			disallowedCandidateLabels: ['1.0.2-rc', '1.0.2-rc.0', '1.0.2-rc.1', 'latest', 'stable'],
 			requiredDistTag: report.releasePolicy.channel,
 			requiredMarker: 'alpha-over-rc-release-policy'
 		},
@@ -81,7 +81,7 @@ export function buildReleaseManifest(
 			mustNotUseDistTags: report.releasePolicy.disallowedChannels,
 			mustNotUseCandidateLabels: ['rc', 'release-candidate', 'stable', 'latest'],
 			proves: [
-				'1.0.0-alpha is the only accepted pre-stable release label for this alpha evidence bundle',
+				'1.0.2-alpha is the only accepted pre-stable release label for this alpha evidence bundle',
 				'RC labels remain explicitly disallowed for this project release track',
 				'The npm publish tag must remain alpha rather than latest, rc, or stable',
 				'The alpha release gate must run report generation, release-prep verification, build, artifact sync, unit, runtime, consumer, and hosted-placeholder evidence'
@@ -105,7 +105,7 @@ export function buildReleaseManifest(
 				source: 'src/lib/alpha-release-checklist.ts',
 				documentationSource: 'docs/ALPHA-RELEASE-CHECKLIST.md',
 				markers: [
-					'1.0.0-alpha release checklist',
+					'1.0.2-alpha release checklist',
 					'alpha-over-rc-release-policy',
 					'desktop-shell-ui-command-mapping',
 					'community-analytics-csv-linkage',
@@ -455,3 +455,4 @@ export function buildReleaseManifest(
 		limitations: report.limitations
 	};
 }
+

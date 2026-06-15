@@ -126,20 +126,20 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	const checks = [];
 
 	checks.push(
-		report.target === '1.0.0-alpha.1'
-			? ok('target', 'Report target is 1.0.0-alpha.1.')
+		report.target === '1.0.2-alpha.0'
+			? ok('target', 'Report target is 1.0.2-alpha.0.')
 			: fail('target', `Report target is ${report.target ?? 'missing'}.`)
 	);
 
 	checks.push(
 		report.releasePolicy?.marker === 'alpha-over-rc-release-policy' &&
 			report.releasePolicy?.channel === 'alpha' &&
-			report.releasePolicy?.track === '1.0.0-alpha' &&
+			report.releasePolicy?.track === '1.0.2-alpha' &&
 			report.releasePolicy?.rank === 'above-rc' &&
 			(report.releasePolicy?.disallowedChannels ?? []).includes('rc') &&
 			(report.releasePolicy?.disallowedChannels ?? []).includes('stable') &&
 			report.releasePolicy?.stablePromotionRule?.includes('hosted PHP smoke')
-			? ok('release-policy', 'Release policy pins the 1.0.0-alpha channel above RC/stable promotion semantics.')
+			? ok('release-policy', 'Release policy pins the 1.0.2-alpha channel above RC/stable promotion semantics.')
 			: fail('release-policy', 'Release policy is missing alpha-over-RC channel, track, rank, or stable promotion blockers.')
 	);
 
@@ -450,7 +450,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(html, 'Native-styled release report') &&
 			hasText(html, 'Release policy') &&
 			hasText(html, 'alpha-over-rc-release-policy') &&
-			hasText(html, '1.0.0-alpha') &&
+			hasText(html, '1.0.2-alpha') &&
 			hasText(html, 'above-rc') &&
 			hasText(html, 'Required alpha evidence') &&
 			hasText(html, 'requiredEvidence') &&
@@ -528,7 +528,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 		hasText(markdown, 'Collected community analytics') &&
 			hasText(markdown, 'Release policy') &&
 			hasText(markdown, 'alpha-over-rc-release-policy') &&
-			hasText(markdown, '1.0.0-alpha') &&
+			hasText(markdown, '1.0.2-alpha') &&
 			hasText(markdown, 'above-rc') &&
 			hasText(markdown, 'Alpha proof ledger') &&
 			hasText(markdown, 'alpha-runtime-gate-ledger') &&
@@ -665,7 +665,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(reviewIndex, 'Release documentation artifacts') &&
 			hasText(reviewIndex, 'docs/ALPHA-RELEASE-CHECKLIST.md') &&
 			hasText(reviewIndex, 'releasePolicy.channel=alpha') &&
-			hasText(reviewIndex, 'releasePolicy.track=1.0.0-alpha') &&
+			hasText(reviewIndex, 'releasePolicy.track=1.0.2-alpha') &&
 			hasText(reviewIndex, 'releasePolicy.rank=above-rc') &&
 			hasText(reviewIndex, 'projectRankPolicy=above-rc') &&
 			hasText(reviewIndex, 'alphaOverRcPolicyProof') &&
@@ -789,7 +789,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(releaseNotes, 'lg-ultragear-native-platform-provenance') &&
 			hasText(releaseNotes, '@scriptgpt/desktop-shell-ui') &&
 			hasText(releaseNotes, 'Project-rank policy') &&
-			hasText(releaseNotes, '1.0.0-alpha is the required pre-stable release label') &&
+			hasText(releaseNotes, '1.0.2-alpha is the required pre-stable release label') &&
 			hasText(releaseNotes, 'SemVer note') &&
 			hasText(releaseNotes, 'RC, latest, and stable channels remain disallowed') &&
 			hasText(releaseNotes, 'desktopShellUiBinding') &&
@@ -798,7 +798,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(releaseNotes, 'toggleWindowMaximize') &&
 			hasText(releaseNotes, 'alpha-over-rc-release-policy') &&
 			hasText(releaseNotes, 'channel alpha') &&
-			hasText(releaseNotes, 'track 1.0.0-alpha') &&
+			hasText(releaseNotes, 'track 1.0.2-alpha') &&
 			hasText(releaseNotes, 'rank above-rc') &&
 			hasText(releaseNotes, 'Required alpha evidence') &&
 			hasText(releaseNotes, 'requiredEvidence') &&
@@ -1729,7 +1729,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('hosted-php-smoke-proof') &&
 					(expectation.markers ?? []).includes('proofLedger') &&
 					(expectation.markers ?? []).includes('alpha-over-rc-release-policy') &&
-					(expectation.markers ?? []).includes('1.0.0-alpha') &&
+					(expectation.markers ?? []).includes('1.0.2-alpha') &&
 					(expectation.markers ?? []).includes('above-rc') &&
 					(expectation.markers ?? []).includes('alpha-runtime-gate-ledger') &&
 					(expectation.markers ?? []).includes('hosted-php-smoke-proof-required')
@@ -1838,7 +1838,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('releasePolicy') &&
 					(expectation.markers ?? []).includes('proofLedger') &&
 					(expectation.markers ?? []).includes('alpha-over-rc-release-policy') &&
-					(expectation.markers ?? []).includes('1.0.0-alpha') &&
+					(expectation.markers ?? []).includes('1.0.2-alpha') &&
 					(expectation.markers ?? []).includes('above-rc') &&
 					(expectation.markers ?? []).includes('alpha-runtime-gate-ledger') &&
 					(expectation.markers ?? []).includes('hosted-php-smoke-proof-required') &&
@@ -2040,7 +2040,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	);
 
 	const releaseChecklistMarkers = [
-		'1.0.0-alpha release checklist',
+		'1.0.2-alpha release checklist',
 		'alpha-over-rc-release-policy',
 		'desktop-shell-ui-command-mapping',
 		'community-analytics-csv-linkage',
@@ -2090,7 +2090,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			manifest?.trustModel?.['requires-alpha-smoke-base-url-for-pass-evidence'] &&
 			manifest?.releasePolicy?.marker === 'alpha-over-rc-release-policy' &&
 			manifest?.releasePolicy?.channel === 'alpha' &&
-			manifest?.releasePolicy?.track === '1.0.0-alpha' &&
+			manifest?.releasePolicy?.track === '1.0.2-alpha' &&
 			manifest?.releasePolicy?.rank === 'above-rc' &&
 			manifest?.releasePolicy?.projectRankPolicy?.includes('ranks above any RC') &&
 			manifest?.releasePolicy?.semverNote?.includes('SemVer') &&
@@ -2349,4 +2349,5 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
+
 

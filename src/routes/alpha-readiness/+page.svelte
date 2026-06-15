@@ -612,7 +612,7 @@
 				<h2 id="required-alpha-evidence-heading">Required alpha evidence</h2>
 				<p>
 					These markers define the live reviewer boundary for treating this as a real
-					1.0.0-alpha candidate instead of a generic adapter smoke test. They must stay
+					1.0.2-alpha candidate instead of a generic adapter smoke test. They must stay
 					synchronized across package metadata, package contract, release manifest, evidence
 					index, hosted smoke checklist, remote smoke, reports, graphics, and this page.
 				</p>
@@ -2214,3 +2214,4 @@
 		}
 	}
 </style>
+

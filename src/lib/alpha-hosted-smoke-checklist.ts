@@ -142,7 +142,7 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 					...requiredAlphaEvidence,
 					'proofLedger',
 					'alpha-over-rc-release-policy',
-					'1.0.0-alpha',
+					'1.0.2-alpha',
 					'above-rc',
 					'alpha-runtime-gate-ledger',
 					'hosted-php-smoke-proof-required'
@@ -357,7 +357,7 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 			{
 				endpoint: '/alpha-readiness/release-checklist.md',
 				markers: [
-					'1.0.0-alpha release checklist',
+					'1.0.2-alpha release checklist',
 					'alpha-over-rc-release-policy',
 					'desktop-shell-ui-command-mapping',
 					'community-analytics-csv-linkage',
@@ -468,7 +468,7 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 					'releasePolicy',
 					'proofLedger',
 					'alpha-over-rc-release-policy',
-					'1.0.0-alpha',
+					'1.0.2-alpha',
 					'above-rc',
 					'alpha-runtime-gate-ledger',
 					'hosted-php-smoke-proof-required',
@@ -607,3 +607,4 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 			'The alpha can be considered hosted-proven only when bun run alpha:gate:hosted passes with ALPHA_SMOKE_BASE_URL set to a real deployed PHP host.'
 	};
 }
+
