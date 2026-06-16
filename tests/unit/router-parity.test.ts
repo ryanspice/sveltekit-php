@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import { getRouterPhp } from '../../adapter/src/runtime/php-templates.ts';
+import { getMinimalBootstrapPhp, getRouterPhp } from '../../adapter/src/runtime/php-templates.ts';
 import { getRouterJsSsrPhp } from '../../adapter/src/runtime/router/js-ssr.ts';
 import { getRouterPhpStaticPhp } from '../../adapter/src/runtime/router/php-static.ts';
 import { getRouterSharedPhp } from '../../adapter/src/runtime/router/shared.ts';
@@ -107,6 +107,15 @@ describe('router parity and hardening', () => {
 		expect(phpStatic).toContain("header('Vary: Accept', false)");
 		expect(phpStatic).toContain("$accept = $_SERVER['HTTP_ACCEPT'] ?? ''");
 		expect(phpStatic).toContain("$prefersHtml = (strpos($accept, 'text/html') !== false)");
+	});
+
+	it('keeps minimal HTML bootstrap GET-safe while preserving action POST support', () => {
+		const bootstrap = getMinimalBootstrapPhp('/nested');
+
+		expect(bootstrap).toContain("($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'");
+		expect(bootstrap).toContain("file_exists(__DIR__ . '/nested/__action.php')");
+		expect(bootstrap).toContain("require __DIR__ . '/nested/__action.php'");
+		expect(bootstrap).toContain('?>');
 	});
 
 	it('keeps the i18n php-static fixture route surfaces checked in', () => {

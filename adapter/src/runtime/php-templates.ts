@@ -953,9 +953,8 @@ if (!empty($sk_deferreds)) {
 export function getMinimalBootstrapPhp(requirePrefix: string = '') {
 	return `<?php
 // Minimal bootstrap for actions only (SSR=false or no data)
-// We still might need __action.php included if we want to support actions on this page
-// (even if data loading is client-side).
-if (file_exists(__DIR__ . '${requirePrefix}/__action.php')) {
+// Keep GET/HEAD page requests on the generated HTML shell; delegate only action posts.
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && file_exists(__DIR__ . '${requirePrefix}/__action.php')) {
 		require __DIR__ . '${requirePrefix}/__action.php';
 	}
 ?>
