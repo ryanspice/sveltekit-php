@@ -2397,6 +2397,7 @@ function getMinimalBootstrapPhp(requirePrefix = "") {
 if (file_exists(__DIR__ . '${requirePrefix}/__action.php')) {
 		require __DIR__ . '${requirePrefix}/__action.php';
 	}
+?>
 `;
 }
 function getApiPhp(includes, prefix, base, routeRegex, routeParamMapPhp, compatRel = "./_runtime/compat.php", relToRoot = "./") {

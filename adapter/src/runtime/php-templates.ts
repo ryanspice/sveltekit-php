@@ -958,6 +958,7 @@ export function getMinimalBootstrapPhp(requirePrefix: string = '') {
 if (file_exists(__DIR__ . '${requirePrefix}/__action.php')) {
 		require __DIR__ . '${requirePrefix}/__action.php';
 	}
+?>
 `;
 }
 
