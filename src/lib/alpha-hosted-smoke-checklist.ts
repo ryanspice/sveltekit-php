@@ -66,7 +66,13 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 			'/alpha-readiness/community-signals.csv',
 			'/alpha-readiness/community-sources.csv',
 			'/form-basic',
-			'POST /form-basic'
+			'POST /form-basic',
+			'/_app/immutable/missing-alpha-smoke.js',
+			'/_app/immutable/missing-alpha-smoke.css',
+			'/alpha-readiness/missing-alpha-smoke.svg',
+			'/alpha-readiness/missing-alpha-smoke.webmanifest',
+			'/alpha-readiness/missing-alpha-smoke.wasm',
+			'/alpha-readiness/missing-alpha-smoke.json'
 		],
 		contentExpectations: [
 			{
@@ -601,6 +607,32 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 			'%2e%2e/.env',
 			'..%2F.env',
 			'_app/%2e%2e/%2e%2e/package.json'
+		],
+		assetFallbackExclusions: [
+			{
+				endpoint: '/_app/immutable/missing-alpha-smoke.js',
+				proves: 'Missing generated JavaScript asset paths do not receive route fallback HTML.'
+			},
+			{
+				endpoint: '/_app/immutable/missing-alpha-smoke.css',
+				proves: 'Missing generated CSS asset paths do not receive route fallback HTML.'
+			},
+			{
+				endpoint: '/alpha-readiness/missing-alpha-smoke.svg',
+				proves: 'Missing SVG asset-like paths do not receive route fallback HTML.'
+			},
+			{
+				endpoint: '/alpha-readiness/missing-alpha-smoke.webmanifest',
+				proves: 'Missing webmanifest asset-like paths do not receive route fallback HTML.'
+			},
+			{
+				endpoint: '/alpha-readiness/missing-alpha-smoke.wasm',
+				proves: 'Missing WASM asset-like paths do not receive route fallback HTML.'
+			},
+			{
+				endpoint: '/alpha-readiness/missing-alpha-smoke.json',
+				proves: 'Missing JSON asset-like paths do not receive route fallback HTML.'
+			}
 		],
 		proofArtifact: 'report/alpha-remote-smoke.json',
 		completionRule:

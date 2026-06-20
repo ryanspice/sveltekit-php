@@ -36,6 +36,14 @@ import type { AdapterMode, AdapterOptions, Builder, BuildIdentityContract } from
 
 const ADAPTER_VERSION = '1.0.2-alpha.0';
 const DEFAULT_BUILD_IDENTITY_EXTENSIONS = ['.php', '.html', '.json'];
+const RESERVED_ROUTE_SEGMENTS = new Set(['_app', '_runtime', '_protected', 'adapter']);
+const RESERVED_ROUTE_FILES = new Set([
+	'__data',
+	'__action',
+	'router',
+	'route-manifest',
+	'compat'
+]);
 
 type ResolvedBuildIdentityContract = Required<
 	Pick<BuildIdentityContract, 'required' | 'forbidden' | 'extensions'>
@@ -170,6 +178,48 @@ function buildStamp(mode: AdapterMode, basePath: string, buildIdentity: Resolved
 	};
 }
 
+function normalizeRouteIdSegments(routeId: string): string[] {
+	return routeId
+		.split('/')
+		.map((segment) => segment.trim())
+		.filter(Boolean)
+		.filter((segment) => !(segment.startsWith('(') && segment.endsWith(')')));
+}
+
+function validateReservedRouteIds(routes: Builder['routes'], strict: boolean, builder: Builder) {
+	const conflicts = routes
+		.map((route) => route.id)
+		.filter(Boolean)
+		.filter((routeId) => {
+			const segments = normalizeRouteIdSegments(routeId);
+			if (segments.length === 0) return false;
+			const firstSegment = segments[0];
+			const lastSegment = segments[segments.length - 1] ?? '';
+			const lastBase = lastSegment.replace(/\.[^.]+$/, '');
+
+			return (
+				RESERVED_ROUTE_SEGMENTS.has(firstSegment) ||
+				RESERVED_ROUTE_FILES.has(lastBase) ||
+				segments.some((segment) => segment.includes('..'))
+			);
+		});
+
+	if (conflicts.length === 0) return;
+
+	const message = [
+		'sveltekit-php reserved route collision detected.',
+		'These route ids overlap adapter-generated runtime paths and can break static assets, data/action dispatch, or protected PHP handler output:',
+		...conflicts.map((routeId) => `- ${routeId}`),
+		'Rename these routes or move them under a non-reserved segment.'
+	].join('\n');
+
+	if (strict) {
+		throw new Error(message);
+	}
+
+	builder.log.warn(message);
+}
+
 export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 	const {
 		ssr = true,
@@ -186,6 +236,20 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 	return {
 		name: '@ryanspice/sveltekit-adapter-php',
+		supports: {
+			read: () => {
+				if (mode === 'js-ssr') return true;
+				throw new Error(
+					'sveltekit-php: $app/server read is not supported in php-static production runtime. Use js-ssr for dynamic server reads, or prerender/copy the asset into public static output.'
+				);
+			},
+			instrumentation: () => {
+				if (mode === 'js-ssr') return true;
+				throw new Error(
+					'sveltekit-php: instrumentation.server.js is not supported in php-static production runtime. Use js-ssr for JavaScript server instrumentation.'
+				);
+			}
+		},
 		async adapt(builder: Builder) {
 			const debug = (...args: unknown[]) => {
 				if (debugEnabled) console.log(...args);
@@ -245,6 +309,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 			builder.log.minor(`Adapting for mode: ${mode}`);
 			builder.log.minor('Cleaning output/temp');
+			validateReservedRouteIds(builder.routes, strict, builder);
 
 			const isInside = (parent: string, child: string) => {
 				const rel = path.relative(parent, child);
@@ -1888,6 +1953,9 @@ foreach ($loadFns as $fn) {
 $fallback_php = __DIR__ . '/${relToRoot.replace(/^\.\//, '')}${basePath ? stripLeadingSlash(basePath) + '/' : ''}index.php';
 $fallback_html = __DIR__ . '/${relToRoot.replace(/^\.\//, '')}${basePath ? stripLeadingSlash(basePath) + '/' : ''}index.html';
 $fallback_200 = __DIR__ . '/${relToRoot.replace(/^\.\//, '')}${basePath ? stripLeadingSlash(basePath) + '/' : ''}200.html';
+
+header('X-SvelteKit-PHP-Page-Mode: client-fallback');
+header('X-SvelteKit-PHP-SSR: unsupported-in-php-static');
 
 if (is_file($fallback_php)) {
 	$_SERVER['SCRIPT_FILENAME'] = realpath($fallback_php);

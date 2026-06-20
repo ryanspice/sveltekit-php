@@ -233,6 +233,10 @@ async function verifyPackageMetadata() {
 		throw new Error('package.json must set private:false for alpha publish readiness.');
 	}
 
+	if (packageJson.license !== 'MIT') {
+		throw new Error('package.json must declare the MIT license.');
+	}
+
 	if (packageJson.publishConfig?.tag !== 'alpha') {
 		throw new Error('package.json publishConfig.tag must stay alpha; do not publish alpha evidence as latest, rc, or stable.');
 	}
@@ -276,9 +280,16 @@ async function verifyPackageMetadata() {
 
 	for (const fileName of [
 		'adapter/index.js',
+		'LICENSE',
 		'README.md',
+		'docs/ADAPTER-FEATURE-CATALOG.md',
+		'docs/ADAPTER-LANDSCAPE.md',
 		'docs/ALPHA-READINESS.md',
-		'docs/ALPHA-RELEASE-CHECKLIST.md'
+		'docs/ALPHA-RELEASE-CHECKLIST.md',
+		'docs/DEV-ADAPTER-BOUNDARY.md',
+		'docs/HOSTING-CONTRACT.md',
+		'docs/recipes/composer-bootstrap.md',
+		'docs/recipes/wordpress.md'
 	]) {
 		if (!(packageJson.files ?? []).includes(fileName)) {
 			throw new Error(`package.json files must include ${fileName}.`);
@@ -748,7 +759,13 @@ async function verifyRemoteSmokeCoverage() {
 		'alpha-remote-smoke',
 		'assertContentTypeIncludes',
 		'assertNoForbiddenLeaks',
-		'forbiddenLeakMarkers'
+		'forbiddenLeakMarkers',
+		'assetFallbackProbes',
+		'verifyAssetFallbackExclusion',
+		'asset-fallback-exclusion',
+		'missing-alpha-smoke.webmanifest',
+		'missing-alpha-smoke.wasm',
+		'fallback HTML'
 	];
 	const missingMarkers = requiredMarkers.filter((marker) => !smoke.includes(marker));
 

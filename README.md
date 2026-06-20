@@ -16,6 +16,12 @@ Current package track: `1.0.2-alpha.0`.
 - Prerendered SSR still hydrates unless the app exports `csr = false`; use the build identity contract below for static skins where client data must not downgrade the deployed theme or tenant
 - Historical audit notes under `docs/AUDIT-*` and `docs/CHAT-*` are archival snapshots, not the current contract
 - Live example: [blog.ryanspice.com](https://blog.ryanspice.com) uses this adapter for its PHP-hosted release path
+- Adapter landscape and competitive positioning: [`docs/ADAPTER-LANDSCAPE.md`](docs/ADAPTER-LANDSCAPE.md)
+- Adapter feature catalogue and backlog: [`docs/ADAPTER-FEATURE-CATALOG.md`](docs/ADAPTER-FEATURE-CATALOG.md)
+- PHP hosting contract: [`docs/HOSTING-CONTRACT.md`](docs/HOSTING-CONTRACT.md)
+- Dev adapter boundary: [`docs/DEV-ADAPTER-BOUNDARY.md`](docs/DEV-ADAPTER-BOUNDARY.md)
+- CMS recipes: [`docs/recipes/wordpress.md`](docs/recipes/wordpress.md) and [`docs/recipes/composer-bootstrap.md`](docs/recipes/composer-bootstrap.md)
+- License: MIT
 
 ## 🌟 Key Features
 
@@ -278,7 +284,23 @@ $env:SVELTEKIT_PHP_BUILD_REQUIRED_MARKERS = '["site-shell--canopy","themeClass:\
 $env:SVELTEKIT_PHP_BUILD_FORBIDDEN_MARKERS = '["site-shell--ryan","themeClass:\"ryan\""]'
 ```
 
-The adapter scans generated `.php`, `.html`, and `.json` files, fails on missing required markers or present forbidden markers, and records the passed contract in `_runtime/build-stamp.json` with the adapter version and public site id/url. If the site must be fully static with no client rewrite, disable CSR in the app route options for that build.
+The adapter scans generated `.php`, `.html`, and `.json` files, fails on missing required markers or present forbidden markers, and records the passed contract in `_runtime/build-stamp.json` with the adapter version and public site id/url. If the site must be fully static with no client rewrite, disable CSR in the app route options for that build. The alpha hosted smoke now includes `/alpha-readiness/no-hydration`, a prerendered `csr=false` fixture that fails if client hydration script markers appear in the served HTML.
+
+Non-prerendered `php-static` pages are not PHP-side Svelte document SSR. They are client fallback pages with PHP data/action helpers. Generated route shims now expose that boundary with `X-SvelteKit-PHP-Page-Mode: client-fallback` and `X-SvelteKit-PHP-SSR: unsupported-in-php-static`; use `js-ssr` for real dynamic document SSR.
+
+### Troubleshooting: theme changes after load
+
+If a static or blog-style deployment flashes the right theme and then changes after load, the issue is usually hydration or mismatched build identity, not PHP serving the wrong file.
+
+Use this decision path:
+
+- If the page should be fully static, export `prerender = true` and `csr = false` for that route or layout.
+- If the page needs interactivity but must keep a tenant/theme skin, use the `buildIdentity` required/forbidden marker contract so the adapter fails before deploy when the generated shell and data disagree.
+- If the route is not prerendered in `php-static`, expect client fallback behavior and the `X-SvelteKit-PHP-SSR: unsupported-in-php-static` header.
+- If request-time Svelte document SSR is required, use `js-ssr`.
+- Do not use `ssr = false` as a static-site fix; SvelteKit will emit an empty shell instead of fully rendered static HTML.
+
+For host-level routing, MIME, fallback, proxy, and body-size expectations, see [`docs/HOSTING-CONTRACT.md`](docs/HOSTING-CONTRACT.md).
 
 ---
 

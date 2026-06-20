@@ -1,7 +1,7 @@
 import { config as loadEnv } from 'dotenv';
 import { assertDeployEnv } from './utils/config.mjs';
 
-loadEnv();
+loadEnv({ quiet: true });
 
 assertDeployEnv('Deploy precheck');
 

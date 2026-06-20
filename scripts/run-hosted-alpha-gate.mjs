@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-loadEnv();
+loadEnv({ quiet: true });
 
 assertHostedSmokeEnv('Hosted alpha gate');
 

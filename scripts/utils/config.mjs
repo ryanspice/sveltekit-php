@@ -1,7 +1,10 @@
 // scripts/utils/config.mjs
-
-import { config as loadEnv } from 'dotenv';
-loadEnv();
+//
+// Keep this module side-effect free. It is imported by svelte.config.js during
+// `svelte-kit sync`, `vite build`, and npm packaging hooks, so loading .env here
+// would make build/package behavior depend on runtime deployment files.
+// Commands that intentionally support local .env files should load dotenv in
+// their own entrypoint before calling these helpers.
 
 /**
  * @typedef {Record<string, string | undefined>} EnvRecord

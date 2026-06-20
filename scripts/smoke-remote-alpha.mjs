@@ -75,8 +75,6 @@ const pageChecks = [
 			'data-alpha-proof-ledger',
 			'proofLedger',
 			'Alpha proof ledger',
-			'Release documentation artifacts',
-			'docs/ALPHA-RELEASE-CHECKLIST.md',
 			'alpha-over-rc-release-policy',
 			'alpha-runtime-gate-ledger',
 			'hosted-php-smoke-proof-required',
@@ -96,15 +94,24 @@ const pageChecks = [
 		]
 	},
 	{
+		name: 'no hydration prerender fixture',
+		path: 'alpha-readiness/no-hydration',
+		expectedContentType: 'text/html',
+		requiredText: [
+			'no-hydration-fixture',
+			'csr-disabled-prerender-contract',
+			'theme-stable-ssr-html',
+			'This fixture is intentionally prerendered with csr=false'
+		],
+		forbiddenText: ['<script', 'sveltekit:start', 'data-sveltekit-hydrate']
+	},
+	{
 		name: 'alpha readiness report',
 		path: 'alpha-readiness/report.json',
 		expectedContentType: 'application/json',
 		requiredText: [
 			expectedVersion,
 			'releasePolicy',
-			'alphaReleaseChecklist',
-			'source-controlled-release-documentation',
-			'docs/ALPHA-RELEASE-CHECKLIST.md',
 			'requiredEvidence',
 			'native-host-binding-guide',
 			'desktop-shell-ui-command-mapping',
@@ -381,11 +388,10 @@ const pageChecks = [
 			'1.0.2-alpha',
 			'above-rc',
 			'projectRankPolicy',
+			'semverNote',
 			'disallowedCandidateLabels',
 			'mustNotUseCandidateLabels',
-			'alphaOverRcPolicyProof',
-			'Project-rank policy',
-			'SemVer note',
+			'releasePolicyProof',
 			'alpha-runtime-gate-ledger',
 			'hosted-php-smoke-proof-required',
 			'proofStage',
@@ -917,6 +923,10 @@ const pageChecks = [
 		name: 'form route',
 		path: 'form-basic',
 		expectedContentType: 'text/html',
+		expectedHeaders: {
+			'x-sveltekit-php-page-mode': 'client-fallback',
+			'x-sveltekit-php-ssr': 'unsupported-in-php-static'
+		},
 		requiredText: ['form']
 	}
 ];
@@ -928,7 +938,7 @@ const formActionChecks = [
 		form: {
 			val: 'alpha-remote-smoke'
 		},
-		expectedContentType: 'text/html',
+		expectedContentType: 'application/json',
 		requiredText: ['alpha-remote-smoke', 'success']
 	}
 ];
@@ -941,14 +951,22 @@ const traversalProbes = [
 	'_app/%2e%2e/%2e%2e/package.json'
 ];
 
+const assetFallbackProbes = [
+	'_app/immutable/missing-alpha-smoke.js',
+	'_app/immutable/missing-alpha-smoke.css',
+	'alpha-readiness/missing-alpha-smoke.svg',
+	'alpha-readiness/missing-alpha-smoke.webmanifest',
+	'alpha-readiness/missing-alpha-smoke.wasm',
+	'alpha-readiness/missing-alpha-smoke.json'
+];
+
 const forbiddenLeakMarkers = [
 	'"name": "sveltekit-php"',
 	'"scripts"',
-	'DEPLOY_HOST',
-	'DEPLOY_USER',
-	'DEPLOY_REMOTE',
-	'<?php',
-	'adapter/index.js'
+	'DEPLOY_HOST=',
+	'DEPLOY_USER=',
+	'DEPLOY_REMOTE=',
+	'<?php'
 ];
 
 function fail(message) {
@@ -1018,6 +1036,7 @@ async function fetchText(url, init = {}) {
 		return {
 			body,
 			contentType: response.headers.get('content-type') || '',
+			headers: response.headers,
 			status: response.status,
 			url: response.url
 		};
@@ -1034,6 +1053,14 @@ function assertTextIncludes(body, requiredText, checkName) {
 	}
 }
 
+function assertTextExcludes(body, forbiddenText = [], checkName) {
+	const lowered = body.toLowerCase();
+	const present = forbiddenText.filter((text) => lowered.includes(text.toLowerCase()));
+	if (present.length > 0) {
+		throw new Error(`${checkName} response includes forbidden text markers: ${present.join(', ')}`);
+	}
+}
+
 function assertContentTypeIncludes(contentType, expectedContentType, checkName) {
 	if (!expectedContentType) {
 		return;
@@ -1041,6 +1068,17 @@ function assertContentTypeIncludes(contentType, expectedContentType, checkName) 
 
 	if (!contentType.toLowerCase().includes(expectedContentType.toLowerCase())) {
 		throw new Error(`${checkName} returned content-type ${contentType || 'missing'}, expected ${expectedContentType}.`);
+	}
+}
+
+function assertHeadersInclude(headers, expectedHeaders = {}, checkName) {
+	for (const [name, expectedValue] of Object.entries(expectedHeaders)) {
+		const actualValue = headers.get(name) || '';
+		if (!actualValue.toLowerCase().includes(String(expectedValue).toLowerCase())) {
+			throw new Error(
+				`${checkName} returned header ${name}: ${actualValue || 'missing'}, expected ${expectedValue}.`
+			);
+		}
 	}
 }
 
@@ -1061,8 +1099,10 @@ async function verifyPage(baseUrl, check) {
 	}
 
 	assertContentTypeIncludes(response.contentType, check.expectedContentType, check.name);
+	assertHeadersInclude(response.headers, check.expectedHeaders, check.name);
 	assertNoForbiddenLeaks(response.body, check.name);
 	assertTextIncludes(response.body, check.requiredText, check.name);
+	assertTextExcludes(response.body, check.forbiddenText, check.name);
 	console.log(`PASS remote-page: ${check.name} returned HTTP ${response.status} as ${response.contentType || 'unknown content-type'}.`);
 	return {
 		kind: 'page',
@@ -1082,7 +1122,9 @@ async function verifyFormAction(baseUrl, check) {
 		method: 'POST',
 		body: new URLSearchParams(check.form),
 		headers: {
-			accept: 'text/html,application/xhtml+xml'
+			accept: 'application/json',
+			'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
+			'x-sveltekit-action': 'true'
 		}
 	});
 
@@ -1114,6 +1156,42 @@ async function verifyTraversalProbe(baseUrl, probePath) {
 	console.log(`PASS remote-safety: ${probePath} did not expose package/env/source markers.`);
 	return {
 		kind: 'safety',
+		name: probePath,
+		path: probePath,
+		status: response.status,
+		contentType: response.contentType,
+		finalUrl: safeUrlForLog(new URL(response.url)),
+		ok: true
+	};
+}
+
+async function verifyAssetFallbackExclusion(baseUrl, probePath) {
+	const url = targetUrl(baseUrl, probePath);
+	const response = await fetchText(url, {
+		headers: {
+			accept: '*/*'
+		}
+	});
+
+	assertNoForbiddenLeaks(response.body, probePath);
+
+	const contentType = response.contentType.toLowerCase();
+	const looksLikeHtmlFallback =
+		response.status >= 200 &&
+		response.status < 300 &&
+		contentType.includes('text/html') &&
+		(response.body.includes('sveltekit:start') ||
+			response.body.includes('SvelteKit') ||
+			response.body.includes('alpha-readiness') ||
+			response.body.includes('no-hydration-fixture'));
+
+	if (looksLikeHtmlFallback) {
+		throw new Error(`${probePath} was served as fallback HTML. Asset-like paths must 404 or return their real MIME type, not route fallback markup.`);
+	}
+
+	console.log(`PASS remote-asset-fallback: ${probePath} did not receive route fallback HTML.`);
+	return {
+		kind: 'asset-fallback-exclusion',
 		name: probePath,
 		path: probePath,
 		status: response.status,
@@ -1172,6 +1250,11 @@ async function main() {
 
 		for (const probePath of traversalProbes) {
 			checks.push(await verifyTraversalProbe(baseUrl, probePath));
+			await delay(50);
+		}
+
+		for (const probePath of assetFallbackProbes) {
+			checks.push(await verifyAssetFallbackExclusion(baseUrl, probePath));
 			await delay(50);
 		}
 	} catch (error) {

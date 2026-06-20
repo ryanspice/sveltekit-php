@@ -1354,6 +1354,9 @@ if (!function_exists('router_mime_type')) {
             'cjs' => 'application/javascript',
             'css' => 'text/css',
             'json' => 'application/json',
+            'map' => 'application/json',
+            'webmanifest' => 'application/manifest+json',
+            'wasm' => 'application/wasm',
             'html' => 'text/html',
             'htm' => 'text/html',
             'xml' => 'text/xml',
@@ -1364,6 +1367,7 @@ if (!function_exists('router_mime_type')) {
             'jpeg' => 'image/jpeg',
             'gif' => 'image/gif',
             'webp' => 'image/webp',
+            'avif' => 'image/avif',
             'ico' => 'image/x-icon',
             'woff2' => 'font/woff2',
             'woff' => 'font/woff',
@@ -3509,6 +3513,14 @@ function getHtaccess(mode, base, precompress = false, fallback, trailingSlash = 
 // adapter/src/index.ts
 var ADAPTER_VERSION = "1.0.2-alpha.0";
 var DEFAULT_BUILD_IDENTITY_EXTENSIONS = [".php", ".html", ".json"];
+var RESERVED_ROUTE_SEGMENTS = new Set(["_app", "_runtime", "_protected", "adapter"]);
+var RESERVED_ROUTE_FILES = new Set([
+  "__data",
+  "__action",
+  "router",
+  "route-manifest",
+  "compat"
+]);
 function normalizeMarkerList(value) {
   if (value == null)
     return [];
@@ -3606,6 +3618,33 @@ function buildStamp(mode, basePath, buildIdentity) {
     builtAt: new Date().toISOString()
   };
 }
+function normalizeRouteIdSegments(routeId) {
+  return routeId.split("/").map((segment) => segment.trim()).filter(Boolean).filter((segment) => !(segment.startsWith("(") && segment.endsWith(")")));
+}
+function validateReservedRouteIds(routes, strict, builder) {
+  const conflicts = routes.map((route) => route.id).filter(Boolean).filter((routeId) => {
+    const segments = normalizeRouteIdSegments(routeId);
+    if (segments.length === 0)
+      return false;
+    const firstSegment = segments[0];
+    const lastSegment = segments[segments.length - 1] ?? "";
+    const lastBase = lastSegment.replace(/\.[^.]+$/, "");
+    return RESERVED_ROUTE_SEGMENTS.has(firstSegment) || RESERVED_ROUTE_FILES.has(lastBase) || segments.some((segment) => segment.includes(".."));
+  });
+  if (conflicts.length === 0)
+    return;
+  const message = [
+    "sveltekit-php reserved route collision detected.",
+    "These route ids overlap adapter-generated runtime paths and can break static assets, data/action dispatch, or protected PHP handler output:",
+    ...conflicts.map((routeId) => `- ${routeId}`),
+    "Rename these routes or move them under a non-reserved segment."
+  ].join(`
+`);
+  if (strict) {
+    throw new Error(message);
+  }
+  builder.log.warn(message);
+}
 function sveltekitPhpAdapter(options = {}) {
   const {
     ssr = true,
@@ -3621,6 +3660,18 @@ function sveltekitPhpAdapter(options = {}) {
   const buildIdentity = resolveBuildIdentityContract(options.buildIdentity);
   return {
     name: "@ryanspice/sveltekit-adapter-php",
+    supports: {
+      read: () => {
+        if (mode === "js-ssr")
+          return true;
+        throw new Error("sveltekit-php: $app/server read is not supported in php-static production runtime. Use js-ssr for dynamic server reads, or prerender/copy the asset into public static output.");
+      },
+      instrumentation: () => {
+        if (mode === "js-ssr")
+          return true;
+        throw new Error("sveltekit-php: instrumentation.server.js is not supported in php-static production runtime. Use js-ssr for JavaScript server instrumentation.");
+      }
+    },
     async adapt(builder) {
       const debug = (...args) => {
         if (debugEnabled)
@@ -3678,6 +3729,7 @@ function sveltekitPhpAdapter(options = {}) {
       };
       builder.log.minor(`Adapting for mode: ${mode}`);
       builder.log.minor("Cleaning output/temp");
+      validateReservedRouteIds(builder.routes, strict, builder);
       const isInside = (parent, child) => {
         const rel = path3.relative(parent, child);
         return rel !== "" && !rel.startsWith("..") && !path3.isAbsolute(rel);
@@ -4808,6 +4860,9 @@ foreach ($loadFns as $fn) {
 $fallback_php = __DIR__ . '/${relToRoot.replace(/^\.\//, "")}${basePath ? stripLeadingSlash(basePath) + "/" : ""}index.php';
 $fallback_html = __DIR__ . '/${relToRoot.replace(/^\.\//, "")}${basePath ? stripLeadingSlash(basePath) + "/" : ""}index.html';
 $fallback_200 = __DIR__ . '/${relToRoot.replace(/^\.\//, "")}${basePath ? stripLeadingSlash(basePath) + "/" : ""}200.html';
+
+header('X-SvelteKit-PHP-Page-Mode: client-fallback');
+header('X-SvelteKit-PHP-SSR: unsupported-in-php-static');
 
 if (is_file($fallback_php)) {
 	$_SERVER['SCRIPT_FILENAME'] = realpath($fallback_php);

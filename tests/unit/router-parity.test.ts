@@ -79,6 +79,28 @@ describe('router parity and hardening', () => {
 		expect(jsSsr).not.toContain('readfile($path)');
 	});
 
+	it('keeps asset MIME mappings needed for fallback exclusion probes', () => {
+		const shared = getRouterSharedPhp('/base');
+		const phpStatic = getRouterPhp('/base', 'php-static', false);
+		const jsSsr = getRouterPhp('/base', 'js-ssr', false);
+		const requiredMimeMappings = [
+			"'js' => 'application/javascript'",
+			"'css' => 'text/css'",
+			"'json' => 'application/json'",
+			"'map' => 'application/json'",
+			"'webmanifest' => 'application/manifest+json'",
+			"'wasm' => 'application/wasm'",
+			"'svg' => 'image/svg+xml'",
+			"'woff2' => 'font/woff2'"
+		];
+
+		for (const router of [shared, phpStatic, jsSsr]) {
+			for (const mapping of requiredMimeMappings) {
+				expect(router).toContain(mapping);
+			}
+		}
+	});
+
 	it('normalizes SvelteKit param matcher names for locale-prefixed routes', () => {
 		const localizedPage = compilePhpRouteMatcher('/[lang=lang]/[slug]');
 		const localizedRest = compilePhpRouteMatcher('/[lang=lang]/docs/[...path=localized]');

@@ -46,6 +46,7 @@ export function buildBridgeReuseInventory(report: AlphaReadinessReport) {
 			}
 		],
 		referencedBridgeImplementations: [
+			'@scriptgpt/desktop-shell-ui',
 			'packages/desktop-shell-ui/src/index.ts enableMicaWindowChrome, syncTaskbarProgress, toggleWindowMaximize, and bindColorSchemeWatcher',
 			'src/app.ts applyWindowChrome and syncWindowProgress',
 			'src/lib/bridge-ui/shell/BridgeShell.svelte',
@@ -57,6 +58,7 @@ export function buildBridgeReuseInventory(report: AlphaReadinessReport) {
 			marker: 'lg-ultragear-native-platform-provenance',
 			sourceRoot: 'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge',
 			sourceFiles: [
+				'@scriptgpt/desktop-shell-ui',
 				'packages/desktop-shell-ui/src/index.ts',
 				'src/app.ts',
 				'src/lib/bridge-ui/shell/BridgeShell.svelte',

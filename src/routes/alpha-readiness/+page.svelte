@@ -110,6 +110,7 @@
 	const nativeHostContractHref = localHref('/alpha-readiness/native-host-contract.json');
 	const nativeHostGuideHref = localHref('/alpha-readiness/native-host-guide.md');
 	const hostedSmokeChecklistHref = localHref('/alpha-readiness/hosted-smoke-checklist.json');
+	const noHydrationHref = localHref('/alpha-readiness/no-hydration');
 	const bridgeReuseHref = localHref('/alpha-readiness/bridge-reuse.json');
 	const reviewIndexHref = localHref('/alpha-readiness/review-index.md');
 	const communitySignalsJsonHref = localHref('/alpha-readiness/community-signals.json');
@@ -273,6 +274,9 @@
 					</a>
 					<a class="button" href={hostedSmokeChecklistHref} download="sveltekit-php-alpha-hosted-smoke-checklist.json">
 						Download hosted checklist
+					</a>
+					<a class="button" href={noHydrationHref}>
+						Open no-hydration fixture
 					</a>
 					<a class="button" href={bridgeReuseHref} download="sveltekit-php-alpha-bridge-reuse.json">
 						Download bridge map
