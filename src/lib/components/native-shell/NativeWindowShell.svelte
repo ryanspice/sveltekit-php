@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
 	import { installNativeHostEventBridge } from '$lib/native-shell/native-host-event-bridge';
 
@@ -22,7 +21,7 @@
 		themeClass?: NativeShellTheme;
 	} = $props();
 
-	onMount(() => {
+	$effect(() => {
 		const bridge = installNativeHostEventBridge();
 
 		return bridge.dispose;
@@ -36,7 +35,7 @@
 	data-native-platform-provenance="lg-ultragear-native-platform-provenance"
 	data-desktop-shell-ui-binding="desktopShellUiBinding"
 	data-desktop-shell-helper-package="@scriptgpt/desktop-shell-ui"
-	data-desktop-shell-helper-functions="enableMicaWindowChrome syncTaskbarProgress toggleWindowMaximize"
+	data-desktop-shell-helper-functions="enableMicaWindowChrome syncTaskbarProgress toggleWindowMaximize bindColorSchemeWatcher prefersDarkMode"
 	data-native-host-controller-global="window.__SVELTEKIT_PHP_NATIVE_HOST__"
 	data-native-host-installer="installSvelteKitPhpNativeHost"
 	data-window-material={windowEffect === 'mica' ? 'windows-11-mica' : windowEffect}

@@ -20,6 +20,40 @@ This document defines the production hosting assumptions for `sveltekit-php`. It
 | `js-ssr` | Partial | PHP entrypoint/proxy plus JavaScript SSR sidecar for real dynamic Svelte document SSR. This needs a deploy target that can run the sidecar process. |
 | PHP-native Svelte document SSR | Not claimed | PHP cannot execute Svelte's generated JavaScript SSR module. Use `js-ssr` if request-time document SSR is required. |
 
+## Public adapter options
+
+These option names are the 1.x public adapter surface. New options can be added in minor releases, but removing or changing these names requires a breaking-change release.
+
+| Option | Accepted values | Contract |
+| --- | --- | --- |
+| `mode` | `'php-static'` or `'js-ssr'` | Selects generated runtime mode. |
+| `ssr` | `boolean` | Legacy/compatibility SSR toggle; prefer explicit `mode` for release claims. |
+| `out` | `string` | Output directory for generated PHP/static build files. |
+| `assets` | `string` | Asset output path when separate from `out`. |
+| `precompress` | `boolean` | Enables generated precompressed assets where the host can serve them. |
+| `fallback` | `boolean` | Enables app fallback behavior; asset-like paths must still be excluded from HTML fallback. |
+| `strict` | `boolean` | Keeps release and source-shape guards fail-fast. |
+| `basePath` | `string` | Explicit deployment base path for subdirectory hosting. |
+| `baseMode` | `'fixed'` or `'auto'` | Controls whether base behavior is fixed by config or inferred for supported flows. |
+| `buildIdentity` | object or `false` | Optional required/forbidden marker contract for tenant/theme/static-shell validation. |
+
+## Package exports and packed files
+
+The npm package export contract is:
+
+| Export | Target |
+| --- | --- |
+| `sveltekit-php` | `./adapter/index.js` |
+| `sveltekit-php/adapter` | `./adapter/index.js` |
+
+The package allowlist intentionally contains only runtime adapter code plus release/user documentation: `adapter/index.js`, `adapter/src/runtime/php-compat.php`, `LICENSE`, `README.md`, `package.json`, `docs/ADAPTER-FEATURE-CATALOG.md`, `docs/ADAPTER-LANDSCAPE.md`, `docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md`, `docs/ALPHA-READINESS.md`, `docs/ALPHA-RELEASE-CHECKLIST.md`, `docs/DEV-ADAPTER-BOUNDARY.md`, `docs/HOSTING-CONTRACT.md`, `docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`, `docs/recipes/composer-bootstrap.md`, and `docs/recipes/wordpress.md`.
+
+## Streaming and deferred data boundary
+
+`php-static` does not claim exact SvelteKit/devalue streaming-deferred parity for request-time Svelte documents. Treat `php-static` as the shared-hosting mode for prerendered documents plus PHP data/action/endpoint helpers. If a route requires exact streamed Svelte document output, deferred chunk semantics, or request-time SSR parity, deploy it through `js-ssr` so the PHP entrypoint can proxy to the JavaScript SSR sidecar.
+
+This boundary is intentional for 1.x stability. A future PHP-native streaming/deferred feature would need dedicated fixtures that compare emitted chunks, devalue serialization, hydration behavior, and hosted output against SvelteKit's JavaScript SSR behavior before it can be promoted.
+
 ## Origin and proxy headers
 
 Use an explicit origin when the app is behind a proxy, CDN, or subdirectory deployment.
@@ -43,6 +77,35 @@ Future runtime knobs should follow the `adapter-node` model:
 | `SK_XFF_DEPTH` | Number of trusted proxies when parsing `X-Forwarded-For` from the right. | Disabled unless explicitly configured. |
 
 Do not trust forwarded headers on public shared hosting unless the host/CDN boundary is known. Spoofable proxy headers can cause bad redirects, bad form-action origin checks, and misleading client-address data.
+
+## Base, deploy, and smoke environment names
+
+These environment names are part of the release-prep/deploy contract. Committed examples must keep deployment secrets empty or placeholder-only.
+
+| Variable | Owner | Purpose |
+| --- | --- | --- |
+| `SK_BASE_PATH` | Runtime/build verification | Base path used by PHP routing in subdirectory deployments. |
+| `DEPLOY_BASE` | Deploy scripts | Public base path for guarded dev-host deployment. |
+| `ADAPTER_MODE` | Build/deploy scripts | Selects `php-static` or `js-ssr` for scripted builds. |
+| `ADAPTER_OUT` | Build/deploy scripts | Output directory override. |
+| `ADAPTER_ASSETS` | Build/deploy scripts | Asset output override. |
+| `SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS` | Build scripts | Semicolon-separated trusted parent roots for adapter output outside the project or OS temp directory. |
+| `ADAPTER_BASE_MODE` | Build/deploy scripts | `fixed` or `auto` base handling. |
+| `ADAPTER_FALLBACK` | Build/deploy scripts | Fallback behavior toggle. |
+| `PRECOMPRESS` | Build/deploy scripts | Precompression toggle. |
+| `DEPLOY_PROFILE` | Deploy scripts | Human label for deployment target. |
+| `DEPLOY_HOST` | Deploy scripts | SSH/SFTP host. |
+| `DEPLOY_USER` | Deploy scripts | SSH/SFTP user. |
+| `DEPLOY_PORT` | Deploy scripts | SSH/SFTP port. |
+| `DEPLOY_REMOTE` | Deploy scripts | Remote deployment directory. |
+| `DEPLOY_LOCAL` | Deploy scripts | Local build directory to upload. |
+| `DEPLOY_IDENTITY_FILE` | Deploy scripts | Optional SSH identity file. |
+| `DEPLOY_THRESHOLD_FILES` | Deploy scripts | Safety threshold for file-count changes. |
+| `DEPLOY_THRESHOLD_BYTES` | Deploy scripts | Safety threshold for byte-size changes. |
+| `ALPHA_SMOKE_BASE_URL` | Hosted smoke | Real HTTP(S) deployment URL for hosted alpha/v1 gates. |
+| `ALPHA_SMOKE_EXPECTED_VERSION` | Hosted smoke | Expected package/version marker. |
+| `ALPHA_SMOKE_TIMEOUT_MS` | Hosted smoke | Request timeout override. |
+| `ALPHA_SMOKE_REPORT_PATH` | Hosted smoke | Output path for smoke proof JSON. |
 
 ## Body size contract
 
@@ -69,6 +132,25 @@ Static asset headers are normally web-server owned. PHP response headers are app
 | Security headers | Apache/Nginx/global host config preferred. | PHP endpoint/action/page code or generated router where safe. |
 | Redirects | Apache/Nginx config preferred. | PHP router or endpoint responses. |
 | Fallback routing | Apache/Nginx rewrite rules or generated `router.php`. | PHP router must not return route fallback HTML for asset-like paths. |
+
+Adapter-emitted diagnostic headers:
+
+| Header | Values | Meaning |
+| --- | --- | --- |
+| `X-SvelteKit-PHP-Page-Mode` | `client-fallback` | A non-prerendered `php-static` page is a client fallback shell, not PHP-side Svelte document SSR. |
+| `X-SvelteKit-PHP-SSR` | `unsupported-in-php-static` | Use `js-ssr` when request-time Svelte document SSR is required. |
+
+## Root compatibility router
+
+The generated `build/router.php` owns runtime routing, path-safety checks, and fallback behavior. The repository root `router.php` is only a compatibility shim for PHP built-in server runs such as:
+
+```powershell
+php -S 127.0.0.1:8080 -t build router.php
+```
+
+The root shim must delegate with `return require $router_real;`, not a bare `require`. That return value matters because the generated router can return `false` to let PHP's built-in server serve an exact static file from the document root. If the shim swallows that value, manual root-router runs and direct generated-router runs can diverge.
+
+Run `bun run verify:root-router-parity` after router changes. The verifier starts one PHP built-in server through the root shim and one through the generated router, then compares representative page, data, negotiation, missing-route, asset, protected-path, base-path, and encoded-traversal requests.
 
 ## MIME types to pin on weak hosts
 
@@ -163,7 +245,7 @@ That hosted target must prove:
 
 - home page loads as HTML
 - alpha readiness endpoints load with expected content types
-- `csr=false` no-hydration fixture has no client hydration markers
+- `csr=false` no-hydration fixture has `csr-disabled-prerender-contract` / `theme-stable-ssr-html` markers and no client hydration markers (`<script`, `sveltekit:start`, or `data-sveltekit-hydrate`)
 - `/form-basic` POST action works
 - `php-static` client-fallback headers are present where expected
 - traversal probes do not expose source/env/package files

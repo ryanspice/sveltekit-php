@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	interface StreamedMessage {
 		message: string;
 	}
@@ -13,12 +11,16 @@
 
 	type StreamMessage = { id: number; text: string; timestamp: string };
 
-	export let data: StreamData;
+	let { data }: { data: StreamData } = $props();
 
-	let streamStatus = 'Connecting...';
-	let messages: StreamMessage[] = [];
+	let streamStatus = $state('Connecting...');
+	let messages: StreamMessage[] = $state([]);
+	let mounted = false;
 
-	onMount(() => {
+	$effect(() => {
+		if (mounted) return;
+		mounted = true;
+
 		// Simulate a streaming connection
 		streamStatus = 'Connected';
 

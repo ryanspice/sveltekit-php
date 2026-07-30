@@ -23,6 +23,7 @@ const requiredGeneratedFiles = [
 	'report/alpha-package-contract.json',
 	'report/alpha-native-host-contract.json',
 	'report/alpha-native-host-guide.md',
+	'report/alpha-native-host-wrapper-smoke.json',
 	'report/alpha-hosted-smoke-checklist.json',
 	'report/alpha-readiness.csv',
 	'report/alpha-bridge-reuse.json',
@@ -42,6 +43,12 @@ const requiredSourceFiles = [
 	'adapter/src/vite-dev-adapter.ts',
 	'src/lib/alpha-readiness.ts',
 	'src/lib/alpha-required-evidence.ts',
+	'docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md',
+	'docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md',
+	'scripts/verify-latest-sveltekit-audit.mjs',
+	'scripts/smoke-latest-same-major.mjs',
+	'scripts/smoke-latest-vite-major.mjs',
+	'scripts/verify-remote-functions-policy.mjs',
 	'src/lib/alpha-bridge-reuse.ts',
 	'src/lib/alpha-community-analytics-markdown.ts',
 	'src/lib/alpha-community-source-map-svg.ts',
@@ -49,9 +56,11 @@ const requiredSourceFiles = [
 	'src/lib/alpha-community-sources.ts',
 	'src/lib/alpha-evidence-index.ts',
 	'src/lib/alpha-gate-matrix.ts',
+	'src/lib/alpha-hard-proof-blockers.ts',
 	'src/lib/alpha-hosted-smoke-checklist.ts',
 	'src/lib/alpha-native-host-contract.ts',
 	'src/lib/alpha-native-host-guide.ts',
+	'src/lib/alpha-native-host-wrapper-smoke.ts',
 	'src/lib/alpha-package-contract.ts',
 	'src/lib/alpha-readiness-csv.ts',
 	'src/lib/alpha-readiness-html.ts',
@@ -66,6 +75,8 @@ const requiredSourceFiles = [
 	'src/lib/components/native-shell/NativeWindowShell.svelte',
 	'src/lib/components/native-shell/NativeTitlebar.svelte',
 	'src/routes/alpha-readiness/+page.svelte',
+	'src/routes/alpha-readiness/no-hydration/+page.ts',
+	'src/routes/alpha-readiness/no-hydration/+page.svelte',
 	'src/routes/alpha-readiness/report.json/+server.ts',
 	'src/routes/alpha-readiness/report.html/+server.ts',
 	'src/routes/alpha-readiness/report.md/+server.ts',
@@ -78,6 +89,7 @@ const requiredSourceFiles = [
 	'src/routes/alpha-readiness/package-contract.json/+server.ts',
 	'src/routes/alpha-readiness/native-host-contract.json/+server.ts',
 	'src/routes/alpha-readiness/native-host-guide.md/+server.ts',
+	'src/routes/alpha-readiness/native-host-wrapper-smoke.json/+server.ts',
 	'src/routes/alpha-readiness/hosted-smoke-checklist.json/+server.ts',
 	'src/routes/alpha-readiness/bridge-reuse.json/+server.ts',
 	'src/routes/alpha-readiness/review-index.md/+server.ts',
@@ -99,6 +111,7 @@ const requiredSourceFiles = [
 	'scripts/utils/config.mjs',
 	'scripts/verify-artifact-sync.mjs',
 	'scripts/smoke-alpha-consumer.mjs',
+	'scripts/smoke-native-host-wrapper.mjs',
 	'scripts/smoke-remote-alpha.mjs',
 	'scripts/run-alpha-release-gate.mjs',
 	'scripts/run-hosted-alpha-gate.mjs',
@@ -124,11 +137,111 @@ function csvCell(value) {
 
 export function checkAlphaReadinessContract({ report, packageJson, gitignore, generated }) {
 	const checks = [];
+	const latestSvelteKitAudit = generated.latestSvelteKitAudit ?? '';
+	const latestSvelteKitAuditVerifier = generated.latestSvelteKitAuditVerifier ?? '';
+	const latestSameMajorSmoke = generated.latestSameMajorSmoke ?? '';
+	const latestViteMajorSmoke = generated.latestViteMajorSmoke ?? '';
+	const remoteFunctionsPolicy = generated.remoteFunctionsPolicy ?? '';
+	const remoteFunctionsVerifier = generated.remoteFunctionsVerifier ?? '';
+	const adapterSource = generated.adapterSource ?? '';
 
 	checks.push(
 		report.target === '1.0.2-alpha.0'
 			? ok('target', 'Report target is 1.0.2-alpha.0.')
 			: fail('target', `Report target is ${report.target ?? 'missing'}.`)
+	);
+
+	checks.push(
+		hasText(latestSvelteKitAudit, 'latest-sveltekit-compatibility-audit') &&
+			hasText(latestSvelteKitAudit, 'https://svelte.dev/docs/kit/writing-adapters') &&
+			hasText(latestSvelteKitAudit, 'https://svelte.dev/docs/kit/page-options') &&
+			hasText(latestSvelteKitAudit, 'Remote functions') &&
+			hasText(latestSvelteKitAudit, 'svelte` | `5.56.4') &&
+			hasText(latestSvelteKitAudit, '@sveltejs/kit` | `2.69.1') &&
+			hasText(latestSvelteKitAudit, '@sveltejs/vite-plugin-svelte` | `7.1.4') &&
+			hasText(latestSvelteKitAudit, 'vite` | `8.1.3') &&
+			hasText(latestSvelteKitAudit, 'Official adapter snapshot') &&
+			hasText(latestSvelteKitAudit, '@sveltejs/adapter-node` | `5.5.7') &&
+			hasText(latestSvelteKitAudit, '@sveltejs/adapter-static` | `3.0.10') &&
+			hasText(latestSvelteKitAudit, '@sveltejs/adapter-cloudflare` | `7.2.9') &&
+			hasText(latestSvelteKitAudit, '@sveltejs/adapter-netlify` | `6.0.4') &&
+			hasText(latestSvelteKitAudit, '@sveltejs/adapter-vercel` | `6.3.4') &&
+			hasText(latestSvelteKitAudit, '@sveltejs/adapter-auto` | `7.0.1') &&
+			hasText(latestSvelteKitAudit, 'Live blog consumer evidence') &&
+			hasText(latestSvelteKitAudit, 'blog.ryanspice.com') &&
+			hasText(latestSvelteKitAudit, 'seo_audit_python') &&
+			hasText(latestSvelteKitAudit, 'Latest package snapshot freshness') &&
+			hasText(latestSvelteKitAudit, 'Latest same-major build compatibility') &&
+			hasText(generated.markdown, 'Live blog consumer evidence') &&
+			hasText(generated.markdown, 'Current Svelte 5/SvelteKit 2 adapter parity snapshot') &&
+			hasText(generated.html, 'data-live-blog-consumer-evidence') &&
+			hasText(generated.html, 'data-latest-sveltekit-adapter-snapshot') &&
+			hasText(latestSvelteKitAuditVerifier, 'npm view') &&
+			hasText(latestSvelteKitAuditVerifier, 'verify:latest-sveltekit-audit') &&
+			hasText(latestSameMajorSmoke, 'latest-same-major-smoke') &&
+			hasText(latestSameMajorSmoke, 'assertLatestSameMajorTargets') &&
+			hasText(latestSameMajorSmoke, 'data-latest-same-major-smoke') &&
+			hasText(latestViteMajorSmoke, 'latest-vite-major-smoke') &&
+			hasText(latestViteMajorSmoke, 'assertLatestViteMajorTargets') &&
+			hasText(latestViteMajorSmoke, 'data-latest-vite-major-smoke') &&
+			packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes(
+				'latest-sveltekit-compatibility-audit'
+			) &&
+			packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes(
+				'latest-vite-major-validation'
+			) &&
+			packageJson.scripts?.['verify:latest-sveltekit-audit'] ===
+				'bun scripts/verify-latest-sveltekit-audit.mjs' &&
+			packageJson.scripts?.['alpha:latest-same-major:smoke'] ===
+				'bun scripts/smoke-latest-same-major.mjs' &&
+			packageJson.scripts?.['alpha:latest-vite-major:smoke'] ===
+				'bun scripts/smoke-latest-vite-major.mjs' &&
+			packageJson.files?.includes('docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md') &&
+			(generated.manifest?.evidenceSurfaces?.latestSvelteKitCompatibilityAudit?.markers ?? []).includes(
+				'Vite 8 isolated validation lane'
+			) &&
+			(generated.manifest?.evidenceSurfaces?.liveBlogConsumerEvidence?.markers ?? []).includes(
+				'seo_audit_python A-'
+			)
+			? ok(
+					'latest-sveltekit-compatibility-audit',
+					'Latest Svelte/SvelteKit audit records official docs, package boundaries, official adapter versions, live blog consumer evidence, npm freshness verification, same-major fixture smoke, required evidence, package inclusion, and Vite/plugin validation lanes.'
+				)
+			: fail(
+					'latest-sveltekit-compatibility-audit',
+					'Latest Svelte/SvelteKit audit is missing official docs, package boundaries, official adapter versions, live blog consumer evidence, npm freshness verification, same-major fixture smoke, required evidence, package inclusion, or Vite/plugin validation markers.'
+				)
+	);
+
+	checks.push(
+		hasText(remoteFunctionsPolicy, 'remote-functions-alpha-policy') &&
+			hasText(remoteFunctionsPolicy, 'kit.experimental.remoteFunctions') &&
+			hasText(remoteFunctionsPolicy, '.remote.ts') &&
+			hasText(remoteFunctionsPolicy, 'generated server HTTP endpoints') &&
+			hasText(remoteFunctionsVerifier, 'remote-functions-alpha-policy') &&
+			hasText(remoteFunctionsVerifier, 'verify:remote-functions') &&
+			hasText(adapterSource, 'assertRemoteFunctionsUnsupported') &&
+			hasText(adapterSource, 'REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE') &&
+			hasText(adapterSource, 'generatedHttpEndpointSupport') &&
+			packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes(
+				'remote-functions-alpha-policy'
+			) &&
+			packageJson.files?.includes('docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md') &&
+			packageJson.scripts?.['verify:remote-functions'] ===
+				'bun scripts/verify-remote-functions-policy.mjs' &&
+			generated.packageContract?.remoteFunctionsAlphaPolicyProof?.marker ===
+				'remote-functions-alpha-policy' &&
+			(
+				generated.manifest?.evidenceSurfaces?.remoteFunctionsAlphaPolicy?.markers ?? []
+			).includes('generatedHttpEndpointSupport: false')
+			? ok(
+					'remote-functions-alpha-policy',
+					'Remote-functions policy blocks experimental generated HTTP endpoints until PHP runtime fixture and hosted proof exists.'
+				)
+			: fail(
+					'remote-functions-alpha-policy',
+					'Remote-functions policy is missing package, adapter, verifier, manifest, or package-contract evidence.'
+				)
 	);
 
 	checks.push(
@@ -155,6 +268,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					item.id === 'ultragear-native-visual-provenance' &&
 					item.marker === 'native-visual-matrix' &&
 					item.status === 'alpha-ready'
+		) &&
+			(report.proofLedger ?? []).some(
+				(item) =>
+					item.id === 'no-hydration-prerender-proof' &&
+					item.marker === 'csr-disabled-prerender-contract' &&
+					item.status === 'alpha-ready'
 			) &&
 			(report.proofLedger ?? []).some(
 				(item) =>
@@ -174,8 +293,41 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					item.marker === 'hosted-php-smoke-proof-required' &&
 					item.status === 'needs-hosted-proof'
 			)
-			? ok('proof-ledger', 'Alpha proof ledger separates alpha-ready, local-gate, and hosted proof requirements.')
-			: fail('proof-ledger', 'Alpha proof ledger is missing channel, UltraGear, community, local gate, or hosted proof rows.')
+			? ok('proof-ledger', 'Alpha proof ledger separates alpha-ready, no-hydration, local-gate, and hosted proof requirements.')
+			: fail('proof-ledger', 'Alpha proof ledger is missing channel, UltraGear, no-hydration, community, local gate, or hosted proof rows.')
+	);
+
+	checks.push(
+		(report.hardProofBlockers ?? []).some(
+			(item) =>
+				item.id === 'full-local-alpha-gate' &&
+				item.marker === 'alpha-runtime-gate-ledger' &&
+				item.status === 'needs-current-run-proof'
+		) &&
+			(report.hardProofBlockers ?? []).some(
+				(item) =>
+					item.id === 'hosted-php-smoke-proof' &&
+					item.marker === 'hosted-php-smoke-proof-required' &&
+					item.status === 'needs-hosted-proof'
+			) &&
+			(report.hardProofBlockers ?? []).some(
+				(item) =>
+					item.id === 'packed-consumer-install-import-proof' &&
+					item.marker === 'packed-consumer-install-import-proof'
+			) &&
+			(report.hardProofBlockers ?? []).some(
+				(item) => item.id === 'strict-artifact-sync-proof' && item.marker === 'source-to-generated-bundle-check'
+			) &&
+			(report.hardProofBlockers ?? []).some(
+				(item) =>
+					item.id === 'real-native-wrapper-proof' &&
+					item.marker === 'real-native-host-wrapper-smoke-required'
+			)
+			? ok('hard-proof-blockers', 'Canonical report carries the hard proof blocker ledger for stable-promotion gaps.')
+			: fail(
+					'hard-proof-blockers',
+					'Canonical report is missing local gate, hosted smoke, packed consumer, artifact sync, or real native wrapper hard proof blockers.'
+				)
 	);
 
 	checks.push(
@@ -222,6 +374,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			scripts['alpha:report'] &&
 			scripts['alpha:report:full'] &&
 			scripts['alpha:consumer:smoke'] &&
+			scripts['alpha:latest-same-major:smoke'] &&
+			scripts['alpha:latest-vite-major:smoke'] &&
 			scripts['alpha:remote:placeholder'] &&
 			scripts['alpha:remote:smoke'] &&
 			scripts['alpha:gate'] &&
@@ -322,7 +476,19 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 				'community-analytics-csv-linkage'
 			) &&
 			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'result-total-field-contract'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'top-result-field-contract'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'sample-review-rule'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
 				'router-path-safety-artifact-sync'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'adapter-platform-emulation'
 			) &&
 			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
 				'deploy-env-preflight-safety'
@@ -331,10 +497,64 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 				'sourceToKeywordEdge'
 			) &&
 			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'resultTotalField'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'topResultFields'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'sampleReviewRule'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
 				'weighted_demand_score'
 			) &&
 			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'result_total_field'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'top_result_fields'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'sample_review_rule'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
 				'ALPHA_SMOKE_BASE_URL'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'windowChromeState'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'mica-active'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'mica-inactive'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'plain'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'webview.setBackgroundColor([0, 0, 0, 0])'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'data-window-chrome-state'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'data-window-chrome-state="mica-active"'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'transparent-webview-material-boundary'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'data-transparent-webview-material-boundary="host-owned"'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'macos-material-host-policy'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'source-observed-macos-host-scaffold'
+			) &&
+			(generated?.packageContract?.alphaReleaseChecklistProof?.markers ?? []).includes(
+				'macos-native-vibrancy-unverified'
 			)
 			? ok(
 					'package-alpha-release-checklist-proof',
@@ -372,6 +592,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	const packageContract = generated?.packageContract;
 	const nativeHostContract = generated?.nativeHostContract;
 	const nativeHostGuide = generated?.nativeHostGuide ?? '';
+	const nativeHostWrapperSmoke = generated?.nativeHostWrapperSmoke;
 	const hostedSmokeChecklist = generated?.hostedSmokeChecklist;
 	const manifest = generated?.manifest;
 	const alphaPage = generated?.alphaPage ?? '';
@@ -379,6 +600,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	const nativeTitlebarSource = generated?.nativeTitlebarSource ?? '';
 	const nativeHostBridgeStatusSource = generated?.nativeHostBridgeStatusSource ?? '';
 	const nativeHostBridgeSource = generated?.nativeHostBridgeSource ?? '';
+	const noHydrationConfigSource = generated?.noHydrationConfigSource ?? '';
+	const noHydrationPageSource = generated?.noHydrationPageSource ?? '';
 	const releaseChecklistSource = generated?.releaseChecklistSource ?? '';
 	const releaseChecklistEndpointSource = generated?.releaseChecklistEndpointSource ?? '';
 	const collectedScoreRows = (analytics?.queries ?? [])
@@ -399,8 +622,76 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 		collectedScoreRows.length > 0 &&
 		collectedScoreRows.every((row) => hasText(communitySignalsCsv, row));
 
+	const requiredAlphaEvidenceArrays = [
+		report?.releasePolicy?.requiredEvidence ?? [],
+		manifest?.requiredEvidence ?? [],
+		manifest?.releasePolicy?.requiredEvidence ?? [],
+		gateMatrix?.requiredEvidence ?? [],
+		evidenceIndex?.requiredEvidence ?? [],
+		packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? [],
+		packageContract?.requiredEvidence ?? [],
+		packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []
+	];
+	const requiredAlphaEvidenceTextTargets = [
+		html,
+		markdown,
+		reviewIndex,
+		alphaPage,
+		releaseNotes,
+		svg,
+		readinessCsv,
+		sourceMapSvg
+	];
+	const nativeChromeStateReviewMarkers = [
+		'windowChromeState',
+		'mica-active',
+		'mica-inactive',
+		'plain',
+		'webview.setBackgroundColor([0, 0, 0, 0])',
+		'data-window-chrome-state',
+		'data-window-chrome-state="mica-active"',
+		'transparent-webview-material-boundary',
+		'data-transparent-webview-material-boundary="host-owned"',
+		'macos-material-host-policy',
+		'source-observed-macos-host-scaffold',
+		'macos-native-vibrancy-unverified'
+	];
+
+	checks.push(
+		requiredAlphaEvidence.every((marker) =>
+			requiredAlphaEvidenceArrays.every((markers) => markers.includes(marker))
+		) &&
+			requiredAlphaEvidence.every((marker) =>
+				requiredAlphaEvidenceTextTargets.every((content) => hasText(content, marker))
+			)
+			? ok(
+					'required-alpha-evidence-synchronization',
+					'Every required alpha evidence marker is synchronized across policy arrays, generated reports, live page, CSV, SVG, and source-map surfaces.'
+				)
+			: fail(
+					'required-alpha-evidence-synchronization',
+					'Required alpha evidence markers drifted across policy arrays, generated reports, live page, CSV, SVG, or source-map surfaces.'
+				)
+	);
+
+	checks.push(
+		nativeChromeStateReviewMarkers.every((marker) => hasText(releaseNotes, marker)) &&
+			nativeChromeStateReviewMarkers.every((marker) => hasText(reviewIndex, marker))
+			? ok(
+					'native-chrome-state-human-docs',
+					'Release notes and reviewer index expose host-owned chrome-state and transparent webview boundary markers.'
+				)
+			: fail(
+					'native-chrome-state-human-docs',
+					'Release notes or reviewer index are missing host-owned chrome-state/transparent webview boundary markers.'
+				)
+	);
+
 	checks.push(
 		report?.releasePolicy?.requiredEvidence?.includes('native-host-binding-guide') &&
+			report?.releasePolicy?.requiredEvidence?.includes('real-host-permission-checklist') &&
+			report?.releasePolicy?.requiredEvidence?.includes('csr-disabled-prerender-contract') &&
+			report?.releasePolicy?.requiredEvidence?.includes('native-host-wrapper-smoke') &&
 			report?.releasePolicy?.requiredEvidence?.includes('windows-11-mica-browser-safe-shell') &&
 			report?.releasePolicy?.requiredEvidence?.includes('macos-style-native-titlebar-rhythm') &&
 			report?.releasePolicy?.requiredEvidence?.includes('alpha-readiness-report-graphics') &&
@@ -409,6 +700,19 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			report?.releasePolicy?.requiredEvidence?.includes('hosted-php-smoke-proof')
 			? ok('canonical-release-policy', 'Canonical report release policy carries the required alpha evidence boundary.')
 			: fail('canonical-release-policy', 'Canonical report release policy is missing required alpha evidence markers.')
+	);
+
+	checks.push(
+		hasText(noHydrationConfigSource, 'export const prerender = true') &&
+			hasText(noHydrationConfigSource, 'export const csr = false') &&
+			hasText(noHydrationPageSource, 'no-hydration-fixture') &&
+			hasText(noHydrationPageSource, 'csr-disabled-prerender-contract') &&
+			hasText(noHydrationPageSource, 'theme-stable-ssr-html')
+			? ok('no-hydration-prerender-fixture', 'No-hydration fixture exports prerender=true, csr=false, and stable SSR theme markers.')
+			: fail(
+					'no-hydration-prerender-fixture',
+					'No-hydration fixture is missing prerender/csr config or stable SSR theme markers.'
+				)
 	);
 
 	checks.push(
@@ -448,6 +752,28 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 
 	checks.push(
 			hasText(html, 'Native-styled release report') &&
+			hasText(html, 'app-window') &&
+			hasText(html, 'theme-ultragear') &&
+			hasText(html, 'data-window-effect="mica"') &&
+			hasText(html, 'data-window-focused="true"') &&
+			hasText(html, 'data-window-chrome-state="mica-active"') &&
+			hasText(html, 'data-transparent-webview-material-boundary="host-owned"') &&
+			hasText(html, 'data-ultragear-html-report-shell') &&
+			hasText(html, 'topbar-drag-strip') &&
+			hasText(html, 'data-window-drag') &&
+			hasText(html, 'data-drag-block-selector') &&
+			hasText(html, 'data-no-window-drag') &&
+			hasText(html, 'data-window-control-group') &&
+			hasText(html, 'caption-button') &&
+			hasText(html, 'data-window-control="maximize"') &&
+			hasText(html, '--blur-mica') &&
+			hasText(html, '--surface-chrome') &&
+			hasText(html, '--window-bg-mica') &&
+			hasText(html, '--window-bg-inactive') &&
+			hasText(html, '--window-wash-inactive') &&
+			hasText(html, '--caption-hover-bg') &&
+			hasText(html, 'max-width: 1180px') &&
+			hasText(html, 'max-width: 860px') &&
 			hasText(html, 'Release policy') &&
 			hasText(html, 'alpha-over-rc-release-policy') &&
 			hasText(html, '1.0.2-alpha') &&
@@ -456,6 +782,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(html, 'requiredEvidence') &&
 			hasText(html, 'required-alpha-evidence') &&
 			hasText(html, 'native-host-binding-guide') &&
+			hasText(html, 'real-host-permission-checklist') &&
+			hasText(html, 'csr-disabled-prerender-contract') &&
 			hasText(html, 'windows-11-mica-browser-safe-shell') &&
 			hasText(html, 'macos-style-native-titlebar-rhythm') &&
 			hasText(html, 'alpha-readiness-report-graphics') &&
@@ -470,10 +798,27 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(html, 'Evidence trust model') &&
 			hasText(html, 'deterministic-local-artifact') &&
 			hasText(html, 'directional-community-signal') &&
+			hasText(html, 'no-live-community-api-runtime-boundary') &&
 			hasText(html, 'Native host bridge status') &&
 			hasText(html, 'data-native-host-bridge-status') &&
 			hasText(html, 'data-native-host-handoff-controls') &&
 			hasText(html, '/alpha-readiness/native-host-guide.md') &&
+			hasText(html, 'No-hydration prerender proof') &&
+			hasText(html, 'data-no-hydration-prerender-proof') &&
+			hasText(html, 'theme-stable-ssr-html') &&
+			hasText(html, 'data-sveltekit-hydrate') &&
+			hasText(html, 'Native host wrapper smoke handoff') &&
+			hasText(html, 'data-native-host-wrapper-smoke') &&
+			hasText(html, 'native-host-wrapper-smoke') &&
+			hasText(html, 'native-host-wrapper-event-replay') &&
+			hasText(html, 'expectedHistoryResult') &&
+			hasText(html, 'expectedDesktopShellUiHelper') &&
+			hasText(html, 'window.__SVELTEKIT_PHP_NATIVE_HOST_HISTORY__') &&
+			hasText(html, 'noFallbackAllowedForRealHost') &&
+			hasText(html, '/alpha-readiness/native-host-wrapper-smoke.json') &&
+			hasText(html, 'report/alpha-native-host-wrapper-smoke.json') &&
+			hasText(html, 'realHostVerified') &&
+			hasText(html, 'TaskbarProgressState') &&
 			hasText(html, 'set-window-effect') &&
 			hasText(html, 'set-progress') &&
 			hasText(html, 'clear-progress') &&
@@ -507,6 +852,11 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(html, 'native-visual-matrix') &&
 			hasText(html, 'windows-mica-visual-row') &&
 			hasText(html, 'macos-traffic-light-row') &&
+			hasText(html, 'macos-vibrancy-visual-row') &&
+			hasText(html, 'macos-vibrancy-host-policy') &&
+			hasText(html, 'macos-material-host-policy') &&
+			hasText(html, 'source-observed-macos-host-scaffold') &&
+			hasText(html, 'macos-native-vibrancy-unverified') &&
 			hasText(html, 'windows-caption-control-row') &&
 			hasText(html, 'ultragear-theme-row') &&
 			hasText(html, 'browser-fallback-visual-row') &&
@@ -518,6 +868,10 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(html, 'curated-signal-score') &&
 			hasText(html, 'collected-demand-score') &&
 			hasText(html, 'directional-community-signal') &&
+			hasText(html, 'no-live-community-api-runtime-boundary') &&
+			hasText(html, 'alpha-community-source-evidence-checklist') &&
+			hasText(html, 'releaseUse') &&
+			hasText(html, 'blockedOutcomePolicy') &&
 			hasText(html, 'Open-source analytics sources reviewers can audit first') &&
 			hasText(html, 'community-source-map.svg')
 			? ok('html-report', 'HTML report includes native-styled report, community signals, and source-map graphic links.')
@@ -540,6 +894,21 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(markdown, 'data-native-host-bridge-status') &&
 			hasText(markdown, 'data-native-host-handoff-controls') &&
 			hasText(markdown, '/alpha-readiness/native-host-guide.md') &&
+			hasText(markdown, 'No-hydration prerender proof') &&
+			hasText(markdown, '/alpha-readiness/no-hydration') &&
+			hasText(markdown, 'theme-stable-ssr-html') &&
+			hasText(markdown, 'data-sveltekit-hydrate') &&
+			hasText(markdown, 'Native host wrapper smoke handoff') &&
+			hasText(markdown, 'native-host-wrapper-smoke') &&
+			hasText(markdown, 'native-host-wrapper-event-replay') &&
+			hasText(markdown, 'native-host-wrapper-event-replay-step') &&
+			hasText(markdown, 'expectedHistoryResult') &&
+			hasText(markdown, 'expectedDesktopShellUiHelper') &&
+			hasText(markdown, 'noFallbackAllowedForRealHost') &&
+			hasText(markdown, '/alpha-readiness/native-host-wrapper-smoke.json') &&
+			hasText(markdown, 'report/alpha-native-host-wrapper-smoke.json') &&
+			hasText(markdown, 'realHostVerified') &&
+			hasText(markdown, 'TaskbarProgressState') &&
 			hasText(markdown, 'set-window-effect') &&
 			hasText(markdown, 'set-progress') &&
 			hasText(markdown, 'clear-progress') &&
@@ -572,6 +941,11 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(markdown, 'native-visual-matrix') &&
 			hasText(markdown, 'windows-mica-visual-row') &&
 			hasText(markdown, 'macos-traffic-light-row') &&
+			hasText(markdown, 'macos-vibrancy-visual-row') &&
+			hasText(markdown, 'macos-vibrancy-host-policy') &&
+			hasText(markdown, 'macos-material-host-policy') &&
+			hasText(markdown, 'source-observed-macos-host-scaffold') &&
+			hasText(markdown, 'macos-native-vibrancy-unverified') &&
 			hasText(markdown, 'windows-caption-control-row') &&
 			hasText(markdown, 'ultragear-theme-row') &&
 			hasText(markdown, 'browser-fallback-visual-row') &&
@@ -583,6 +957,14 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(markdown, 'curated-signal-score') &&
 			hasText(markdown, 'collected-demand-score') &&
 			hasText(markdown, 'directional-community-signal') &&
+			hasText(markdown, 'no-live-community-api-runtime-boundary') &&
+			hasText(markdown, 'alpha-community-source-evidence-checklist') &&
+			hasText(markdown, 'Source health') &&
+			hasText(markdown, 'Result total fields') &&
+			hasText(markdown, 'Top fields:') &&
+			hasText(markdown, 'Sample rule:') &&
+			hasText(markdown, 'Release use:') &&
+			hasText(markdown, 'Blocked policy:') &&
 			hasText(markdown, 'Open-source analytics sources reviewers can audit first') &&
 			hasText(markdown, 'Report graphics') &&
 			hasText(markdown, 'community-source-map.svg') &&
@@ -590,6 +972,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(markdown, 'requiredEvidence') &&
 			hasText(markdown, 'required-alpha-evidence') &&
 			hasText(markdown, 'native-host-binding-guide') &&
+			hasText(markdown, 'real-host-permission-checklist') &&
+			hasText(markdown, 'csr-disabled-prerender-contract') &&
 			hasText(markdown, 'windows-11-mica-browser-safe-shell') &&
 			hasText(markdown, 'macos-style-native-titlebar-rhythm') &&
 			hasText(markdown, 'alpha-readiness-report-graphics') &&
@@ -610,8 +994,15 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(communityAnalyticsMarkdown, 'Keyword research map') &&
 			hasText(communityAnalyticsMarkdown, 'Collection endpoints') &&
 			hasText(communityAnalyticsMarkdown, 'Proof use:') &&
+			hasText(communityAnalyticsMarkdown, 'Release use:') &&
 			hasText(communityAnalyticsMarkdown, 'Reviewer action:') &&
 			hasText(communityAnalyticsMarkdown, 'Collector note:') &&
+			hasText(communityAnalyticsMarkdown, 'Source health:') &&
+			hasText(communityAnalyticsMarkdown, 'Result total fields') &&
+			hasText(communityAnalyticsMarkdown, 'Top result field contracts') &&
+			hasText(communityAnalyticsMarkdown, 'Sample review rule') &&
+			hasText(communityAnalyticsMarkdown, 'Alpha evidence checklist:') &&
+			hasText(communityAnalyticsMarkdown, 'Blocked outcome policy:') &&
 			hasText(communityAnalyticsMarkdown, 'api.github.com/search') &&
 			hasText(communityAnalyticsMarkdown, 'google.com') &&
 			hasText(communityAnalyticsMarkdown, 'bun run alpha:analytics')
@@ -655,10 +1046,22 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(reviewIndex, 'curated-signal-score') &&
 			hasText(reviewIndex, 'collected-demand-score') &&
 			hasText(reviewIndex, 'directional-community-signal') &&
+			hasText(reviewIndex, 'no-live-community-api-runtime-boundary') &&
+			hasText(reviewIndex, 'alpha-community-source-evidence-checklist') &&
+			hasText(reviewIndex, 'source-health-classification') &&
+			hasText(reviewIndex, 'result-total-field-contract') &&
+			hasText(reviewIndex, 'top-result-field-contract') &&
+			hasText(reviewIndex, 'sample-review-rule') &&
+			hasText(reviewIndex, 'result_total_field') &&
+			hasText(reviewIndex, 'top_result_fields') &&
+			hasText(reviewIndex, 'sample_review_rule') &&
+			hasText(reviewIndex, 'releaseUse') &&
+			hasText(reviewIndex, 'blockedOutcomePolicy') &&
 			hasText(reviewIndex, '__SVELTEKIT_PHP_NATIVE_HOST__') &&
 			hasText(reviewIndex, 'Community evidence coverage ledger') &&
 			hasText(reviewIndex, 'Open-source analytics sources reviewers can audit first') &&
-			hasText(reviewIndex, 'macOS-native') &&
+			hasText(reviewIndex, 'source-observed-macos-host-scaffold') &&
+			hasText(reviewIndex, 'macos-native-vibrancy-unverified') &&
 			hasText(reviewIndex, 'community-source-map.svg') &&
 			hasText(reviewIndex, 'api.github.com/search') &&
 			hasText(reviewIndex, 'alpha-over-rc-release-policy') &&
@@ -677,6 +1080,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(reviewIndex, 'requiredEvidence') &&
 			hasText(reviewIndex, 'required-alpha-evidence') &&
 			hasText(reviewIndex, 'native-host-binding-guide') &&
+			hasText(reviewIndex, 'real-host-permission-checklist') &&
+			hasText(reviewIndex, 'csr-disabled-prerender-contract') &&
 			hasText(reviewIndex, 'windows-11-mica-browser-safe-shell') &&
 			hasText(reviewIndex, 'macos-style-native-titlebar-rhythm') &&
 			hasText(reviewIndex, 'alpha-readiness-report-graphics') &&
@@ -719,6 +1124,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(alphaPage, 'requiredEvidence') &&
 			hasText(alphaPage, 'required-alpha-evidence') &&
 			hasText(alphaPage, 'native-host-binding-guide') &&
+			hasText(alphaPage, 'real-host-permission-checklist') &&
+			hasText(alphaPage, 'csr-disabled-prerender-contract') &&
 			hasText(alphaPage, 'windows-11-mica-browser-safe-shell') &&
 			hasText(alphaPage, 'macos-style-native-titlebar-rhythm') &&
 			hasText(alphaPage, 'alpha-readiness-report-graphics') &&
@@ -783,6 +1190,14 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(releaseNotes, 'Evidence trust model') &&
 			hasText(releaseNotes, 'Live evidence surfaces') &&
 			hasText(releaseNotes, 'data-native-host-bridge-status') &&
+			hasText(releaseNotes, '/alpha-readiness/native-host-wrapper-smoke.json') &&
+			hasText(releaseNotes, 'nativeHostWrapperSmoke') &&
+			hasText(releaseNotes, 'native-host-wrapper-smoke') &&
+			hasText(releaseNotes, 'native-host-wrapper-probe') &&
+			hasText(releaseNotes, 'realHostVerified') &&
+			hasText(releaseNotes, 'deterministic-host-wrapper-handoff') &&
+			hasText(releaseNotes, 'report/alpha-native-host-wrapper-smoke.json') &&
+			hasText(releaseNotes, 'TaskbarProgressState') &&
 			hasText(releaseNotes, 'nativeVisualMatrix') &&
 			hasText(releaseNotes, 'native-visual-matrix') &&
 			hasText(releaseNotes, 'nativePlatformProvenance') &&
@@ -804,6 +1219,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(releaseNotes, 'requiredEvidence') &&
 			hasText(releaseNotes, 'required-alpha-evidence') &&
 			hasText(releaseNotes, 'native-host-binding-guide') &&
+			hasText(releaseNotes, 'csr-disabled-prerender-contract') &&
 			hasText(releaseNotes, 'windows-11-mica-browser-safe-shell') &&
 			hasText(releaseNotes, 'macos-style-native-titlebar-rhythm') &&
 			hasText(releaseNotes, 'alpha-readiness-report-graphics') &&
@@ -815,6 +1231,14 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(releaseNotes, 'hosted-php-smoke-proof-required') &&
 			hasText(releaseNotes, 'Community evidence coverage ledger') &&
 			hasText(releaseNotes, 'directional-community-signal') &&
+			hasText(releaseNotes, 'no-live-community-api-runtime-boundary') &&
+			hasText(releaseNotes, 'result-total-field-contract') &&
+			hasText(releaseNotes, 'top-result-field-contract') &&
+			hasText(releaseNotes, 'sample-review-rule') &&
+			hasText(releaseNotes, 'result_total_field') &&
+			hasText(releaseNotes, 'top_result_fields') &&
+			hasText(releaseNotes, 'sample_review_rule') &&
+			hasText(releaseNotes, 'bun run alpha:native:smoke') &&
 			hasText(releaseNotes, 'ALPHA_SMOKE_BASE_URL')
 			? ok('release-notes', 'Release notes include alpha call, runtime endpoints, and hosted gate command.')
 			: fail('release-notes', 'Release notes are missing alpha call, runtime endpoints, or hosted gate command.')
@@ -828,6 +1252,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(svg, 'requiredEvidence') &&
 			hasText(svg, 'required-alpha-evidence') &&
 			hasText(svg, 'native-host-binding-guide') &&
+			hasText(svg, 'csr-disabled-prerender-contract') &&
 			hasText(svg, 'windows-11-mica-browser-safe-shell') &&
 			hasText(svg, 'macos-style-native-titlebar-rhythm') &&
 			hasText(svg, 'alpha-readiness-report-graphics') &&
@@ -838,10 +1263,17 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(svg, 'hosted smoke:') &&
 			hasText(svg, 'trust model:') &&
 			hasText(svg, 'Windows 11 Mica') &&
-			hasText(svg, 'macOS traffic lights') &&
+			hasText(svg, 'source-observed macOS host policy') &&
 			hasText(svg, 'native-visual-matrix') &&
 			hasText(svg, 'windows-mica-visual-row') &&
 			hasText(svg, 'macos-traffic-light-row') &&
+			hasText(svg, 'macos-vibrancy-visual-row') &&
+			hasText(svg, 'macos-vibrancy-host-policy') &&
+			hasText(svg, 'macos-material-host-policy') &&
+			hasText(svg, 'source-observed-macos-host-scaffold') &&
+			hasText(svg, 'macos-native-vibrancy-unverified') &&
+			hasText(svg, 'data-macos-material-host-policy') &&
+			hasText(svg, 'data-macos-native-vibrancy') &&
 			hasText(svg, 'native-window-action') &&
 			hasText(svg, 'data-native-host-handoff-controls') &&
 			hasText(svg, 'set-window-effect') &&
@@ -880,6 +1312,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(svg, 'ProgressBarStatus.None') &&
 			hasText(svg, 'report-ready') &&
 			hasText(svg, 'directional-community-signal') &&
+			hasText(svg, 'no-live-community-api-runtime-boundary') &&
 			hasText(svg, 'data-native-host-bridge-status') &&
 			hasText(svg, 'Community ledger:')
 			? ok(
@@ -909,6 +1342,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(sourceMapSvg, 'curated-signal-score') &&
 			hasText(sourceMapSvg, 'collected-demand-score') &&
 			hasText(sourceMapSvg, 'directional-community-signal') &&
+			hasText(sourceMapSvg, 'no-live-community-api-runtime-boundary') &&
+			hasText(sourceMapSvg, 'data-no-live-community-api-runtime-boundary') &&
 			hasText(sourceMapSvg, 'supported-json-api') &&
 			hasText(sourceMapSvg, 'manual-research-link') &&
 			hasText(sourceMapSvg, 'evidence kind') &&
@@ -943,6 +1378,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(readinessCsv, 'community-analytics-freshness-contract') &&
 			hasText(readinessCsv, 'community-analytics-csv-linkage') &&
 			hasText(readinessCsv, 'router-path-safety-artifact-sync') &&
+			hasText(readinessCsv, 'adapter-platform-emulation') &&
 			hasText(readinessCsv, 'deploy-env-preflight-safety') &&
 			hasText(readinessCsv, 'hosted-php-smoke-proof') &&
 			hasText(readinessCsv, 'alpha-over-rc-release-policy') &&
@@ -964,12 +1400,19 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			communityCsvIncludesCollectedScores &&
 			hasText(
 				communitySourcesCsv,
-				'"signal_id","keyword","source_label","source_host","provider","mode","evidence_kind","collection_risk","collection_priority","collection_method","freshness_max_age_hours","evidence_weight","trust_boundary","analytics_linkage_marker","source_to_keyword_edge","manual_review_required","endpoint","href","proof_use","reviewer_action","collector_note"'
+				'"signal_id","keyword","source_label","source_host","provider","mode","evidence_kind","collection_risk","collection_priority","action_lane","confidence_tier","collection_method","freshness_max_age_hours","evidence_weight","trust_boundary","source_health","analytics_linkage_marker","alpha_evidence_checklist_marker","alpha_evidence_checklist","source_to_keyword_edge","manual_review_required","endpoint","href","proof_use","release_use","release_claim_use","reviewer_action","collector_note","blocked_outcome_policy","result_total_field","top_result_fields","sample_review_rule"'
 			) &&
 			hasText(communitySourcesCsv, 'api.github.com/search') &&
 			hasText(communitySourcesCsv, 'analytics-linked-keyword-graph') &&
 			hasText(communitySourcesCsv, 'freshness_max_age_hours') &&
 			hasText(communitySourcesCsv, 'trust_boundary') &&
+			hasText(communitySourcesCsv, 'source_health') &&
+			hasText(communitySourcesCsv, 'alpha_evidence_checklist_marker') &&
+			hasText(communitySourcesCsv, 'alpha-community-source-evidence-checklist') &&
+			hasText(communitySourcesCsv, 'blocked_outcome_policy') &&
+			hasText(communitySourcesCsv, 'result_total_field') &&
+			hasText(communitySourcesCsv, 'top_result_fields') &&
+			hasText(communitySourcesCsv, 'sample_review_rule') &&
 			hasText(communitySourcesCsv, 'manual_review_required') &&
 			hasText(communitySourcesCsv, '"repository-index"') &&
 			hasText(communitySourcesCsv, '"collection') &&
@@ -993,6 +1436,9 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			communityResearchPack?.summary?.analyticsFreshnessContract === true &&
 			communityResearchPack?.summary?.analyticsLinkedKeywordGraph === true &&
 			communityResearchPack?.summary?.communityAnalyticsGraphicLinkageContract === true &&
+			communityResearchPack?.summary?.noLiveCommunityApiRuntimeBoundary === true &&
+			communityResearchPack?.summary?.resultTotalFieldCoverage === true &&
+			communityResearchPack?.summary?.sampleReviewRuleCoverage === true &&
 			communityResearchPack?.summary?.requiredAlphaEvidenceLinked === true &&
 			communityResearchPack?.summary?.keywordSearchGraphNodes >= 4 &&
 			communityResearchPack?.summary?.keywordSearchGraphEdges > 0 &&
@@ -1002,6 +1448,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			communityResearchPack?.analyticsFreshnessContract?.marker ===
 				'community-analytics-freshness-contract' &&
 			communityResearchPack?.analyticsFreshnessContract?.maxAgeHours === 168 &&
+			communityResearchPack?.analyticsFreshnessContract?.runtimeCollectionBoundary?.marker ===
+				'no-live-community-api-runtime-boundary' &&
+			communityResearchPack?.runtimeCollectionBoundary?.marker ===
+				'no-live-community-api-runtime-boundary' &&
+			communityResearchPack?.runtimeCollectionBoundary?.trustLevel ===
+				'deterministic-runtime-evidence' &&
 			(communityResearchPack?.reviewerWorkflow ?? []).some((step) => step.includes('source-map')) &&
 			(communityResearchPack?.collectionPlan ?? []).some(
 				(source) =>
@@ -1013,11 +1465,19 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					source.freshnessMaxAgeHours &&
 					source.evidenceWeight &&
 					source.trustBoundary &&
+					source.sourceHealth &&
+					source.alphaEvidenceChecklistMarker === 'alpha-community-source-evidence-checklist' &&
+					(source.alphaEvidenceChecklist ?? []).includes('record-source-to-keyword-edge') &&
 					typeof source.manualReviewRequired === 'boolean' &&
 					source.priority &&
 					source.proofUse &&
+					source.releaseUse &&
 					source.reviewerAction &&
-					source.collectorNote
+					source.collectorNote &&
+					source.blockedOutcomePolicy &&
+					source.resultTotalField &&
+					(source.topResultFields ?? []).length > 0 &&
+					source.sampleReviewRule
 			) &&
 			(communityResearchPack?.queries ?? []).some((query) => query.keyword?.includes('SvelteKit PHP adapter')) &&
 			(communityResearchPack?.queries ?? []).some((query) =>
@@ -1031,8 +1491,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 						source.freshnessMaxAgeHours &&
 						source.evidenceWeight &&
 						source.trustBoundary &&
+						source.sourceHealth === 'countable-public-api' &&
+						source.alphaEvidenceChecklistMarker === 'alpha-community-source-evidence-checklist' &&
+						(source.alphaEvidenceChecklist ?? []).includes('review-maintenance-signal') &&
 						typeof source.manualReviewRequired === 'boolean' &&
 						source.proofUse &&
+						source.releaseUse &&
 						source.reviewerAction
 				)
 			) &&
@@ -1048,13 +1512,18 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 						source.freshnessMaxAgeHours &&
 						source.evidenceWeight &&
 						source.trustBoundary === 'manual-qualitative-review' &&
-						source.manualReviewRequired === true
+						source.sourceHealth === 'manual-review-only' &&
+						source.alphaEvidenceChecklistMarker === 'alpha-community-source-evidence-checklist' &&
+						(source.alphaEvidenceChecklist ?? []).includes('open-manual-research-link') &&
+						source.manualReviewRequired === true &&
+						source.blockedOutcomePolicy
 				)
 			)
 			&& communityResearchPack?.keywordSearchGraph?.analyticsLinkage?.marker === 'analytics-linked-keyword-graph'
 			&& communityResearchPack?.keywordSearchGraph?.analyticsLinkage?.directionalTrustLevel === 'directional-community-signal'
 			&& (communityResearchPack?.keywordSearchGraph?.analyticsLinkage?.graphicMarkers ?? []).includes('curated-signal-score')
 			&& (communityResearchPack?.keywordSearchGraph?.analyticsLinkage?.graphicMarkers ?? []).includes('collected-demand-score')
+			&& (communityResearchPack?.keywordSearchGraph?.analyticsLinkage?.graphicMarkers ?? []).includes('no-live-community-api-runtime-boundary')
 			&& requiredAlphaEvidence.every((marker) => (communityResearchPack?.requiredAlphaEvidence ?? []).includes(marker))
 			&& requiredAlphaEvidence.every((marker) => (communityResearchPack?.keywordSearchGraph?.requiredEvidence ?? []).includes(marker))
 			&& requiredAlphaEvidence.every((marker) => (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredEvidence ?? []).includes(marker))
@@ -1065,6 +1534,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('community-analytics-freshness-contract')
 			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('collected-demand-score')
 			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('directional-community-signal')
+			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('no-live-community-api-runtime-boundary')
+			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('alpha-community-source-evidence-checklist')
+			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('source-health-classification')
+			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('result-total-field-contract')
+			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('top-result-field-contract')
+			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredMarkers ?? []).includes('sample-review-rule')
 			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredAlphaMarkers ?? []).includes('requiredEvidence')
 			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredAlphaMarkers ?? []).includes('required-alpha-evidence')
 			&& (communityResearchPack?.keywordSearchGraph?.reviewContract?.requiredAlphaMarkers ?? []).includes('alpha-readiness-report-graphics')
@@ -1075,14 +1550,26 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					node.keyword?.includes('SvelteKit PHP adapter') &&
 					node.analyticsLinkage?.marker === 'analytics-linked-keyword-graph' &&
 					node.analyticsLinkage?.trustLevel === 'directional-community-signal' &&
-					(node.apiEndpoints ?? []).some((endpoint) => endpoint.endpoint?.includes('api.github.com/search')) &&
-					(node.manualLinks ?? []).some((link) => link.sourceHost)
+					(node.apiEndpoints ?? []).some(
+						(endpoint) =>
+							endpoint.endpoint?.includes('api.github.com/search') &&
+							endpoint.sourceHealth === 'countable-public-api' &&
+							(endpoint.alphaEvidenceChecklist ?? []).includes('record-source-to-keyword-edge')
+					) &&
+					(node.manualLinks ?? []).some(
+						(link) =>
+							link.sourceHost &&
+							link.sourceHealth === 'manual-review-only' &&
+							(link.alphaEvidenceChecklist ?? []).includes('open-manual-research-link')
+					)
 			)
 			&& (communityResearchPack?.keywordSearchGraph?.edges ?? []).some(
 				(edge) =>
 					edge.mode === 'supported-json-api' &&
 					edge.evidenceKind &&
 					edge.collectionRisk &&
+					edge.sourceHealth &&
+					edge.alphaEvidenceChecklistMarker === 'alpha-community-source-evidence-checklist' &&
 					edge.endpoint
 			)
 			? ok(
@@ -1100,15 +1587,47 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			bridgeReuse?.bridgeSource?.includes('lg-ultragear-bridge') &&
 			bridgeReuse?.nativePlatformProvenance?.marker === 'lg-ultragear-native-platform-provenance' &&
 			(bridgeReuse?.nativePlatformProvenance?.sourceFiles ?? []).includes('src/app.ts') &&
+			(bridgeReuse?.nativePlatformProvenance?.sourceFiles ?? []).includes('src-tauri/src/lib.rs') &&
+			(bridgeReuse?.nativePlatformProvenance?.sourceFiles ?? []).includes(
+				'packages/ultragear-widget-ui/src/app.ts'
+			) &&
 			(bridgeReuse?.nativePlatformProvenance?.sourceFiles ?? []).includes(
 				'src/lib/bridge-ui/shell/BridgeShell.svelte'
 			) &&
 			(bridgeReuse?.nativePlatformProvenance?.windowsMicaCues ?? []).includes('Effect.Mica') &&
+			(bridgeReuse?.nativePlatformProvenance?.windowsMicaCues ?? []).includes('micaSupported') &&
+			(bridgeReuse?.nativePlatformProvenance?.windowsMicaCues ?? []).includes(
+				'ShellFeatureProbe.mica_supported'
+			) &&
+			(bridgeReuse?.nativePlatformProvenance?.windowsMicaCues ?? []).includes(
+				'current_shell_features()'
+			) &&
+			(bridgeReuse?.nativePlatformProvenance?.windowsMicaCues ?? []).includes(
+				'cfg!(target_os = "windows")'
+			) &&
 			(bridgeReuse?.nativePlatformProvenance?.windowsMicaCues ?? []).includes(
 				'--window-bg-mica'
 			) &&
+			(bridgeReuse?.nativePlatformProvenance?.shellMaterialCues ?? []).includes(
+				'app-window.maximized'
+			) &&
+			(bridgeReuse?.nativePlatformProvenance?.shellMaterialCues ?? []).includes(
+				'max-width: 860px'
+			) &&
 			(bridgeReuse?.nativePlatformProvenance?.macosChromeCues ?? []).includes(
 				'data-window-control-group'
+			) &&
+			(bridgeReuse?.nativePlatformProvenance?.macosChromeCues ?? []).includes(
+				'macos-vibrancy-host-policy'
+			) &&
+			(bridgeReuse?.nativePlatformProvenance?.macosChromeCues ?? []).includes(
+				'macos-vibrancy-visual-row'
+			) &&
+			(bridgeReuse?.nativePlatformProvenance?.macosChromeCues ?? []).includes(
+				'data-macos-chrome'
+			) &&
+			(bridgeReuse?.nativePlatformProvenance?.windowActionCues ?? []).includes(
+				'setPointerCapture'
 			) &&
 			(bridgeReuse?.nativePlatformProvenance?.windowActionCues ?? []).includes(
 				'win.startDragging'
@@ -1135,7 +1654,32 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(cue.cues ?? []).includes('syncTaskbarProgress') &&
 					(cue.cues ?? []).includes('toggleWindowMaximize')
 			) &&
+			(bridgeReuse?.sourceCues ?? []).some(
+				(cue) =>
+					cue.source === 'packages/ultragear-widget-ui/src/app.ts' &&
+					(cue.cues ?? []).includes('features.micaSupported') &&
+					(cue.cues ?? []).includes('enableMicaWindowChrome(win)') &&
+					(cue.cues ?? []).includes(
+						'syncTaskbarProgress(win, { saveInFlight, refreshInFlight, hasQueuedSave })'
+					) &&
+					(cue.cues ?? []).includes('toggleDesktopWindowMaximize(win)')
+			) &&
+			(bridgeReuse?.sourceCues ?? []).some(
+				(cue) =>
+					cue.source === 'src-tauri/src/lib.rs' &&
+					(cue.cues ?? []).includes('ShellFeatureProbe.mica_supported') &&
+					(cue.cues ?? []).includes('current_shell_features()') &&
+					(cue.cues ?? []).includes('cfg!(target_os = "windows")') &&
+					(cue.cues ?? []).includes('MacosLauncher::LaunchAgent')
+			) &&
+			(bridgeReuse?.sourceCues ?? []).some(
+				(cue) =>
+					cue.source === 'src-tauri/Cargo.toml' &&
+					(cue.cues ?? []).includes('cfg(any(target_os = "macos", windows, target_os = "linux"))')
+			) &&
 			(bridgeReuse?.sourceCues ?? []).some((cue) => (cue.cues ?? []).includes(':root[data-window-effect="mica"]')) &&
+			(bridgeReuse?.sourceCues ?? []).some((cue) => (cue.cues ?? []).includes('app-window')) &&
+			(bridgeReuse?.sourceCues ?? []).some((cue) => (cue.cues ?? []).includes('max-width: 1180px')) &&
 			(bridgeReuse?.sourceCues ?? []).some((cue) => (cue.cues ?? []).includes('pointerdown')) &&
 			(bridgeReuse?.sourceCues ?? []).some((cue) => (cue.cues ?? []).includes('Download report JSON')) &&
 			(bridgeReuse?.ultraGearParityContract?.parityRows ?? []).some(
@@ -1158,8 +1702,57 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			) &&
 			(bridgeReuse?.ultraGearParityContract?.parityRows ?? []).some(
 				(row) =>
+					row.sourceFile === 'packages/ultragear-widget-ui/src/app.ts' &&
+					(row.sourceCues ?? []).includes('features.micaSupported') &&
+					(row.sourceCues ?? []).includes('enableMicaWindowChrome(win)') &&
+					(row.localEvidence ?? []).includes('data-native-host-handoff-controls') &&
+					(row.localEvidence ?? []).includes('native-window-action')
+			) &&
+			bridgeReuse?.nativeHostCompatibilityMatrix?.marker === 'native-host-compatibility-matrix' &&
+			bridgeReuse?.nativeHostCompatibilityMatrix?.trustLevel ===
+				'source-observed-host-compatibility-contract' &&
+			(bridgeReuse?.nativeHostCompatibilityMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'windows-mica-effects' &&
+					JSON.stringify(row).includes('features.micaSupported') &&
+					JSON.stringify(row).includes('ShellFeatureProbe.mica_supported') &&
+					JSON.stringify(row).includes('current_shell_features()') &&
+					JSON.stringify(row).includes('set-window-effect')
+			) &&
+			(bridgeReuse?.nativeHostCompatibilityMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'taskbar-progress-reporting' &&
+					JSON.stringify(row).includes(
+						'syncTaskbarProgress(win, { saveInFlight, refreshInFlight, hasQueuedSave })'
+					) &&
+					JSON.stringify(row).includes('set-progress')
+			) &&
+			(bridgeReuse?.nativeHostCompatibilityMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'native-titlebar-drag-maximize' &&
+					JSON.stringify(row).includes('win.startDragging()') &&
+					JSON.stringify(row).includes('native-window-action')
+			) &&
+			(bridgeReuse?.nativeHostCompatibilityMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'macos-material-host-policy' &&
+					JSON.stringify(row).includes('source-observed-macos-host-scaffold') &&
+					JSON.stringify(row).includes('macos-native-vibrancy-unverified') &&
+					JSON.stringify(row).includes('MacosLauncher::LaunchAgent')
+			) &&
+			(bridgeReuse?.ultraGearParityContract?.parityRows ?? []).some(
+				(row) =>
+					row.sourceFile?.includes('BridgeShell.svelte') &&
+					(row.sourceCues ?? []).includes('app-window') &&
+					(row.sourceCues ?? []).includes('app-window.maximized') &&
+					(row.localEvidence ?? []).includes('data-window-effect="mica"')
+			) &&
+			(bridgeReuse?.ultraGearParityContract?.parityRows ?? []).some(
+				(row) =>
 					row.sourceFile?.includes('BridgeTopbar.svelte') &&
 					(row.sourceCues ?? []).includes('DRAG_START_THRESHOLD_PX') &&
+					(row.sourceCues ?? []).includes('setPointerCapture') &&
+					(row.sourceCues ?? []).includes('lostpointercapture') &&
 					(row.localEvidence ?? []).includes('native-window-action')
 			) &&
 			(bridgeReuse?.ultraGearParityContract?.parityRows ?? []).some(
@@ -1184,6 +1777,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			bridgeReuse?.nativeVisualMatrix?.marker === 'native-visual-matrix' &&
 			(bridgeReuse?.nativeVisualMatrix?.rows ?? []).includes('windows-mica-visual-row') &&
 			(bridgeReuse?.nativeVisualMatrix?.rows ?? []).includes('macos-traffic-light-row') &&
+			(bridgeReuse?.nativeVisualMatrix?.rows ?? []).includes('macos-vibrancy-visual-row') &&
 			(bridgeReuse?.nativeVisualMatrix?.rows ?? []).includes('ultragear-theme-row') &&
 			(bridgeReuse?.adapterCues ?? []).some((cue) => (cue.cues ?? []).includes('data-window-effect')) &&
 			(bridgeReuse?.adapterCues ?? []).some((cue) => (cue.cues ?? []).includes('data-drag-start-threshold-px')) &&
@@ -1205,6 +1799,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	checks.push(
 			gateMatrix?.target === report.target &&
 			(gateMatrix?.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+			(gateMatrix?.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
+			(gateMatrix?.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 			(gateMatrix?.requiredEvidence ?? []).includes('windows-11-mica-browser-safe-shell') &&
 			(gateMatrix?.requiredEvidence ?? []).includes('macos-style-native-titlebar-rhythm') &&
 			(gateMatrix?.requiredEvidence ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1238,6 +1834,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(gate.requiredMarkers ?? []).includes('weightedDemandScore') &&
 					(gate.requiredMarkers ?? []).includes('freshnessMaxAgeHours') &&
 					(gate.requiredMarkers ?? []).includes('trustBoundary') &&
+					(gate.requiredMarkers ?? []).includes('result-total-field-contract') &&
+					(gate.requiredMarkers ?? []).includes('top-result-field-contract') &&
+					(gate.requiredMarkers ?? []).includes('sample-review-rule') &&
+					(gate.requiredMarkers ?? []).includes('resultTotalField') &&
+					(gate.requiredMarkers ?? []).includes('topResultFields') &&
+					(gate.requiredMarkers ?? []).includes('sampleReviewRule') &&
 					(gate.requiredMarkers ?? []).includes('manualReviewRequired') &&
 					(gate.requiredArtifacts ?? []).includes('report/alpha-bridge-reuse.json') &&
 					(gate.requiredArtifacts ?? []).includes('report/alpha-evidence-index.json') &&
@@ -1263,6 +1865,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(gate.requiredMarkers ?? []).includes('weightedDemandScore') &&
 					(gate.requiredMarkers ?? []).includes('freshnessMaxAgeHours') &&
 					(gate.requiredMarkers ?? []).includes('trustBoundary') &&
+					(gate.requiredMarkers ?? []).includes('result-total-field-contract') &&
+					(gate.requiredMarkers ?? []).includes('top-result-field-contract') &&
+					(gate.requiredMarkers ?? []).includes('sample-review-rule') &&
+					(gate.requiredMarkers ?? []).includes('resultTotalField') &&
+					(gate.requiredMarkers ?? []).includes('topResultFields') &&
+					(gate.requiredMarkers ?? []).includes('sampleReviewRule') &&
 					(gate.requiredMarkers ?? []).includes('manualReviewRequired') &&
 					(gate.requiredArtifacts ?? []).includes('report/alpha-community-analytics.json') &&
 					(gate.requiredArtifacts ?? []).includes('report/alpha-community-analytics.md') &&
@@ -1289,6 +1897,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					gate.id === 'required-alpha-evidence' &&
 					gate.proofStage === 'release-policy-evidence-boundary' &&
 					(gate.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+					(gate.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
+					(gate.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 					(gate.requiredEvidence ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(gate.requiredEvidence ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(gate.requiredEvidence ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1400,6 +2010,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(evidenceIndex?.endpoints ?? []).some((endpoint) => endpoint.path === '/alpha-readiness/native-host-contract.json' && endpoint.artifact === 'report/alpha-native-host-contract.json') &&
 			(evidenceIndex?.endpoints ?? []).some((endpoint) => endpoint.path === '/alpha-readiness/package-contract.json' && endpoint.artifact === 'report/alpha-package-contract.json') &&
 			(evidenceIndex?.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+			(evidenceIndex?.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
+			(evidenceIndex?.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 			(evidenceIndex?.requiredEvidence ?? []).includes('windows-11-mica-browser-safe-shell') &&
 			(evidenceIndex?.requiredEvidence ?? []).includes('macos-style-native-titlebar-rhythm') &&
 			(evidenceIndex?.requiredEvidence ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1411,6 +2023,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					surface.id === 'required-alpha-evidence' &&
 					(surface.markers ?? []).includes('requiredEvidence') &&
 					(surface.markers ?? []).includes('native-host-binding-guide') &&
+					(surface.markers ?? []).includes('csr-disabled-prerender-contract') &&
+					(surface.markers ?? []).includes('native-host-wrapper-smoke') &&
 					(surface.markers ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(surface.markers ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(surface.markers ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1453,13 +2067,18 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			packageJson?.sveltekitPhpReleasePolicy?.marker === 'alpha-over-rc-release-policy' &&
 			packageJson?.sveltekitPhpReleasePolicy?.rank === 'above-rc' &&
 			(report?.releasePolicy?.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+			(report?.releasePolicy?.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
 			(report?.releasePolicy?.requiredEvidence ?? []).includes('desktop-shell-ui-command-mapping') &&
+			(report?.releasePolicy?.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 			(report?.releasePolicy?.requiredEvidence ?? []).includes('community-analytics-csv-linkage') &&
 			(report?.releasePolicy?.requiredEvidence ?? []).includes('router-path-safety-artifact-sync') &&
+			(report?.releasePolicy?.requiredEvidence ?? []).includes('adapter-platform-emulation') &&
 			(report?.releasePolicy?.requiredEvidence ?? []).includes('deploy-env-preflight-safety') &&
 			(report?.releasePolicy?.requiredEvidence ?? []).includes('community-analytics-freshness-contract') &&
 			(report?.releasePolicy?.requiredEvidence ?? []).includes('hosted-php-smoke-proof') &&
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
+			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('windows-11-mica-browser-safe-shell') &&
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('macos-style-native-titlebar-rhythm') &&
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1467,6 +2086,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('community-analytics-freshness-contract') &&
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('community-analytics-csv-linkage') &&
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('router-path-safety-artifact-sync') &&
+			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('adapter-platform-emulation') &&
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('deploy-env-preflight-safety') &&
 			(packageJson?.sveltekitPhpReleasePolicy?.requiredEvidence ?? []).includes('hosted-php-smoke-proof') &&
 			(packageJson?.files ?? []).includes('docs/ALPHA-RELEASE-CHECKLIST.md') &&
@@ -1478,6 +2098,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			packageContract?.alphaOverRcPolicyProof?.projectRankPolicy === 'above-rc' &&
 			(packageContract?.alphaOverRcPolicyProof?.mustNotUseCandidateLabels ?? []).includes('rc') &&
 			(packageContract?.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+			(packageContract?.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
+			(packageContract?.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 			(packageContract?.requiredEvidence ?? []).includes('windows-11-mica-browser-safe-shell') &&
 			(packageContract?.requiredEvidence ?? []).includes('macos-style-native-titlebar-rhythm') &&
 			(packageContract?.requiredEvidence ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1485,15 +2107,21 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(packageContract?.requiredEvidence ?? []).includes('community-analytics-freshness-contract') &&
 			(packageContract?.requiredEvidence ?? []).includes('community-analytics-csv-linkage') &&
 			(packageContract?.requiredEvidence ?? []).includes('router-path-safety-artifact-sync') &&
+			(packageContract?.requiredEvidence ?? []).includes('adapter-platform-emulation') &&
 			(packageContract?.requiredEvidence ?? []).includes('deploy-env-preflight-safety') &&
 			(packageContract?.requiredEvidence ?? []).includes('hosted-php-smoke-proof') &&
 			(packageContract?.publishShape?.files ?? []).includes('docs/ALPHA-RELEASE-CHECKLIST.md') &&
 			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
+			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('community-analytics-freshness-contract') &&
+			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('adapter-platform-emulation') &&
 			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('hosted-php-smoke-proof') &&
 			packageContract?.publishShape?.exports?.['./adapter'] === './adapter/index.js' &&
 			packageContract?.consumerProof?.command === 'bun run alpha:consumer:smoke' &&
 			packageContract?.consumerProof?.proofStage === 'package-consumer-proof' &&
+			packageContract?.adapterPlatformEmulationProof?.marker === 'adapter-platform-emulation' &&
+			(packageContract?.adapterPlatformEmulationProof?.markers ?? []).includes('event.platform.php') &&
 			packageContract?.releasePrepProof?.proofStage === 'package-safety-proof' &&
 			packageContract?.artifactSyncProof?.command === 'bun run verify:artifacts -- --strict' &&
 			packageContract?.artifactSyncProof?.trustLevel === 'source-to-generated-bundle-check' &&
@@ -1510,18 +2138,46 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes('enableMicaWindowChrome') &&
 			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes('syncTaskbarProgress') &&
 			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes('toggleWindowMaximize') &&
+			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes('bindColorSchemeWatcher') &&
+			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes('prefersDarkMode') &&
+			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes('window.matchMedia("(prefers-color-scheme: dark)")') &&
 			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes(
 				'win.startDragging'
 			) &&
+			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes(
+				'app-window.maximized'
+			) &&
+			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes(
+				'setPointerCapture'
+			) &&
 			(packageContract?.nativePlatformProvenanceProof?.markers ?? []).includes('reportJson') &&
+			packageContract?.nativeHostWrapperSmokeProof?.trustLevel === 'deterministic-host-wrapper-handoff' &&
+			packageContract?.nativeHostWrapperSmokeProof?.source === 'src/lib/alpha-native-host-wrapper-smoke.ts' &&
+			packageContract?.nativeHostWrapperSmokeProof?.runtimeSource === 'src/lib/native-shell/native-host-event-bridge.ts' &&
+			packageContract?.nativeHostWrapperSmokeProof?.contractEndpoint === '/alpha-readiness/native-host-contract.json' &&
+			packageContract?.nativeHostWrapperSmokeProof?.realHostVerified === false &&
+			packageContract?.nativeHostWrapperSmokeProof?.noNativeApiBoundary?.tauriImportsAllowed === false &&
+			packageContract?.nativeHostWrapperSmokeProof?.noNativeApiBoundary?.nativeWindowCallsAllowed === false &&
+			packageContract?.nativeHostWrapperSmokeProof?.noNativeApiBoundary?.adapterRuntimeNativeImportsAllowed === false &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('deterministic-host-wrapper-handoff') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('native-host-wrapper-event-replay') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('native-host-wrapper-event-replay-step') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('noNativeApiBoundary') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('window.__SVELTEKIT_PHP_NATIVE_HOST__') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('window.__SVELTEKIT_PHP_NATIVE_HOST_HISTORY__') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('expectedHistoryResult') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('expectedDesktopShellUiHelper') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('noFallbackAllowedForRealHost') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.markers ?? []).includes('TaskbarProgressState') &&
+			(packageContract?.nativeHostWrapperSmokeProof?.reportVisibility ?? []).includes('/alpha-readiness/release-notes.md') &&
 			(packageContract?.boundaries ?? []).some((boundary) => boundary.includes('adapter-focused'))
 			? ok(
 					'package-contract',
-					'Package contract documents adapter export shape, consumer smoke, artifact sync, deploy safety, native provenance, and package boundary.'
+					'Package contract documents adapter export shape, consumer smoke, artifact sync, deploy safety, native provenance, wrapper-smoke boundary, and package boundary.'
 				)
 			: fail(
 					'package-contract',
-					'Package contract is missing export shape, consumer smoke, artifact sync, deploy safety, native provenance, or package boundary.'
+					'Package contract is missing export shape, consumer smoke, artifact sync, deploy safety, native provenance, wrapper-smoke boundary, or package boundary.'
 				)
 	);
 
@@ -1535,6 +2191,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(nativeHostContract?.desktopShellUiBinding?.requiredImports ?? []).includes('enableMicaWindowChrome') &&
 			(nativeHostContract?.desktopShellUiBinding?.requiredImports ?? []).includes('syncTaskbarProgress') &&
 			(nativeHostContract?.desktopShellUiBinding?.requiredImports ?? []).includes('toggleWindowMaximize') &&
+			(nativeHostContract?.desktopShellUiBinding?.requiredImports ?? []).includes('bindColorSchemeWatcher') &&
+			(nativeHostContract?.desktopShellUiBinding?.requiredImports ?? []).includes('prefersDarkMode') &&
+			(nativeHostContract?.desktopShellUiBinding?.systemAppearanceBinding?.helpers ?? []).includes('bindColorSchemeWatcher') &&
+			(nativeHostContract?.desktopShellUiBinding?.systemAppearanceBinding?.helpers ?? []).includes('prefersDarkMode') &&
+			nativeHostContract?.desktopShellUiBinding?.systemAppearanceBinding?.browserApi ===
+				'window.matchMedia("(prefers-color-scheme: dark)")' &&
 			nativeHostContract?.desktopShellUiBinding?.upstreamWidgetSource ===
 				'packages/ultragear-widget-ui/src/app.ts' &&
 			nativeHostContract?.desktopShellUiBinding?.controllerBinding?.installer === 'installSvelteKitPhpNativeHost' &&
@@ -1553,13 +2215,19 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(nativeHostContract?.requiredDomMarkers ?? []).some((marker) => marker.marker === 'data-native-window-frame') &&
 			(nativeHostContract?.requiredDomMarkers ?? []).some((marker) => marker.marker === 'data-native-titlebar') &&
 			(nativeHostContract?.requiredDomMarkers ?? []).some((marker) => marker.marker === 'data-native-platform') &&
+			(nativeHostContract?.requiredDomMarkers ?? []).some((marker) => marker.marker === 'data-macos-chrome') &&
 			(nativeHostContract?.requiredDomMarkers ?? []).some((marker) => marker.marker === 'data-window-drag') &&
 			(nativeHostContract?.requiredDomMarkers ?? []).some((marker) => marker.marker === 'data-no-window-drag') &&
 			(nativeHostContract?.requiredDomMarkers ?? []).some((marker) => marker.marker === 'data-window-control') &&
 			(nativeHostContract?.requiredDomMarkers ?? []).some((marker) => marker.marker === 'data-native-host-bridge-status') &&
 			(nativeHostContract?.visualSnapshotContract?.requiredMarkers ?? []).includes('Windows 11 Mica') &&
 			(nativeHostContract?.visualSnapshotContract?.requiredMarkers ?? []).includes('macOS traffic lights') &&
+			(nativeHostContract?.visualSnapshotContract?.requiredMarkers ?? []).includes('macOS vibrancy host policy') &&
+			(nativeHostContract?.visualSnapshotContract?.requiredMarkers ?? []).includes('macos-vibrancy-visual-row') &&
 			(nativeHostContract?.visualSnapshotContract?.requiredMarkers ?? []).includes('native-window-action') &&
+			nativeHostContract?.macosMaterialPolicy?.marker === 'macos-vibrancy-host-policy' &&
+			nativeHostContract?.macosMaterialPolicy?.hostPermission === 'core:window:allow-set-effects' &&
+			(nativeHostContract?.macosMaterialPolicy?.adapterMarkers ?? []).includes('macos-vibrancy-visual-row') &&
 			nativeHostContract?.nativeVisualMatrix?.marker === 'native-visual-matrix' &&
 			nativeHostContract?.nativeVisualMatrix?.proofStage === 'browser-safe-native-visual-contract' &&
 			nativeHostContract?.nativeVisualMatrix?.trustLevel === 'deterministic-runtime-evidence' &&
@@ -1575,11 +2243,19 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(row.adapterMarkers ?? []).some((marker) => marker.includes('data-native-platform')) &&
 					(row.adapterMarkers ?? []).some((marker) => marker.includes('data-window-control'))
 			) &&
+			(nativeHostContract?.nativeVisualMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'macos-vibrancy-visual-row' &&
+					(row.adapterMarkers ?? []).includes('macos-vibrancy-host-policy') &&
+					(row.adapterMarkers ?? []).includes('data-macos-chrome')
+			) &&
 			(nativeHostContract?.nativeVisualMatrix?.rows ?? []).some((row) => row.id === 'windows-caption-control-row') &&
 			(nativeHostContract?.nativeVisualMatrix?.rows ?? []).some((row) => row.id === 'ultragear-theme-row') &&
 			(nativeHostContract?.nativeVisualMatrix?.rows ?? []).some((row) => row.id === 'browser-fallback-visual-row') &&
 			(nativeHostContract?.ultraGearSourceParity?.requiredSourceCues ?? []).includes('applyWindowChrome') &&
 			(nativeHostContract?.ultraGearSourceParity?.requiredSourceCues ?? []).includes('enableMicaWindowChrome') &&
+			(nativeHostContract?.ultraGearSourceParity?.requiredSourceCues ?? []).includes('core:window:allow-set-effects') &&
+			(nativeHostContract?.ultraGearSourceParity?.requiredSourceCues ?? []).includes('macos-vibrancy-host-policy') &&
 			(nativeHostContract?.ultraGearSourceParity?.requiredSourceCues ?? []).includes('syncTaskbarProgress') &&
 			(nativeHostContract?.ultraGearSourceParity?.requiredSourceCues ?? []).includes('toggleWindowMaximize') &&
 			(nativeHostContract?.ultraGearSourceParity?.requiredSourceCues ?? []).includes('syncWindowProgress') &&
@@ -1610,9 +2286,79 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(nativeHostContract?.hostResponsibilities ?? []).some((item) => item.capability?.includes('Windows 11 Mica')) &&
 			(nativeHostContract?.hostResponsibilities ?? []).some((item) => item.capability?.includes('Caption controls')) &&
 			(nativeHostContract?.hostResponsibilities ?? []).some((item) => item.capability?.includes('macOS traffic-light')) &&
+			(nativeHostContract?.hostResponsibilities ?? []).some((item) => item.capability?.includes('macOS vibrancy')) &&
 			(nativeHostContract?.reportEvidence ?? []).includes('/alpha-readiness/community-source-map.svg')
 			? ok('native-host-contract', 'Native host contract documents Mica/macOS seams, DOM markers, report handoff, and no-Tauri boundary.')
 			: fail('native-host-contract', 'Native host contract is missing native seams, DOM markers, report handoff, or no-Tauri boundary.')
+	);
+
+	checks.push(
+		nativeHostWrapperSmoke?.target === report.target &&
+			nativeHostWrapperSmoke?.marker === 'native-host-wrapper-smoke' &&
+			nativeHostWrapperSmoke?.status === 'contract-ready' &&
+			nativeHostWrapperSmoke?.realHostVerified === false &&
+			nativeHostWrapperSmoke?.trustLevel === 'deterministic-host-wrapper-handoff' &&
+			nativeHostWrapperSmoke?.source === 'src/lib/native-shell/native-host-event-bridge.ts' &&
+			nativeHostWrapperSmoke?.contractEndpoint === '/alpha-readiness/native-host-contract.json' &&
+			nativeHostWrapperSmoke?.runtimeEndpoint === '/alpha-readiness/native-host-wrapper-smoke.json' &&
+			nativeHostWrapperSmoke?.artifact === 'report/alpha-native-host-wrapper-smoke.json' &&
+			nativeHostWrapperSmoke?.noNativeApiBoundary?.tauriImportsAllowed === false &&
+			nativeHostWrapperSmoke?.noNativeApiBoundary?.nativeWindowCallsAllowed === false &&
+			nativeHostWrapperSmoke?.eventReplayContract?.marker === 'native-host-wrapper-event-replay' &&
+			nativeHostWrapperSmoke?.eventReplayContract?.eventName === 'native-window-action' &&
+			nativeHostWrapperSmoke?.eventReplayContract?.expectedMode === 'native-host' &&
+			nativeHostWrapperSmoke?.eventReplayContract?.expectedHandled === true &&
+			nativeHostWrapperSmoke?.eventReplayContract?.noFallbackAllowedForRealHost === true &&
+			(nativeHostWrapperSmoke?.eventReplayContract?.requiredResultFields ?? []).includes('desktopShellUiHelper') &&
+			(nativeHostWrapperSmoke?.eventReplayContract?.requiredResultFields ?? []).includes('desktopShellUiEvidence') &&
+			(nativeHostWrapperSmoke?.summary?.requiredActions ?? []).includes('set-window-effect') &&
+			(nativeHostWrapperSmoke?.summary?.requiredActions ?? []).includes('start-dragging') &&
+			(nativeHostWrapperSmoke?.summary?.requiredActions ?? []).includes('toggle-maximize') &&
+			(nativeHostWrapperSmoke?.summary?.requiredActions ?? []).includes('set-progress') &&
+			(nativeHostWrapperSmoke?.summary?.requiredActions ?? []).includes('clear-progress') &&
+			(nativeHostWrapperSmoke?.summary?.requiredActions ?? []).includes('report-ready') &&
+			(nativeHostWrapperSmoke?.summary?.requiredHelpers ?? []).includes('enableMicaWindowChrome') &&
+			(nativeHostWrapperSmoke?.summary?.requiredHelpers ?? []).includes('syncTaskbarProgress') &&
+			(nativeHostWrapperSmoke?.summary?.requiredHelpers ?? []).includes('toggleWindowMaximize') &&
+			nativeHostWrapperSmoke?.summary?.missingActions?.length === 0 &&
+			nativeHostWrapperSmoke?.summary?.missingMappings?.length === 0 &&
+			nativeHostWrapperSmoke?.summary?.failedProgressExpectations?.length === 0 &&
+			nativeHostWrapperSmoke?.summary?.eventReplayExpectationCount ===
+				(nativeHostWrapperSmoke?.eventReplayTranscript ?? []).length &&
+			(nativeHostWrapperSmoke?.eventReplayTranscript ?? []).some(
+				(entry) =>
+					entry.marker === 'native-host-wrapper-event-replay-step' &&
+					entry.action === 'set-window-effect' &&
+					entry.expectedHistoryResult?.handled === true &&
+					entry.expectedHistoryResult?.mode === 'native-host' &&
+					entry.expectedDesktopShellUiHelper === 'enableMicaWindowChrome'
+			) &&
+			(nativeHostWrapperSmoke?.eventReplayTranscript ?? []).some(
+				(entry) =>
+					entry.action === 'set-progress' &&
+					entry.expectedHistoryResult?.desktopShellUiHelper === 'syncTaskbarProgress' &&
+					entry.expectedTaskbarState?.saveInFlight === true
+			) &&
+			(nativeHostWrapperSmoke?.eventReplayTranscript ?? []).some(
+				(entry) =>
+					entry.action === 'report-ready' &&
+					entry.expectedHistoryResult?.desktopShellUiHelper === 'host.reportReady'
+			) &&
+			(nativeHostWrapperSmoke?.progressExpectations ?? []).some(
+				(expectation) =>
+					expectation.progressStatus === 'indeterminate' &&
+					expectation.expectedTaskbarState?.saveInFlight === true
+			) &&
+			(nativeHostWrapperSmoke?.progressExpectations ?? []).some(
+				(expectation) =>
+					expectation.progressStatus === 'normal' &&
+					expectation.expectedTaskbarState?.hasQueuedSave === true
+			) &&
+			(nativeHostWrapperSmoke?.wrapperSmokeInstructions ?? []).some((instruction) =>
+				instruction.includes('window.__SVELTEKIT_PHP_NATIVE_HOST__')
+			)
+			? ok('native-host-wrapper-smoke', 'Native host wrapper smoke artifact proves deterministic helper mapping and preserves the real-host boundary.')
+			: fail('native-host-wrapper-smoke', 'Native host wrapper smoke artifact is missing deterministic helper mapping or real-host boundary markers.')
 	);
 
 	checks.push(
@@ -1656,6 +2402,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('native-visual-matrix') &&
 					(expectation.markers ?? []).includes('windows-mica-visual-row') &&
 					(expectation.markers ?? []).includes('macos-traffic-light-row') &&
+					(expectation.markers ?? []).includes('macos-vibrancy-visual-row') &&
+					(expectation.markers ?? []).includes('macos-vibrancy-host-policy') &&
 					(expectation.markers ?? []).includes('data-community-keyword-search-graph') &&
 					(expectation.markers ?? []).includes('data-analytics-linked-keyword-graph') &&
 					(expectation.markers ?? []).includes('keywordSearchGraph') &&
@@ -1663,6 +2411,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('curated-signal-score') &&
 					(expectation.markers ?? []).includes('collected-demand-score') &&
 					(expectation.markers ?? []).includes('directional-community-signal') &&
+					(expectation.markers ?? []).includes('no-live-community-api-runtime-boundary') &&
 					(expectation.markers ?? []).includes('Community evidence coverage ledger') &&
 					(expectation.markers ?? []).includes('Open-source analytics sources reviewers can audit first')
 			) &&
@@ -1682,6 +2431,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('native-visual-matrix') &&
 					(expectation.markers ?? []).includes('windows-mica-visual-row') &&
 					(expectation.markers ?? []).includes('macos-traffic-light-row') &&
+					(expectation.markers ?? []).includes('macos-vibrancy-visual-row') &&
+					(expectation.markers ?? []).includes('macos-vibrancy-host-policy') &&
 					(expectation.markers ?? []).includes('windows-caption-control-row') &&
 					(expectation.markers ?? []).includes('ultragear-theme-row') &&
 					(expectation.markers ?? []).includes('browser-fallback-visual-row') &&
@@ -1701,6 +2452,9 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('native-visual-matrix') &&
 					(expectation.markers ?? []).includes('Structured report preview') &&
 					(expectation.markers ?? []).includes('lg-ultragear-native-platform-provenance') &&
+					(expectation.markers ?? []).includes('macos-material-host-policy') &&
+					(expectation.markers ?? []).includes('source-observed-macos-host-scaffold') &&
+					(expectation.markers ?? []).includes('macos-native-vibrancy-unverified') &&
 					(expectation.markers ?? []).includes('Effect.Mica') &&
 					(expectation.markers ?? []).includes('win.startDragging') &&
 					(expectation.markers ?? []).includes('reportJson')
@@ -1721,6 +2475,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('releasePolicy') &&
 					(expectation.markers ?? []).includes('requiredEvidence') &&
 					(expectation.markers ?? []).includes('native-host-binding-guide') &&
+					(expectation.markers ?? []).includes('csr-disabled-prerender-contract') &&
 					(expectation.markers ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(expectation.markers ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(expectation.markers ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1742,6 +2497,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('requiredEvidence') &&
 					(expectation.markers ?? []).includes('required-alpha-evidence') &&
 					(expectation.markers ?? []).includes('native-host-binding-guide') &&
+					(expectation.markers ?? []).includes('csr-disabled-prerender-contract') &&
 					(expectation.markers ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(expectation.markers ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(expectation.markers ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1770,7 +2526,13 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('manual-research-lanes') &&
 					(expectation.markers ?? []).includes('curated-signal-score') &&
 					(expectation.markers ?? []).includes('collected-demand-score') &&
-					(expectation.markers ?? []).includes('directional-community-signal')
+					(expectation.markers ?? []).includes('directional-community-signal') &&
+					(expectation.markers ?? []).includes('no-live-community-api-runtime-boundary') &&
+					(expectation.markers ?? []).includes('alpha-community-source-evidence-checklist') &&
+					(expectation.markers ?? []).includes('source-health-classification') &&
+					(expectation.markers ?? []).includes('result-total-field-contract')
+					&& (expectation.markers ?? []).includes('top-result-field-contract')
+					&& (expectation.markers ?? []).includes('sample-review-rule')
 			) &&
 			(hostedSmokeChecklist?.contentExpectations ?? []).some(
 				(expectation) =>
@@ -1786,6 +2548,11 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('freshnessMaxAgeHours') &&
 					(expectation.markers ?? []).includes('trustBoundary') &&
 					(expectation.markers ?? []).includes('manualReviewRequired') &&
+					(expectation.markers ?? []).includes('alpha-community-source-evidence-checklist') &&
+					(expectation.markers ?? []).includes('source-health-classification') &&
+					(expectation.markers ?? []).includes('result-total-field-contract') &&
+					(expectation.markers ?? []).includes('top-result-field-contract') &&
+					(expectation.markers ?? []).includes('sample-review-rule') &&
 					(expectation.markers ?? []).includes('analyticsFreshnessContract') &&
 					(expectation.markers ?? []).includes('community-analytics-freshness-contract') &&
 					(expectation.markers ?? []).includes('maxAgeHours') &&
@@ -1797,7 +2564,13 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('community-sources.csv') &&
 					(expectation.markers ?? []).includes('curated-signal-score') &&
 					(expectation.markers ?? []).includes('collected-demand-score') &&
-					(expectation.markers ?? []).includes('directional-community-signal')
+					(expectation.markers ?? []).includes('directional-community-signal') &&
+					(expectation.markers ?? []).includes('no-live-community-api-runtime-boundary') &&
+					(expectation.markers ?? []).includes('alpha-community-source-evidence-checklist') &&
+					(expectation.markers ?? []).includes('source-health-classification') &&
+					(expectation.markers ?? []).includes('result-total-field-contract')
+					&& (expectation.markers ?? []).includes('top-result-field-contract')
+					&& (expectation.markers ?? []).includes('sample-review-rule')
 			) &&
 			(hostedSmokeChecklist?.contentExpectations ?? []).some(
 				(expectation) =>
@@ -1807,6 +2580,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('requiredEvidence') &&
 					(expectation.markers ?? []).includes('required-alpha-evidence') &&
 					(expectation.markers ?? []).includes('native-host-binding-guide') &&
+					(expectation.markers ?? []).includes('csr-disabled-prerender-contract') &&
 					(expectation.markers ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(expectation.markers ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(expectation.markers ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1829,7 +2603,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('collected_demand_score_marker') &&
 					(expectation.markers ?? []).includes('collected-demand-score') &&
 					(expectation.markers ?? []).includes('directional_trust_level') &&
-					(expectation.markers ?? []).includes('directional-community-signal')
+					(expectation.markers ?? []).includes('directional-community-signal') &&
+					(expectation.markers ?? []).includes('no-live-community-api-runtime-boundary')
 			) &&
 			(hostedSmokeChecklist?.contentExpectations ?? []).some(
 				(expectation) =>
@@ -1853,8 +2628,10 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('nativeHostBindingGuide') &&
 					(expectation.markers ?? []).includes('nativeVisualMatrix') &&
 					(expectation.markers ?? []).includes('communityAnalyticsFreshnessContract') &&
+					(expectation.markers ?? []).includes('no-live-community-api-runtime-boundary') &&
 					(expectation.markers ?? []).includes('requiredEvidence') &&
 					(expectation.markers ?? []).includes('native-host-binding-guide') &&
+					(expectation.markers ?? []).includes('csr-disabled-prerender-contract') &&
 					(expectation.markers ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(expectation.markers ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(expectation.markers ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1888,6 +2665,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('requiredEvidence') &&
 					(expectation.markers ?? []).includes('release-policy-evidence-boundary') &&
 					(expectation.markers ?? []).includes('native-host-binding-guide') &&
+					(expectation.markers ?? []).includes('csr-disabled-prerender-contract') &&
 					(expectation.markers ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(expectation.markers ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(expectation.markers ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1913,6 +2691,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('required-alpha-evidence') &&
 					(expectation.markers ?? []).includes('requiredEvidence') &&
 					(expectation.markers ?? []).includes('native-host-binding-guide') &&
+					(expectation.markers ?? []).includes('csr-disabled-prerender-contract') &&
 					(expectation.markers ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(expectation.markers ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(expectation.markers ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1936,10 +2715,26 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					(expectation.markers ?? []).includes('nativePlatformProvenanceProof') &&
 					(expectation.markers ?? []).includes('lg-ultragear-native-platform-provenance') &&
 					(expectation.markers ?? []).includes('nativeHostBindingGuideProof') &&
+					(expectation.markers ?? []).includes('nativeHostWrapperSmokeProof') &&
+					(expectation.markers ?? []).includes('deterministic-host-wrapper-handoff') &&
+					(expectation.markers ?? []).includes('native-host-wrapper-event-replay') &&
+					(expectation.markers ?? []).includes('native-host-wrapper-event-replay-step') &&
+					(expectation.markers ?? []).includes('realHostVerified') &&
+					(expectation.markers ?? []).includes('noNativeApiBoundary') &&
+					(expectation.markers ?? []).includes('window.__SVELTEKIT_PHP_NATIVE_HOST__') &&
+					(expectation.markers ?? []).includes('window.__SVELTEKIT_PHP_NATIVE_HOST_HISTORY__') &&
+					(expectation.markers ?? []).includes('TaskbarProgressState') &&
+					(expectation.markers ?? []).includes('expectedHistoryResult') &&
+					(expectation.markers ?? []).includes('expectedDesktopShellUiHelper') &&
+					(expectation.markers ?? []).includes('noFallbackAllowedForRealHost') &&
 					(expectation.markers ?? []).includes('/alpha-readiness/native-host-guide.md') &&
 					(expectation.markers ?? []).includes('report/alpha-native-host-guide.md') &&
+					(expectation.markers ?? []).includes('/alpha-readiness/native-host-wrapper-smoke.json') &&
+					(expectation.markers ?? []).includes('report/alpha-native-host-wrapper-smoke.json') &&
+					(expectation.markers ?? []).includes('native-host-wrapper-smoke') &&
 					(expectation.markers ?? []).includes('requiredEvidence') &&
 					(expectation.markers ?? []).includes('native-host-binding-guide') &&
+					(expectation.markers ?? []).includes('csr-disabled-prerender-contract') &&
 					(expectation.markers ?? []).includes('windows-11-mica-browser-safe-shell') &&
 					(expectation.markers ?? []).includes('macos-style-native-titlebar-rhythm') &&
 					(expectation.markers ?? []).includes('alpha-readiness-report-graphics') &&
@@ -1958,11 +2753,33 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 
 	checks.push(
 		Object.hasOwn(fullReport ?? {}, 'hostedAlphaSmoke') &&
+			Object.hasOwn(fullReport ?? {}, 'hostedAlphaSmokeProof') &&
+			Object.hasOwn(fullReport ?? {}, 'hostedAlphaSmokeArtifact') &&
+			fullReport?.hostedAlphaSmokeProof?.marker === 'hosted-php-smoke-proof' &&
+			fullReport?.hostedAlphaSmokeArtifact?.path === 'report/alpha-remote-smoke.json' &&
 			hasText(html, 'Hosted deployment smoke') &&
 			hasText(markdown, 'Hosted deployment smoke') &&
 			hasText(svg, 'hosted smoke:')
-			? ok('hosted-smoke-report', 'Reports include hosted deployment smoke evidence slot.')
-			: fail('hosted-smoke-report', 'Reports are missing hosted deployment smoke evidence slot.')
+			? ok(
+					'hosted-smoke-report',
+					'Reports include hosted deployment smoke evidence slot and interpreted hosted proof state.'
+				)
+			: fail(
+					'hosted-smoke-report',
+					'Reports are missing hosted deployment smoke evidence slot or interpreted hosted proof state.'
+				)
+	);
+
+	checks.push(
+		hasText(svg, 'data-native-host-wrapper-smoke') &&
+			hasText(svg, 'native-host-wrapper-smoke') &&
+			hasText(svg, 'native-host-wrapper-probe') &&
+			hasText(svg, 'realHostVerified=false') &&
+			hasText(svg, 'real-host-not-verified') &&
+			hasText(svg, 'report/alpha-native-host-wrapper-smoke.json') &&
+			hasText(svg, '/alpha-readiness/native-host-wrapper-smoke.json')
+			? ok('svg-native-wrapper-smoke', 'SVG report embeds native wrapper smoke status, endpoint, artifact, and real-host boundary.')
+			: fail('svg-native-wrapper-smoke', 'SVG report is missing native wrapper smoke status or real-host boundary markers.')
 	);
 
 	const nativeHostActions = new Set(
@@ -1972,6 +2789,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	const nativeHostEvidenceText = JSON.stringify({
 		bridgeReuse,
 		nativeHostContract,
+		nativeHostWrapperSmoke,
 		hostedSmokeChecklist
 	});
 	const requiredNativeHostActions = [
@@ -2004,6 +2822,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(nativeHostGuide, 'getDesktopShellUiCommandMapping') &&
 			hasText(nativeHostGuide, 'toDesktopShellUiTaskbarProgressState') &&
 			hasText(nativeHostGuide, 'TaskbarProgressState') &&
+			hasText(nativeHostGuide, 'native-host-wrapper-event-replay') &&
+			hasText(nativeHostGuide, 'native-host-wrapper-event-replay-step') &&
+			hasText(nativeHostGuide, 'eventReplayTranscript[]') &&
+			hasText(nativeHostGuide, 'expectedHistoryResult') &&
+			hasText(nativeHostGuide, 'expectedDesktopShellUiHelper') &&
+			hasText(nativeHostGuide, 'noFallbackAllowedForRealHost') &&
 			hasText(nativeHostGuide, 'saveInFlight') &&
 			hasText(nativeHostGuide, 'hasQueuedSave') &&
 			hasText(nativeHostGuide, 'packages/ultragear-widget-ui/src/app.ts') &&
@@ -2027,6 +2851,48 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(nativeHostBridgeSource, 'packages/ultragear-widget-ui/src/app.ts') &&
 			hasText(nativeHostBridgeSource, 'win.startDragging()') &&
 			hasText(nativeHostBridgeSource, 'ProgressBarStatus') &&
+			nativeHostContract?.nativeHostCompatibilityMatrix?.marker === 'native-host-compatibility-matrix' &&
+			nativeHostContract?.nativeHostCompatibilityMatrix?.trustLevel ===
+				'source-observed-host-compatibility-contract' &&
+			(nativeHostContract?.nativeHostCompatibilityMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'windows-mica-effects' &&
+					JSON.stringify(row).includes('features.micaSupported') &&
+					JSON.stringify(row).includes('ShellFeatureProbe.mica_supported') &&
+					JSON.stringify(row).includes('current_shell_features()') &&
+					JSON.stringify(row).includes('set-window-effect')
+			) &&
+			(nativeHostContract?.nativeHostCompatibilityMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'taskbar-progress-reporting' &&
+					JSON.stringify(row).includes(
+						'syncTaskbarProgress(win, { saveInFlight, refreshInFlight, hasQueuedSave })'
+					) &&
+					JSON.stringify(row).includes('set-progress')
+			) &&
+			(nativeHostContract?.nativeHostCompatibilityMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'native-titlebar-drag-maximize' &&
+					JSON.stringify(row).includes('win.startDragging()') &&
+					JSON.stringify(row).includes('native-window-action')
+			) &&
+			(nativeHostContract?.nativeHostCompatibilityMatrix?.rows ?? []).some(
+				(row) =>
+					row.id === 'macos-material-host-policy' &&
+					JSON.stringify(row).includes('source-observed-macos-host-scaffold') &&
+					JSON.stringify(row).includes('macos-native-vibrancy-unverified') &&
+					JSON.stringify(row).includes('MacosLauncher::LaunchAgent')
+			) &&
+			hasText(nativeHostEvidenceText, 'native-host-compatibility-matrix') &&
+			hasText(nativeHostEvidenceText, 'source-observed-host-compatibility-contract') &&
+			hasText(nativeHostEvidenceText, 'features.micaSupported') &&
+			hasText(nativeHostEvidenceText, 'ShellFeatureProbe.mica_supported') &&
+			hasText(nativeHostEvidenceText, 'current_shell_features()') &&
+			(hasText(nativeHostEvidenceText, 'cfg!(target_os = "windows")') ||
+				hasText(nativeHostEvidenceText, 'cfg!(target_os = \\"windows\\")')) &&
+			hasText(nativeHostEvidenceText, 'macos-material-host-policy') &&
+			hasText(nativeHostEvidenceText, 'source-observed-macos-host-scaffold') &&
+			hasText(nativeHostEvidenceText, 'macos-native-vibrancy-unverified') &&
 			requiredNativeHostActions.every((action) => hasText(nativeHostEvidenceText, action)) &&
 			requiredNativeHostHandlers.every((handler) => hasText(nativeHostEvidenceText, handler))
 			? ok(
@@ -2043,12 +2909,26 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 		'1.0.2-alpha release checklist',
 		'alpha-over-rc-release-policy',
 		'desktop-shell-ui-command-mapping',
+			'windowChromeState',
+			'webview.setBackgroundColor([0, 0, 0, 0])',
+			'data-window-chrome-state',
+			'transparent-webview-material-boundary',
 		'community-analytics-csv-linkage',
 		'router-path-safety-artifact-sync',
+		'adapter-platform-emulation',
 		'deploy-env-preflight-safety',
 		'bun run alpha:gate:hosted',
 		'sourceToKeywordEdge',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
+		'resultTotalField',
+		'topResultFields',
+		'sampleReviewRule',
 		'weighted_demand_score',
+		'result_total_field',
+		'top_result_fields',
+		'sample_review_rule',
 		'ALPHA_SMOKE_BASE_URL'
 	];
 	const releaseChecklistIndexedText = [
@@ -2083,11 +2963,36 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 
 	const manifestArtifacts = new Set((manifest?.artifacts ?? []).map((artifact) => artifact.path));
 	const manifestEndpoints = new Set((manifest?.runtimeEndpoints ?? []).map((endpoint) => endpoint.path));
+	const hostedAlphaSmokePassed = manifest?.hostedAlphaSmoke?.status === 'passed';
+	const expectedHostedSmokeProofStage = hostedAlphaSmokePassed
+		? 'hosted-smoke-passed'
+		: 'hosted-smoke-or-placeholder';
+	const expectedHostedSmokeTrustLevel = hostedAlphaSmokePassed
+		? 'real-php-host-smoke-evidence'
+		: 'requires-alpha-smoke-base-url-for-pass-evidence';
+	const remoteSmokeArtifact = (manifest?.artifacts ?? []).find(
+		(artifact) => artifact.path === 'report/alpha-remote-smoke.json'
+	);
+	const hostedProofStableBoundary = String(
+		manifest?.hostedProofInterpretation?.stableBoundary ?? ''
+	);
+	const hostedProofInterpretationOk =
+		manifest?.hostedProofInterpretation?.marker === 'hosted-php-smoke-proof' &&
+		manifest?.hostedProofInterpretation?.artifact === 'report/alpha-remote-smoke.json' &&
+		manifest?.hostedProofInterpretation?.checklist === 'report/alpha-hosted-smoke-checklist.json' &&
+		hostedProofStableBoundary.includes('Stable') &&
+		(!hostedAlphaSmokePassed ||
+			(manifest?.hostedProofInterpretation?.status === 'passed' &&
+				manifest?.hostedProofInterpretation?.alphaEvidenceStatus ===
+					'alpha-hosted-proof-present' &&
+				Number(manifest?.hostedProofInterpretation?.checkCount ?? 0) > 0));
 	checks.push(
 			manifest?.target === report.target &&
 			manifest?.trustModel?.['deterministic-local-artifact'] &&
 			manifest?.trustModel?.['directional-community-signal'] &&
+			manifest?.trustModel?.['no-live-community-api-runtime-boundary'] &&
 			manifest?.trustModel?.['requires-alpha-smoke-base-url-for-pass-evidence'] &&
+			manifest?.trustModel?.['real-php-host-smoke-evidence'] &&
 			manifest?.releasePolicy?.marker === 'alpha-over-rc-release-policy' &&
 			manifest?.releasePolicy?.channel === 'alpha' &&
 			manifest?.releasePolicy?.track === '1.0.2-alpha' &&
@@ -2100,6 +3005,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			manifest?.evidenceSurfaces?.alphaReleaseChecklist?.documentationSource === 'docs/ALPHA-RELEASE-CHECKLIST.md' &&
 			(manifest?.releasePolicyProof?.mustNotUseCandidateLabels ?? []).includes('rc') &&
 			(manifest?.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+			(manifest?.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
+			(manifest?.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 			(manifest?.requiredEvidence ?? []).includes('windows-11-mica-browser-safe-shell') &&
 			(manifest?.requiredEvidence ?? []).includes('macos-style-native-titlebar-rhythm') &&
 			(manifest?.requiredEvidence ?? []).includes('alpha-readiness-report-graphics') &&
@@ -2107,6 +3014,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(manifest?.requiredEvidence ?? []).includes('community-analytics-freshness-contract') &&
 			(manifest?.requiredEvidence ?? []).includes('hosted-php-smoke-proof') &&
 			(manifest?.releasePolicy?.requiredEvidence ?? []).includes('native-host-binding-guide') &&
+			(manifest?.releasePolicy?.requiredEvidence ?? []).includes('csr-disabled-prerender-contract') &&
+			(manifest?.releasePolicy?.requiredEvidence ?? []).includes('native-host-wrapper-smoke') &&
 			(manifest?.releasePolicy?.requiredEvidence ?? []).includes('community-analytics-freshness-contract') &&
 			(manifest?.releasePolicy?.requiredEvidence ?? []).includes('hosted-php-smoke-proof') &&
 			(manifest?.releasePolicy?.disallowedChannels ?? []).includes('rc') &&
@@ -2114,13 +3023,22 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(manifest?.proofLedger ?? []).some((item) => item.marker === 'hosted-php-smoke-proof-required') &&
 			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('Windows 11 Mica') &&
 			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('macOS traffic lights') &&
+			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('macOS vibrancy host policy') &&
+			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('macos-material-host-policy') &&
+			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('source-observed-macos-host-scaffold') &&
+			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('macos-native-vibrancy-unverified') &&
 			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('native-window-action') &&
 			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('native-visual-matrix') &&
 			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('windows-mica-visual-row') &&
 			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('macos-traffic-light-row') &&
+			manifest?.evidenceSurfaces?.nativeChromeVisualContract?.markers?.includes('macos-vibrancy-visual-row') &&
 			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('native-visual-matrix') &&
 			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('windows-mica-visual-row') &&
 			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('macos-traffic-light-row') &&
+			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('macos-vibrancy-visual-row') &&
+			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('macos-material-host-policy') &&
+			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('source-observed-macos-host-scaffold') &&
+			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('macos-native-vibrancy-unverified') &&
 			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('windows-caption-control-row') &&
 			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('ultragear-theme-row') &&
 			manifest?.evidenceSurfaces?.nativeVisualMatrix?.markers?.includes('browser-fallback-visual-row') &&
@@ -2132,8 +3050,13 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			manifest?.evidenceSurfaces?.ultraGearSourceParity?.markers?.includes('syncTaskbarProgress') &&
 			manifest?.evidenceSurfaces?.ultraGearSourceParity?.markers?.includes('toggleWindowMaximize') &&
 			manifest?.evidenceSurfaces?.ultraGearSourceParity?.markers?.includes('applyWindowChrome') &&
+			manifest?.evidenceSurfaces?.ultraGearSourceParity?.markers?.includes('app-window.maximized') &&
 			manifest?.evidenceSurfaces?.ultraGearSourceParity?.markers?.includes('DRAG_START_THRESHOLD_PX') &&
+			manifest?.evidenceSurfaces?.ultraGearSourceParity?.markers?.includes('setPointerCapture') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('lg-ultragear-native-platform-provenance') &&
+			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('macos-material-host-policy') &&
+			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('source-observed-macos-host-scaffold') &&
+			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('macos-native-vibrancy-unverified') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('@scriptgpt/desktop-shell-ui') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('desktopShellUiBinding') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('enableMicaWindowChrome') &&
@@ -2141,7 +3064,9 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('toggleWindowMaximize') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('Effect.Mica') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('win.setEffects') &&
+			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('app-window.maximized') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('data-window-control-group') &&
+			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('setPointerCapture') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('win.startDragging') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('win.setProgressBar') &&
 			manifest?.evidenceSurfaces?.nativePlatformProvenance?.markers?.includes('reportJson') &&
@@ -2172,6 +3097,22 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			manifest?.evidenceSurfaces?.nativeHostBindingGuide?.markers?.includes('set-window-effect') &&
 			manifest?.evidenceSurfaces?.nativeHostBindingGuide?.markers?.includes('set-progress') &&
 			manifest?.evidenceSurfaces?.nativeHostBindingGuide?.markers?.includes('report-ready') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('native-host-wrapper-smoke') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('native-host-wrapper-probe') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('deterministic-host-wrapper-handoff') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('native-host-wrapper-event-replay') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('native-host-wrapper-event-replay-step') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('realHostVerified') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('noNativeApiBoundary') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('window.__SVELTEKIT_PHP_NATIVE_HOST__') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('window.__SVELTEKIT_PHP_NATIVE_HOST_HISTORY__') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('TaskbarProgressState') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('enableMicaWindowChrome') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('syncTaskbarProgress') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('toggleWindowMaximize') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('expectedHistoryResult') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('expectedDesktopShellUiHelper') &&
+			manifest?.evidenceSurfaces?.nativeHostWrapperSmoke?.markers?.includes('noFallbackAllowedForRealHost') &&
 			manifest?.evidenceSurfaces?.communityEvidenceLedger?.markers?.includes('Community evidence coverage ledger') &&
 			manifest?.evidenceSurfaces?.communityEvidenceLedger?.markers?.includes('Open-source analytics sources reviewers can audit first') &&
 			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('keywordSearchGraph') &&
@@ -2181,9 +3122,16 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('curated-signal-score') &&
 			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('collected-demand-score') &&
 			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('directional-community-signal') &&
+			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('no-live-community-api-runtime-boundary') &&
+			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('alpha-community-source-evidence-checklist') &&
+			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('source-health-classification') &&
+			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('result-total-field-contract') &&
+			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('top-result-field-contract') &&
+			manifest?.evidenceSurfaces?.communityKeywordSearchGraph?.markers?.includes('sample-review-rule') &&
 			manifest?.evidenceSurfaces?.communityAnalyticsFreshnessContract?.markers?.includes('community-analytics-freshness-contract') &&
 			manifest?.evidenceSurfaces?.communityAnalyticsFreshnessContract?.markers?.includes('analyticsFreshnessContract') &&
 			manifest?.evidenceSurfaces?.communityAnalyticsFreshnessContract?.markers?.includes('maxAgeHours') &&
+			manifest?.evidenceSurfaces?.communityAnalyticsFreshnessContract?.markers?.includes('no-live-community-api-runtime-boundary') &&
 			(manifest?.artifacts ?? []).every((artifact) => artifact.proofStage && artifact.trustLevel) &&
 			(manifest?.runtimeEndpoints ?? []).every((endpoint) => endpoint.proofStage === 'runtime-source-endpoint' && endpoint.trustLevel === 'deterministic-runtime-evidence') &&
 			(manifest?.artifacts ?? []).some(
@@ -2192,12 +3140,9 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 					artifact.proofStage === 'collected-public-source-data' &&
 					artifact.trustLevel === 'directional-community-signal'
 			) &&
-			(manifest?.artifacts ?? []).some(
-				(artifact) =>
-					artifact.path === 'report/alpha-remote-smoke.json' &&
-					artifact.proofStage === 'hosted-smoke-or-placeholder' &&
-					artifact.trustLevel === 'requires-alpha-smoke-base-url-for-pass-evidence'
-			) &&
+			remoteSmokeArtifact?.proofStage === expectedHostedSmokeProofStage &&
+			remoteSmokeArtifact?.trustLevel === expectedHostedSmokeTrustLevel &&
+			remoteSmokeArtifact?.hostedSmokeStatus === (manifest?.hostedAlphaSmoke?.status ?? 'missing') &&
 			manifestArtifacts.has('report/alpha-readiness.svg') &&
 			manifestArtifacts.has('report/alpha-community-source-map.svg') &&
 			manifestArtifacts.has('report/alpha-release-notes.md') &&
@@ -2241,9 +3186,16 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			manifestEndpoints.has('/alpha-readiness/community-signals.csv') &&
 			manifestEndpoints.has('/alpha-readiness/community-sources.csv') &&
 			manifest?.commands?.hostedGate === 'bun run alpha:gate:hosted' &&
-			manifest?.hostedAlphaSmoke?.status
-			? ok('release-manifest', 'Release manifest inventories artifacts, runtime endpoints, commands, and hosted smoke status.')
-			: fail('release-manifest', 'Release manifest is missing artifact inventory, runtime endpoints, commands, or hosted smoke status.')
+			manifest?.hostedAlphaSmoke?.status &&
+			hostedProofInterpretationOk
+			? ok(
+					'release-manifest',
+					'Release manifest inventories artifacts, runtime endpoints, commands, hosted smoke status, and hosted smoke proof interpretation.'
+				)
+			: fail(
+					'release-manifest',
+					'Release manifest is missing artifact inventory, runtime endpoints, commands, hosted smoke status, or hosted smoke proof interpretation.'
+				)
 	);
 
 	return checks;
@@ -2291,6 +3243,7 @@ async function main() {
 		packageContract: await readJson('report/alpha-package-contract.json'),
 		nativeHostContract: await readJson('report/alpha-native-host-contract.json'),
 		nativeHostGuide: await readFile(path.join(repoRoot, 'report/alpha-native-host-guide.md'), 'utf8'),
+		nativeHostWrapperSmoke: await readJson('report/alpha-native-host-wrapper-smoke.json'),
 		hostedSmokeChecklist: await readJson('report/alpha-hosted-smoke-checklist.json'),
 		alphaPage: await readFile(path.join(repoRoot, 'src/routes/alpha-readiness/+page.svelte'), 'utf8'),
 		nativeWindowShellSource: await readFile(
@@ -2309,6 +3262,14 @@ async function main() {
 			path.join(repoRoot, 'src/lib/native-shell/native-host-event-bridge.ts'),
 			'utf8'
 		),
+		noHydrationConfigSource: await readFile(
+			path.join(repoRoot, 'src/routes/alpha-readiness/no-hydration/+page.ts'),
+			'utf8'
+		),
+		noHydrationPageSource: await readFile(
+			path.join(repoRoot, 'src/routes/alpha-readiness/no-hydration/+page.svelte'),
+			'utf8'
+		),
 		releaseChecklistSource: await readFile(path.join(repoRoot, 'src/lib/alpha-release-checklist.ts'), 'utf8'),
 		releaseChecklistEndpointSource: await readFile(
 			path.join(repoRoot, 'src/routes/alpha-readiness/release-checklist.md/+server.ts'),
@@ -2324,7 +3285,32 @@ async function main() {
 		sourceMapSvg: await readFile(path.join(repoRoot, 'report/alpha-community-source-map.svg'), 'utf8'),
 		readinessCsv: await readFile(path.join(repoRoot, 'report/alpha-readiness.csv'), 'utf8'),
 		communitySignalsCsv: await readFile(path.join(repoRoot, 'report/alpha-community-signals.csv'), 'utf8'),
-		communitySourcesCsv: await readFile(path.join(repoRoot, 'report/alpha-community-sources.csv'), 'utf8')
+		communitySourcesCsv: await readFile(path.join(repoRoot, 'report/alpha-community-sources.csv'), 'utf8'),
+		latestSvelteKitAudit: await readFile(
+			path.join(repoRoot, 'docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md'),
+			'utf8'
+		),
+		latestSvelteKitAuditVerifier: await readFile(
+			path.join(repoRoot, 'scripts/verify-latest-sveltekit-audit.mjs'),
+			'utf8'
+		),
+		latestSameMajorSmoke: await readFile(
+			path.join(repoRoot, 'scripts/smoke-latest-same-major.mjs'),
+			'utf8'
+		),
+		latestViteMajorSmoke: await readFile(
+			path.join(repoRoot, 'scripts/smoke-latest-vite-major.mjs'),
+			'utf8'
+		),
+		remoteFunctionsPolicy: await readFile(
+			path.join(repoRoot, 'docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md'),
+			'utf8'
+		),
+		remoteFunctionsVerifier: await readFile(
+			path.join(repoRoot, 'scripts/verify-remote-functions-policy.mjs'),
+			'utf8'
+		),
+		adapterSource: await readFile(path.join(repoRoot, 'adapter/src/index.ts'), 'utf8')
 	};
 
 	const checks = checkAlphaReadinessContract({
@@ -2349,5 +3335,6 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
+
 
 

@@ -1,6 +1,6 @@
 # Dev adapter boundary
 
-Last updated: 2026-06-17
+Last updated: 2026-07-01
 
 The dev adapter surfaces exist for local development only. They are not production adapters and should fail loudly when used outside the intended local Vite/PHP workflow.
 
@@ -29,9 +29,11 @@ Use adapter({ mode: 'php-static' }) for shared hosting output or adapter({ mode:
 
 - [x] Document dev-only boundary.
 - [x] Keep production docs centered on `php-static` and `js-ssr`.
-- [ ] Add a unit smoke that initializes dev adapter paths in local dev mode.
-- [ ] Add a unit smoke that fails dev adapter initialization outside local dev context.
-- [ ] Avoid placeholder behavior that silently skips PHP backend integration.
+- [x] Add a unit smoke that initializes dev adapter paths in local dev mode.
+- [x] Add a unit smoke that fails dev adapter initialization outside local dev context.
+- [x] Avoid placeholder behavior that silently skips PHP backend integration.
+
+Guardrail coverage: `tests/unit/dev-adapters.test.ts` covers deterministic local/test stubs, Vite dev-router stub registration, production rejection, CI rejection, and explicit `SK_PHP_ALLOW_DEV_ADAPTER=true` smoke-test override.
 
 ## Non-goals
 

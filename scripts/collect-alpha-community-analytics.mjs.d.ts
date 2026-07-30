@@ -21,6 +21,10 @@ export type ResearchTrustBoundary =
 	| 'public-discussion-sample'
 	| 'package-ecosystem-discovery'
 	| 'manual-qualitative-review';
+export type ResearchSourceHealth =
+	| 'countable-public-api'
+	| 'rate-limited-public-discussion'
+	| 'manual-review-only';
 
 export type CommunityProvider =
 	| 'github-repositories'
@@ -57,12 +61,17 @@ export function describeCommunitySource(
 	freshnessMaxAgeHours: number;
 	evidenceWeight: number;
 	trustBoundary: ResearchTrustBoundary;
+	sourceHealth: ResearchSourceHealth;
 	analyticsLinkageMarker: 'analytics-linked-keyword-graph';
+	alphaEvidenceChecklistMarker: 'alpha-community-source-evidence-checklist';
+	alphaEvidenceChecklist: string[];
 	sourceToKeywordEdge: string;
 	manualReviewRequired: boolean;
 	proofUse: string;
+	releaseUse: string;
 	reviewerAction: string;
 	collectorNote: string;
+	blockedOutcomePolicy: string;
 };
 
 export function collectCommunityAnalytics(options?: {

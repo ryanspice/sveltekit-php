@@ -37,11 +37,11 @@
 
 	<div class="status">
 		{#if serverData?.parent && serverData?.child}
-			<span style="color: green">✔ Merged Successfully</span>
+			<span class="success-text">✔ Merged Successfully</span>
 		{:else}
-			<span style="color: red">✘ Merge Failed (Expected during build)</span>
+			<span class="error-text">✘ Merge Failed (Expected during build)</span>
 			{#if browser}
-				<p style="font-size: 0.8em; color: #666;">Waiting for data hydration...</p>
+				<p class="hydration-note">Waiting for data hydration...</p>
 			{/if}
 		{/if}
 	</div>
@@ -54,5 +54,18 @@
 	.container {
 		font-family: sans-serif;
 		padding: 2rem;
+	}
+
+	.success-text {
+		color: green;
+	}
+
+	.error-text {
+		color: red;
+	}
+
+	.hydration-note {
+		color: #666;
+		font-size: 0.8em;
 	}
 </style>

@@ -1,10 +1,10 @@
 <script>
 	import { base } from '$app/paths';
 
-	export let data;
+	let { data } = $props();
 
 	// Optional parameter - could be undefined
-	$: id = data?.id;
+	const id = $derived(data?.id);
 </script>
 
 <svelte:head>

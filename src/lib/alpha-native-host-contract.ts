@@ -1,12 +1,33 @@
 import type { AlphaReadinessReport } from './alpha-readiness';
+import {
+	buildNativeHostWrapperProbe,
+	desktopShellUiBinding as nativeHostDesktopShellUiBinding
+} from './native-shell/native-host-event-bridge';
+
+const hostHandlerNotes = {
+	'start-dragging':
+		'Mirrors the UltraGear widget start-dragging action while preserving drag-block selector guards in the browser shell.',
+	'toggle-maximize':
+		'Uses the shared maximize/unmaximize helper rather than duplicating window state logic.',
+	'set-window-effect':
+		'Call when detail.windowEffect is mica; unsupported platforms can keep the browser-safe CSS fallback.',
+	'set-progress':
+		'Translate adapter progressStatus into TaskbarProgressState { saveInFlight, refreshInFlight, hasQueuedSave } before calling the desktop-shell-ui helper.',
+	'clear-progress':
+		'Clears queued/in-flight taskbar state, which maps to ProgressBarStatus.None.',
+	'report-ready':
+		'Keeps report URLs and generated alpha evidence artifacts host-owned without adding native APIs to the PHP adapter.'
+} satisfies Record<string, string>;
 
 export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
+	const nativeHostWrapperProbe = buildNativeHostWrapperProbe();
+
 	return {
 		target: report.target,
 		issued: report.issued,
 		bridgeSource: report.bridgeSource,
 		purpose:
-			'Define the native-host integration seam for Windows 11 Mica, macOS chrome rhythm, caption controls, report exports, and progress/evidence handoff without importing Tauri APIs into the PHP adapter runtime.',
+			'Define the native-host integration seam for Windows 11 Mica, macOS chrome rhythm/vibrancy policy, caption controls, report exports, and progress/evidence handoff without importing Tauri APIs into the PHP adapter runtime.',
 		adapterBoundary: {
 			runtime: 'browser-and-php-host-safe',
 			tauriImportsAllowed: false,
@@ -14,12 +35,72 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 			reason:
 				'The adapter package must remain deployable on standard PHP hosts. Native window behavior belongs in an optional desktop host wrapper.'
 		},
+		realHostPermissionChecklist: {
+			marker: 'lg-ultragear-host-permission-checklist',
+			sourceRoot: 'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge',
+			sourceFile: 'src-tauri/capabilities/default.json',
+			trustLevel: 'real-host-permission-cue-required',
+			requiredPermissions: [
+				{
+					permission: 'core:window:allow-set-effects',
+					adapterActions: ['set-window-effect'],
+					desktopShellUiHelpers: ['enableMicaWindowChrome'],
+					proves:
+						'Windows 11 Mica and host-owned material effects can be applied through the wrapper window-effects capability.'
+				},
+				{
+					permission: 'core:window:allow-set-progress-bar',
+					adapterActions: ['set-progress', 'clear-progress'],
+					desktopShellUiHelpers: ['syncTaskbarProgress'],
+					proves:
+						'Alpha evidence/report progress can be bound to native taskbar progress states.'
+				},
+				{
+					permission: 'core:window:allow-start-dragging',
+					adapterActions: ['start-dragging'],
+					desktopShellUiHelpers: ['win.startDragging'],
+					proves: 'The titlebar pointer-threshold drag seam can start native window dragging.'
+				},
+				{
+					permission: 'core:window:allow-is-maximized + core:window:allow-maximize + core:window:allow-unmaximize + core:window:allow-toggle-maximize',
+					adapterActions: ['toggle-maximize'],
+					desktopShellUiHelpers: ['toggleWindowMaximize'],
+					proves: 'Caption maximize/restore controls can change real host window state.'
+				},
+				{
+					permission: 'core:window:allow-theme + core:window:allow-set-focus',
+					adapterActions: ['set-window-effect', 'report-ready'],
+					desktopShellUiHelpers: ['bindColorSchemeWatcher', 'prefersDarkMode'],
+					proves:
+						'The wrapper can keep theme and focus transitions aligned with the browser-safe shell.'
+				}
+			],
+			adapterBoundary:
+				'These permissions are required only in a real Windows/macOS wrapper. They must not be imported or required by the PHP adapter runtime.',
+			reviewerRule:
+				'Do not replace realHostVerified:false with real OS-native proof unless the wrapper exposes equivalent permissions/capabilities and replays native-host-wrapper-event-replay successfully.',
+			stableBlocker:
+				'Stable 1.0.0 native claims require a real host run that proves these permission cues, not only CSS/DOM visual markers.'
+		},
 		desktopShellUiBinding: {
 			marker: 'desktopShellUiBinding',
 			packageName: '@scriptgpt/desktop-shell-ui',
 			sourcePackage: 'packages/desktop-shell-ui/src/index.ts',
 			upstreamWidgetSource: 'packages/ultragear-widget-ui/src/app.ts',
 			trustLevel: 'optional-host-implementation-reference',
+			currentImplementationCues: [
+				'packages/ultragear-widget-ui/src/app.ts features.micaSupported',
+				'packages/ultragear-widget-ui/src/app.ts enableMicaWindowChrome(win)',
+				'packages/ultragear-widget-ui/src/app.ts syncTaskbarProgress(win, { saveInFlight, refreshInFlight, hasQueuedSave })',
+				'packages/ultragear-widget-ui/src/app.ts toggleDesktopWindowMaximize(win)',
+				'packages/ultragear-widget-ui/src/app.ts win.startDragging()',
+				'packages/ultragear-widget-ui/src/app.ts data-window-drag',
+				'packages/ultragear-widget-ui/src/app.ts data-action="maximize"',
+				'packages/ultragear-widget-ui/src/app.ts mica-wash',
+				'src-tauri/src/lib.rs ShellFeatureProbe.mica_supported',
+				'src-tauri/src/lib.rs current_shell_features()',
+				'src-tauri/src/lib.rs mica_supported: cfg!(target_os = "windows")'
+			],
 			requiredImports: [
 				'enableMicaWindowChrome',
 				'syncTaskbarProgress',
@@ -39,71 +120,156 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 				global: 'window.__SVELTEKIT_PHP_NATIVE_HOST__',
 				installer: 'installSvelteKitPhpNativeHost',
 				hostWindow: '@tauri-apps/api/window getCurrentWindow()',
-				handlers: [
-					{
-						handler: 'startDragging',
-						action: 'start-dragging',
-						ultraGearImplementation: 'win.startDragging()',
-						nativeHostBridgeMapping:
-							"getDesktopShellUiCommandMapping('start-dragging') -> win.startDragging",
-						detailFields: ['dragStartThresholdPx', 'source'],
-						notes:
-							'Mirrors the UltraGear widget start-dragging action while preserving drag-block selector guards in the browser shell.'
-					},
-					{
-						handler: 'setWindowEffect',
-						action: 'set-window-effect',
-						ultraGearImplementation: 'enableMicaWindowChrome(win)',
-						nativeHostBridgeMapping:
-							"getDesktopShellUiCommandMapping('set-window-effect') -> enableMicaWindowChrome",
-						detailFields: ['windowEffect', 'source'],
-						notes:
-							'Call when detail.windowEffect is mica; unsupported platforms can keep the browser-safe CSS fallback.'
-					},
-					{
-						handler: 'setProgress',
-						action: 'set-progress',
-						ultraGearImplementation:
-							'syncTaskbarProgress(win, toDesktopShellUiTaskbarProgressState(detail))',
-						nativeHostBridgeMapping:
-							"getDesktopShellUiCommandMapping('set-progress') -> syncTaskbarProgress",
-						detailFields: ['progress', 'progressStatus', 'source'],
-						notes:
-							'Translate adapter progressStatus into TaskbarProgressState { saveInFlight, refreshInFlight, hasQueuedSave } before calling the desktop-shell-ui helper.'
-					},
-					{
-						handler: 'clearProgress',
-						action: 'clear-progress',
-						ultraGearImplementation:
-							'syncTaskbarProgress(win, { saveInFlight: false, refreshInFlight: false, hasQueuedSave: false })',
-						nativeHostBridgeMapping:
-							"getDesktopShellUiCommandMapping('clear-progress') -> syncTaskbarProgress",
-						detailFields: ['progressStatus', 'source'],
-						notes: 'Clears queued/in-flight taskbar state, which maps to ProgressBarStatus.None.'
-					},
-					{
-						handler: 'toggleMaximize',
-						action: 'toggle-maximize',
-						ultraGearImplementation: 'toggleWindowMaximize(win)',
-						nativeHostBridgeMapping:
-							"getDesktopShellUiCommandMapping('toggle-maximize') -> toggleWindowMaximize",
-						detailFields: ['source'],
-						notes: 'Uses the shared maximize/unmaximize helper rather than duplicating window state logic.'
-					},
-					{
-						handler: 'reportReady',
-						action: 'report-ready',
-						ultraGearImplementation: 'host.reportReady({ reportHref, reportKind, reportLabel })',
-						nativeHostBridgeMapping:
-							"getDesktopShellUiCommandMapping('report-ready') -> host.reportReady",
-						detailFields: ['reportHref', 'reportKind', 'reportLabel', 'source'],
-						notes:
-							'Keeps report URLs and generated alpha evidence artifacts host-owned without adding native APIs to the PHP adapter.'
-					}
-				]
+				handlers: nativeHostDesktopShellUiBinding.handlers.map((mapping) => ({
+					handler: mapping.handler,
+					action: mapping.action,
+					requiredHostPermission: mapping.requiredHostPermission,
+					ultraGearImplementation: mapping.upstreamCall,
+					nativeHostBridgeMapping: `getDesktopShellUiCommandMapping('${mapping.action}') -> ${mapping.helper}`,
+					detailFields: mapping.detailFields,
+					notes: hostHandlerNotes[mapping.action]
+				}))
+			},
+			systemAppearanceBinding: {
+				helpers: ['prefersDarkMode', 'bindColorSchemeWatcher'],
+				browserApi: 'window.matchMedia("(prefers-color-scheme: dark)")',
+				hostUse:
+					'Optional wrappers can mirror OS appearance changes into browser-safe shell state without exposing native APIs to the PHP adapter runtime.',
+				adapterBoundary:
+					'The adapter reports and DOM markers can expose the current visual mode, but native appearance integration remains host-owned.'
 			},
 			proofUse:
 				'Gives a desktop wrapper a concrete LG UltraGear helper-package binding path for Windows 11 Mica, taskbar progress, maximize, and color-scheme handling while preserving the adapter runtime boundary.'
+		},
+		nativeHostCompatibilityMatrix: {
+			marker: 'native-host-compatibility-matrix',
+			sourceRoot: 'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge',
+			trustLevel: 'source-observed-host-compatibility-contract',
+			rows: [
+				{
+					id: 'windows-mica-effects',
+					capability: 'windows-mica-effects',
+					sourceEvidence: [
+						'packages/desktop-shell-ui/src/index.ts enableMicaWindowChrome',
+						'packages/ultragear-widget-ui/src/app.ts enableMicaWindowChrome(win)',
+						'packages/ultragear-widget-ui/src/app.ts features.micaSupported',
+						'packages/ultragear-widget-ui/src/app.ts webview.setBackgroundColor([0, 0, 0, 0])',
+						'packages/ultragear-widget-ui/src/app.ts windowChromeState',
+						'packages/ultragear-widget-ui/src/app.ts mica-active',
+						'packages/ultragear-widget-ui/src/app.ts mica-inactive',
+						'packages/ultragear-widget-ui/src/app.ts plain',
+						'src-tauri/src/lib.rs ShellFeatureProbe.mica_supported',
+						'src-tauri/src/lib.rs current_shell_features()',
+						'src-tauri/src/lib.rs mica_supported: cfg!(target_os = "windows")'
+					],
+					adapterEvidence: [
+						'data-window-effect="mica"',
+						'data-window-material="windows-11-mica"',
+						'data-window-chrome-state',
+						'data-window-chrome-state="mica-active"',
+						'transparent-webview-material-boundary',
+						'data-transparent-webview-material-boundary="host-owned"',
+						'set-window-effect',
+						'data-native-host-bridge-status'
+					],
+					boundary:
+						'The adapter renders browser-safe Mica evidence. Real Windows Mica requires a host wrapper that can call Effect.Mica/setEffects.'
+				},
+				{
+					id: 'taskbar-progress-reporting',
+					capability: 'taskbar-progress-reporting',
+					sourceEvidence: [
+						'packages/desktop-shell-ui/src/index.ts syncTaskbarProgress',
+						'packages/ultragear-widget-ui/src/app.ts syncTaskbarProgress(win, { saveInFlight, refreshInFlight, hasQueuedSave })',
+						'ProgressBarStatus.Indeterminate',
+						'ProgressBarStatus.Normal',
+						'ProgressBarStatus.None'
+					],
+					adapterEvidence: [
+						'set-progress',
+						'clear-progress',
+						'report-ready',
+						'progressReportHandoff',
+						'report/alpha-readiness.full.json'
+					],
+					boundary:
+						'The adapter exposes report progress semantics. Native taskbar progress remains optional-host behavior.'
+				},
+				{
+					id: 'native-titlebar-drag-maximize',
+					capability: 'native-titlebar-drag-maximize',
+					sourceEvidence: [
+						'packages/ultragear-widget-ui/src/app.ts win.startDragging()',
+						'packages/ultragear-widget-ui/src/app.ts toggleDesktopWindowMaximize(win)',
+						'packages/ultragear-widget-ui/src/app.ts data-window-drag',
+						'packages/ultragear-widget-ui/src/app.ts data-action="maximize"'
+					],
+					adapterEvidence: [
+						'data-window-drag',
+						'data-drag-start-threshold-px',
+						'data-drag-block-selector',
+						'native-window-action',
+						'start-dragging',
+						'toggle-maximize'
+					],
+					boundary:
+						'The adapter proves the gesture/event seam in browser-safe HTML; the host controller owns real drag and maximize calls.'
+				},
+				{
+					id: 'macos-material-host-policy',
+					capability: 'macos-material-host-policy',
+					sourceEvidence: [
+						'src-tauri/Cargo.toml cfg(any(target_os = "macos", windows, target_os = "linux")) desktop plugin dependency lane',
+						'src-tauri/src/lib.rs MacosLauncher::LaunchAgent',
+						'src-tauri/capabilities/default.json core:window:allow-set-effects',
+						'src-tauri/src/lib.rs mica_supported: cfg!(target_os = "windows")'
+					],
+					adapterEvidence: [
+						'macos-vibrancy-host-policy',
+						'macos-material-host-policy',
+						'source-observed-macos-host-scaffold',
+						'macos-native-vibrancy-unverified',
+						'data-macos-chrome',
+						'data-native-platform',
+						'bindColorSchemeWatcher'
+					],
+					boundary:
+						'The source proves cross-platform host/plugin scaffolding and a shared window-effects permission, while the real Mica feature probe is Windows-only. macOS vibrancy remains unverified until a macOS wrapper applies native material without browser fallback.'
+				}
+			],
+			stableRule:
+				'Stable 1.0.0 can cite this as source parity only; OS-native claims still require real Windows/macOS host smoke evidence.'
+		},
+		macosMaterialPolicy: {
+			marker: 'macos-vibrancy-host-policy',
+			sourceCue:
+				'LG UltraGear/Tauri desktop plugin scaffolding, core:window:allow-set-effects permission, transparent webview material boundaries, and system color-scheme watching.',
+			sourceEvidence: [
+				'src-tauri/Cargo.toml cfg(any(target_os = "macos", windows, target_os = "linux"))',
+				'src-tauri/src/lib.rs MacosLauncher::LaunchAgent',
+				'src-tauri/capabilities/default.json core:window:allow-set-effects',
+				'src-tauri/src/lib.rs mica_supported: cfg!(target_os = "windows")'
+			],
+			sourceObservedScaffoldMarker: 'source-observed-macos-host-scaffold',
+			unverifiedNativeClaimMarker: 'macos-native-vibrancy-unverified',
+			hostPermission: 'core:window:allow-set-effects',
+			trustLevel: 'host-owned-native-material-policy',
+			adapterMarkers: [
+				'macos-material-host-policy',
+				'source-observed-macos-host-scaffold',
+				'macos-native-vibrancy-unverified',
+				'data-native-platform',
+				'data-macos-chrome',
+				'data-window-material',
+				'macos-traffic-light-row',
+				'macos-vibrancy-visual-row',
+				'bindColorSchemeWatcher',
+				'prefers-color-scheme: dark'
+			],
+			rendererBoundary:
+				'The PHP adapter renders traffic-light rhythm and browser-safe material tokens only; real macOS vibrancy/transparency must be supplied by an optional desktop host wrapper.',
+			stableBlocker:
+				'Stable native macOS material claims require a real macOS wrapper smoke run that proves native material application without browser fallback.'
 		},
 		requiredDomMarkers: [
 			{
@@ -121,7 +287,7 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 				marker: 'data-desktop-shell-helper-functions',
 				source: 'src/lib/components/native-shell/NativeWindowShell.svelte',
 				purpose:
-					'Keeps enableMicaWindowChrome, syncTaskbarProgress, and toggleWindowMaximize discoverable on the live native shell surface.'
+					'Keeps enableMicaWindowChrome, syncTaskbarProgress, toggleWindowMaximize, bindColorSchemeWatcher, and prefersDarkMode discoverable on the live native shell surface.'
 			},
 			{
 				marker: 'data-native-shell-theme',
@@ -168,6 +334,12 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 				source: 'src/lib/components/native-shell/NativeTitlebar.svelte',
 				purpose:
 					'Declares that the alpha surface intentionally renders both macOS and Windows chrome proof rows for reviewer comparison.'
+			},
+			{
+				marker: 'data-macos-chrome',
+				source: 'src/lib/components/native-shell/NativeWindowShell.svelte',
+				purpose:
+					'Stable browser-safe marker for macOS traffic-light rhythm while real vibrancy/material integration remains host-owned.'
 			},
 			{
 				marker: 'data-window-drag',
@@ -240,10 +412,15 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 			requiredMarkers: [
 				'Windows 11 Mica',
 				'macOS traffic lights',
+				'macOS vibrancy host policy',
+				'macos-material-host-policy',
+				'source-observed-macos-host-scaffold',
+				'macos-native-vibrancy-unverified',
 				'data-window-effect',
 				'data-native-platform',
 				'data-window-control',
 				'native-window-action',
+				'macos-vibrancy-visual-row',
 				'set-window-effect',
 				'set-progress',
 				'report-ready'
@@ -290,6 +467,31 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 					visibleSurfaces: ['/alpha-readiness', '/alpha-readiness/report.svg'],
 					hostBoundary:
 						'The browser page shows the macOS rhythm; a desktop host owns real titlebar integration.'
+				},
+				{
+					id: 'macos-vibrancy-visual-row',
+					platform: 'macos',
+					visualCue: 'macOS vibrancy/material host policy',
+					ultraGearCue:
+						'src-tauri desktop plugin lane, MacosLauncher::LaunchAgent, core:window:allow-set-effects permission, transparent webview material boundary, Windows-only mica_supported probe, and system color-scheme watcher',
+					adapterMarkers: [
+						'data-macos-chrome',
+						'data-native-platform',
+						'data-window-material',
+						'macos-vibrancy-host-policy',
+						'macos-material-host-policy',
+						'source-observed-macos-host-scaffold',
+						'macos-native-vibrancy-unverified',
+						'bindColorSchemeWatcher',
+						'prefers-color-scheme: dark'
+					],
+					visibleSurfaces: [
+						'/alpha-readiness',
+						'/alpha-readiness/native-host-contract.json',
+						'/alpha-readiness/native-host-guide.md'
+					],
+					hostBoundary:
+						'The PHP adapter does not claim real macOS vibrancy; an optional macOS wrapper must apply native material/effects and replay the wrapper smoke without fallback.'
 				},
 				{
 					id: 'windows-caption-control-row',
@@ -367,10 +569,12 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 				'enableMicaWindowChrome',
 				'syncTaskbarProgress',
 				'toggleWindowMaximize',
+				'bindColorSchemeWatcher',
 				'TaskbarProgressState',
 				'applyWindowChrome',
 				'Effect.Mica',
 				'win.setEffects',
+				'core:window:allow-set-effects',
 				'syncWindowProgress',
 				'win.setProgressBar',
 				'ProgressBarStatus.Indeterminate',
@@ -381,6 +585,8 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 				'window blur drag cancellation',
 				'dispatch("start-dragging")',
 				'dispatch("maximize")',
+				'data-macos-chrome',
+				'macos-vibrancy-host-policy',
 				'Download report JSON',
 				'Structured report preview'
 			],
@@ -488,6 +694,16 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 			purpose:
 				'Provides an optional desktop-host controller seam plus deterministic browser fallback/history so hosted PHP demos can prove the native boundary without owning native window APIs.'
 		},
+		nativeHostWrapperProbe: {
+			marker: 'native-host-wrapper-probe',
+			source: 'src/lib/native-shell/native-host-event-bridge.ts',
+			trustLevel: 'deterministic-host-wrapper-handoff',
+			requiredActions: nativeHostWrapperProbe.map((step) => step.action),
+			requiredHelpers: Array.from(new Set(nativeHostWrapperProbe.map((step) => step.desktopShellUiHelper))),
+			steps: nativeHostWrapperProbe,
+			proofUse:
+				'Gives optional Windows/macOS wrappers a deterministic probe sequence for Mica, drag, maximize, progress, clear-progress, and report-ready bindings using the same LG UltraGear helper mapping as the live alpha surface.'
+		},
 		hostResponsibilities: [
 			{
 				platform: 'windows',
@@ -511,6 +727,18 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 				sourceCue:
 					'lg-ultragear-bridge src/lib/bridge-ui/shell/BridgeTopbar.svelte pointer threshold and NativeTitlebar traffic-light seams',
 				adapterEvidence: ['/alpha-readiness', '/alpha-readiness/native-host-contract.json'],
+				status: 'host-owned'
+			},
+			{
+				platform: 'macos',
+				capability: 'macOS vibrancy/material host policy',
+				sourceCue:
+					'lg-ultragear-bridge core:window:allow-set-effects permission and system appearance watcher cues; real native material remains wrapper-owned.',
+				adapterEvidence: [
+					'/alpha-readiness/native-host-contract.json',
+					'/alpha-readiness/native-host-guide.md',
+					'/alpha-readiness/bridge-reuse.json'
+				],
 				status: 'host-owned'
 			},
 			{
@@ -551,3 +779,19 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 			'The native-host contract is alpha-ready when the route and generated report artifact are present, but stable 1.0.0 still requires hosted PHP smoke with ALPHA_SMOKE_BASE_URL and bun run alpha:gate:hosted.'
 	};
 }
+
+export const alphaNativeHostChromeStateBoundaryEvidence = {
+	status: 'source-observed-host-owned-boundary',
+	sourceCues: [
+		'packages/ultragear-widget-ui/src/app.ts webview.setBackgroundColor([0, 0, 0, 0])',
+		'packages/ultragear-widget-ui/src/app.ts root.dataset.windowChromeState',
+		'packages/ultragear-widget-ui/src/app.ts windowChromeState mica-active | mica-inactive | plain',
+	],
+	adapterMarkers: [
+		'data-window-chrome-state="mica-active"',
+		'data-transparent-webview-material-boundary="host-owned"',
+		'transparent-webview-material-boundary',
+	],
+	policy:
+		'The adapter can emit SSR/report markers for native material readiness, but real Mica/acrylic/vibrancy behavior stays owned by the desktop host and must be proven in a live host smoke.',
+} as const;

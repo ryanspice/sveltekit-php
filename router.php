@@ -34,4 +34,4 @@ if (
 	return;
 }
 
-require $router_real;
+return require $router_real;

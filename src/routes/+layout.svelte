@@ -1,13 +1,15 @@
 <script>
 	import DebugData from '$lib/components/DebugData.svelte';
 	import favicon from '$lib/assets/favicon.svg';
+
+	let { children } = $props();
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<slot />
+{@render children()}
 
 <DebugData />
 

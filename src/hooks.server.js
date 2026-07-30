@@ -31,7 +31,7 @@ export async function handle({ event, resolve }) {
 			return new Response(null, { status: 404 });
 		}
 
-		console.error(`[Error Handled] ${response.status} at ${event.url.pathname} - Redirecting to /`);
+		process.emitWarning(`[Error Handled] ${response.status} at ${event.url.pathname} - Redirecting to /`);
 
 		// Determine the redirect origin
 		// 1. Trust PROXY_ORIGIN env var if set (from dev-server.js)
@@ -49,7 +49,7 @@ export async function handle({ event, resolve }) {
 			}
 		}
 
-		console.log(`[Hooks] Redirecting to origin: ${origin}`);
+		process.emitWarning(`[Hooks] Redirecting to origin: ${origin}`);
 
 		// Redirect to home page with cookie
 		return new Response(null, {
@@ -66,7 +66,7 @@ export async function handle({ event, resolve }) {
 
 /** @type {import('@sveltejs/kit').HandleServerError} */
 export function handleError({ error }) {
-	console.error('[Server Error]', error);
+	process.emitWarning(error instanceof Error ? error.message : String(error));
 
 	// We can't return a redirect here, but we've handled the redirect in 'handle'
 	// by checking the response status.

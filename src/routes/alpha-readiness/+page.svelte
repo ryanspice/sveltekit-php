@@ -18,13 +18,27 @@
 	const liveRequiredEvidenceSourceMarkers = [
 		'alpha-over-rc-release-policy',
 		'native-host-binding-guide',
+		'real-host-permission-checklist',
+		'native-host-compatibility-matrix',
+		'csr-disabled-prerender-contract',
 		'desktop-shell-ui-command-mapping',
+		'native-host-wrapper-smoke',
 		'windows-11-mica-browser-safe-shell',
 		'macos-style-native-titlebar-rhythm',
 		'alpha-readiness-report-graphics',
 		'community-keyword-search-graph',
 		'community-analytics-freshness-contract',
 		'community-analytics-csv-linkage',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
+		'result_total_field',
+		'top_result_fields',
+		'sample_review_rule',
+		'adapter-platform-emulation',
+		'latest-sveltekit-compatibility-audit',
+		'latest-vite-major-validation',
+		'remote-functions-alpha-policy',
 		'router-path-safety-artifact-sync',
 		'deploy-env-preflight-safety',
 		'hosted-php-smoke-proof'
@@ -186,7 +200,7 @@
 			label: 'Runtime endpoints',
 			status: 'deterministic-runtime-evidence',
 			summary:
-				'The live fixture endpoints serve deterministic report data and do not call public community APIs at request time.',
+				'The live fixture endpoints serve deterministic report data and do not call public community APIs at request time: no-live-community-api-runtime-boundary.',
 			links: [
 				{ label: 'Report JSON', href: reportHref },
 				{ label: 'Gate matrix', href: gateMatrixHref }
@@ -229,7 +243,7 @@
 				<h2>Alpha is becoming a reportable product surface, not just a test fixture.</h2>
 				<p>
 					This page translates the UltraGear bridge shell/report patterns into the adapter demo:
-					Mica-style containment, macOS-native window cadence, structured report export, and
+					Mica-style containment, macOS-style window cadence, source-observed host-material policy, structured report export, and
 					keyword-linked open-source community analytics.
 				</p>
 				<div class="hero-actions">

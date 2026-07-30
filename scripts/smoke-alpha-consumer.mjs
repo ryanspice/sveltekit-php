@@ -10,6 +10,7 @@ const requiredPackFiles = [
 	'package.json',
 	'README.md',
 	'adapter/index.js',
+	'adapter/src/runtime/php-compat.php',
 	'docs/ALPHA-READINESS.md'
 ];
 const forbiddenPackExactFiles = new Set(['.env', 'bun.lock', 'package-lock.json']);

@@ -9,7 +9,9 @@ type CommunityAnalyticsArtifact = {
 		signals?: number;
 		successfulSources?: number;
 		failedSources?: number;
+		blockedSources?: number;
 		skippedSources?: number;
+		manualReviewRequiredSources?: number;
 		averageDemandScore?: number;
 	};
 	queries?: {
@@ -21,7 +23,9 @@ type CommunityAnalyticsArtifact = {
 			totalMentions?: number;
 			successfulSources?: number;
 			failedSources?: number;
+			blockedSources?: number;
 			skippedSources?: number;
+			manualReviewRequiredSources?: number;
 		};
 		sources?: {
 			label: string;
@@ -82,16 +86,34 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 	lines.push(`- Providers: ${summarizeSources(sourceDescriptors, (source) => source.provider)}`);
 	lines.push(`- Evidence kinds: ${summarizeSources(sourceDescriptors, (source) => source.evidenceKind)}`);
 	lines.push(`- Collection risk: ${summarizeSources(sourceDescriptors, (source) => source.collectionRisk)}`);
+	lines.push(`- Reviewer action lanes: ${summarizeSources(sourceDescriptors, (source) => source.actionLane)}`);
+	lines.push(`- Confidence tiers: ${summarizeSources(sourceDescriptors, (source) => source.confidenceTier)}`);
+	lines.push(`- Source health: ${summarizeSources(sourceDescriptors, (source) => source.sourceHealth)}`);
+	lines.push(
+		`- Result total fields: ${summarizeSources(sourceDescriptors, (source) => source.resultTotalField)}`
+	);
+	lines.push(
+		`- Top result field contracts: ${summarizeSources(sourceDescriptors, (source) => source.topResultFields.join(' + '))}`
+	);
 	lines.push(
 		'- Reviewer rule: use collected counts as directional evidence only; confirm release-critical claims by opening the linked source results.'
 	);
+	lines.push('');
+
+	lines.push('## Reviewer action lanes', '');
+	lines.push('- `primary-release-evidence`: review first; can support alpha positioning after linked results are opened and sampled.');
+	lines.push('- `supporting-release-evidence`: use for package/discovery/support-burden context, not as standalone quality proof.');
+	lines.push('- `qualitative-context`: quote language themes only; do not convert fragile forum counts into release claims.');
+	lines.push('- `manual-claim-check`: open manually before relying on host-configuration or deployment claims.');
+	lines.push('- Confidence markers: `high-public-index`, `medium-public-sample`, `low-fragile-sample`, and `manual-unverified`.');
 	lines.push('');
 
 	lines.push('## Required alpha evidence linkage', '');
 	lines.push('- Contract markers: `requiredEvidence`, `required-alpha-evidence`.');
 	lines.push('- Graphic proof: `alpha-readiness-report-graphics` via `/alpha-readiness/community-source-map.svg` and `report/alpha-community-source-map.svg`.');
 	lines.push('- Keyword proof: `community-keyword-search-graph` via `keywordSearchGraph`, `source-to-keyword-edge`, and spreadsheet CSV rows.');
-	lines.push('- Freshness proof: `community-analytics-freshness-contract` via `collectedAt`, `maxAgeHours`, source coverage, and `directional-community-signal` trust metadata.');
+	lines.push('- Source proof: `alpha-community-source-evidence-checklist` via per-source checklist, source-health classification, release-use, and blocked-outcome policy fields.');
+	lines.push('- Freshness proof: `community-analytics-freshness-contract` via `collectedAt`, `maxAgeHours`, source coverage, `directional-community-signal` trust metadata, and `no-live-community-api-runtime-boundary` runtime separation.');
 	for (const marker of requiredAlphaEvidence) {
 		lines.push(`- Required marker: \`${marker}\`.`);
 	}
@@ -103,7 +125,9 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 		lines.push(`- Signals: ${analytics.summary?.signals ?? report.communitySignals.length}`);
 		lines.push(`- Successful sources: ${analytics.summary?.successfulSources ?? 0}`);
 		lines.push(`- Failed sources: ${analytics.summary?.failedSources ?? 0}`);
+		lines.push(`- Blocked sources: ${analytics.summary?.blockedSources ?? 0}`);
 		lines.push(`- Skipped sources: ${analytics.summary?.skippedSources ?? 0}`);
+		lines.push(`- Manual-review-required sources: ${analytics.summary?.manualReviewRequiredSources ?? 0}`);
 		lines.push(`- Average demand score: ${analytics.summary?.averageDemandScore ?? 0}/100`);
 		lines.push('- Freshness contract: `community-analytics-freshness-contract` requires `collectedAt`, source coverage summaries, and successful source counts to be reviewed before release.');
 		if (analytics.note) {
@@ -132,7 +156,7 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 			lines.push(`- Collected demand score: ${collected.aggregate?.demandScore ?? 0}/100`);
 			lines.push(`- Total mentions: ${collected.aggregate?.totalMentions ?? 0}`);
 			lines.push(
-				`- Source status: ${collected.aggregate?.successfulSources ?? 0} ok, ${collected.aggregate?.failedSources ?? 0} failed, ${collected.aggregate?.skippedSources ?? 0} skipped`
+				`- Source status: ${collected.aggregate?.successfulSources ?? 0} ok, ${collected.aggregate?.failedSources ?? 0} failed, ${collected.aggregate?.blockedSources ?? 0} blocked, ${collected.aggregate?.skippedSources ?? 0} skipped, ${collected.aggregate?.manualReviewRequiredSources ?? 0} manual-review-required`
 			);
 		}
 		lines.push('- Research links:');
@@ -152,8 +176,18 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 				);
 			}
 			lines.push(`    - Proof use: ${source.proofUse}`);
+			lines.push(`    - Release use: ${source.releaseUse}`);
+			lines.push(`    - Release claim use: ${source.releaseClaimUse}`);
+			lines.push(`    - Reviewer action lane: ${source.actionLane}`);
+			lines.push(`    - Confidence tier: ${source.confidenceTier}`);
 			lines.push(`    - Reviewer action: ${source.reviewerAction}`);
 			lines.push(`    - Collector note: ${source.collectorNote}`);
+			lines.push(`    - Result total field: ${source.resultTotalField}`);
+			lines.push(`    - Top result fields: ${source.topResultFields.join(', ')}`);
+			lines.push(`    - Sample review rule: ${source.sampleReviewRule}`);
+			lines.push(`    - Source health: ${source.sourceHealth}`);
+			lines.push(`    - Alpha evidence checklist: ${source.alphaEvidenceChecklist.join(', ')}`);
+			lines.push(`    - Blocked outcome policy: ${source.blockedOutcomePolicy}`);
 		}
 		lines.push('');
 
@@ -184,7 +218,7 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 	for (const limitation of report.limitations.filter((limitation) => limitation.includes('Community analytics'))) {
 		lines.push(`- ${limitation}`);
 	}
-	lines.push('- Runtime endpoints do not call public community APIs; collection stays an explicit local/CI command.');
+	lines.push('- Runtime endpoints do not call public community APIs; collection stays an explicit local/CI command. Marker: `no-live-community-api-runtime-boundary`.');
 	lines.push('');
 
 	return lines.join('\n');

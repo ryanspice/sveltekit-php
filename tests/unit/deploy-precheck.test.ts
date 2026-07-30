@@ -11,6 +11,7 @@ function setDeployEnv(overrides: Record<string, string | undefined> = {}) {
 		DEPLOY_USER: 'deploy',
 		DEPLOY_REMOTE: '/srv/sveltekit-php',
 		DEPLOY_LOCAL: 'build',
+		DEPLOY_IDENTITY_FILE: '',
 		DEPLOY_PORT: '22',
 		DEPLOY_PROFILE: '',
 		ALPHA_SMOKE_BASE_URL: '',
@@ -44,6 +45,9 @@ describe('deploy environment precheck', () => {
 
 		setDeployEnv({ DEPLOY_LOCAL: '../build' });
 		expect(() => assertDeployEnv('test deploy', testEnv)).toThrow(/DEPLOY_LOCAL/);
+
+		setDeployEnv({ DEPLOY_IDENTITY_FILE: '../id_ed25519' });
+		expect(() => assertDeployEnv('test deploy', testEnv)).toThrow(/DEPLOY_IDENTITY_FILE/);
 	});
 
 	it('rejects unsafe alpha smoke URLs', () => {

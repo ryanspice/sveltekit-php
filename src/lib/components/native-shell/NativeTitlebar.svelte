@@ -1,6 +1,4 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
-
 	type NativePlatform = 'auto' | 'windows' | 'macos';
 	type NativeWindowAction = 'start-dragging' | 'toggle-maximize';
 	type PendingDrag = {
@@ -159,11 +157,7 @@
 		dispatchHostWindowAction('toggle-maximize');
 	}
 
-	onDestroy(() => {
-		clearPendingDrag();
-	});
-
-	onMount(() => {
+	$effect(() => {
 		const handleWindowBlur = () => {
 			clearPendingDrag();
 		};
@@ -171,6 +165,7 @@
 		window.addEventListener('blur', handleWindowBlur);
 
 		return () => {
+			clearPendingDrag();
 			window.removeEventListener('blur', handleWindowBlur);
 		};
 	});

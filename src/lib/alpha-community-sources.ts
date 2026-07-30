@@ -30,6 +30,27 @@ export type ResearchTrustBoundary =
 	| 'public-discussion-sample'
 	| 'package-ecosystem-discovery'
 	| 'manual-qualitative-review';
+export type ResearchSourceHealth =
+	| 'countable-public-api'
+	| 'rate-limited-public-discussion'
+	| 'manual-review-only';
+export type ResearchActionLane =
+	| 'primary-release-evidence'
+	| 'supporting-release-evidence'
+	| 'qualitative-context'
+	| 'manual-claim-check';
+export type ResearchConfidenceTier =
+	| 'high-public-index'
+	| 'medium-public-sample'
+	| 'low-fragile-sample'
+	| 'manual-unverified';
+export type ResearchResultTotalField =
+	| 'total_count'
+	| 'total'
+	| 'results.length'
+	| 'items.length'
+	| 'data.dist'
+	| 'manual-review-only';
 
 export function getCommunitySourceHost(href: string): string {
 	try {
@@ -231,6 +252,142 @@ export function getResearchPriority(provider: CommunityProvider): number {
 	return 4;
 }
 
+export function getResearchSourceHealth(provider: CommunityProvider): ResearchSourceHealth {
+	if (provider === 'reddit') {
+		return 'rate-limited-public-discussion';
+	}
+
+	if (provider === 'search-link-only') {
+		return 'manual-review-only';
+	}
+
+	return 'countable-public-api';
+}
+
+export function getResearchActionLane(provider: CommunityProvider): ResearchActionLane {
+	if (provider === 'github-repositories' || provider === 'github-issues') {
+		return 'primary-release-evidence';
+	}
+
+	if (provider === 'npm' || provider === 'packagist' || provider === 'stackoverflow') {
+		return 'supporting-release-evidence';
+	}
+
+	if (provider === 'reddit') {
+		return 'qualitative-context';
+	}
+
+	return 'manual-claim-check';
+}
+
+export function getResearchConfidenceTier(provider: CommunityProvider): ResearchConfidenceTier {
+	if (provider === 'github-repositories' || provider === 'npm' || provider === 'packagist') {
+		return 'high-public-index';
+	}
+
+	if (provider === 'github-issues' || provider === 'stackoverflow') {
+		return 'medium-public-sample';
+	}
+
+	if (provider === 'reddit') {
+		return 'low-fragile-sample';
+	}
+
+	return 'manual-unverified';
+}
+
+export function getResearchReleaseUse(provider: CommunityProvider): string {
+	if (provider === 'github-repositories') {
+		return 'Primary alpha signal for comparable adapter shape, source availability, and maintenance posture.';
+	}
+
+	if (provider === 'github-issues') {
+		return 'Primary alpha signal for repeated runtime, routing, form-action, and hosting friction.';
+	}
+
+	if (provider === 'npm' || provider === 'packagist') {
+		return 'Supporting alpha signal for package ecosystem discovery and naming/install expectations.';
+	}
+
+	if (provider === 'stackoverflow') {
+		return 'Supporting alpha signal for support burden and unresolved deployment questions.';
+	}
+
+	if (provider === 'reddit') {
+		return 'Qualitative alpha context only; do not promote Reddit counts to release-blocking evidence.';
+	}
+
+	return 'Manual qualitative context for host configuration claims that public APIs cannot prove.';
+}
+
+export function getResearchReleaseClaimUse(provider: CommunityProvider): string {
+	if (provider === 'github-repositories') {
+		return 'Can support claims about comparable adapter availability, active maintenance posture, and implementation shape after top repositories are reviewed.';
+	}
+
+	if (provider === 'github-issues') {
+		return 'Can support claims about recurring user pain only after top issues/discussions are manually sampled.';
+	}
+
+	if (provider === 'npm' || provider === 'packagist') {
+		return 'Can support ecosystem/naming/discovery claims, but not runtime correctness claims.';
+	}
+
+	if (provider === 'stackoverflow') {
+		return 'Can support support-burden and deployment-confusion claims after top questions are reviewed.';
+	}
+
+	if (provider === 'reddit') {
+		return 'Qualitative language only; never use as a hard demand, quality, or release-readiness claim.';
+	}
+
+	return 'Manual verification required before this source supports any release claim.';
+}
+
+export function getResearchBlockedOutcomePolicy(provider: CommunityProvider): string {
+	if (provider === 'reddit') {
+		return 'Record as blocked or failed, keep manual-review-required true, and continue with other source lanes.';
+	}
+
+	if (provider === 'search-link-only') {
+		return 'Keep as manual-review-required; alpha review must open the linked search before relying on the claim.';
+	}
+
+	return 'Record API failure per source and require either a fresh retry or a manual linked-source review before release-critical use.';
+}
+
+export function getResearchAlphaEvidenceChecklist(provider: CommunityProvider): string[] {
+	const common = [
+		'alpha-community-source-evidence-checklist',
+		'confirm-source-host',
+		'record-source-to-keyword-edge',
+		'compare-curated-signal-score-to-collected-demand-score',
+		'keep-directional-community-signal-boundary'
+	];
+
+	if (provider === 'github-repositories') {
+		return [...common, 'review-maintenance-signal', 'review-adapter-implementation-pattern'];
+	}
+
+	if (provider === 'github-issues') {
+		return [...common, 'scan-recurring-runtime-failures', 'scan-routing-and-form-action-friction'];
+	}
+
+	if (provider === 'npm' || provider === 'packagist') {
+		return [...common, 'check-package-ecosystem-overlap', 'check-install-surface-expectations'];
+	}
+
+	if (provider === 'stackoverflow') {
+		return [...common, 'review-unresolved-support-questions', 'capture-hosting-failure-language'];
+	}
+
+	if (provider === 'reddit') {
+		return [...common, 'treat-counts-as-fragile', 'capture-language-not-hard-demand'];
+	}
+
+	return [...common, 'open-manual-research-link', 'capture-host-configuration-evidence'];
+}
+
 export function buildSourceToKeywordEdge(
 	community: AlphaCommunitySource,
 	keyword: string,
@@ -311,6 +468,78 @@ export function getResearchCollectorNote(provider: CommunityProvider): string {
 	return 'Uses a public unauthenticated JSON endpoint with timeout and failure recorded per source.';
 }
 
+export function getResearchResultTotalField(provider: CommunityProvider): ResearchResultTotalField {
+	if (provider === 'github-repositories' || provider === 'github-issues') {
+		return 'total_count';
+	}
+
+	if (provider === 'npm' || provider === 'packagist') {
+		return 'total';
+	}
+
+	if (provider === 'stackoverflow') {
+		return 'items.length';
+	}
+
+	if (provider === 'reddit') {
+		return 'data.dist';
+	}
+
+	return 'manual-review-only';
+}
+
+export function getResearchTopResultFields(provider: CommunityProvider): string[] {
+	if (provider === 'github-repositories') {
+		return ['items[].full_name', 'items[].html_url', 'items[].stargazers_count'];
+	}
+
+	if (provider === 'github-issues') {
+		return ['items[].title', 'items[].html_url', 'items[].comments'];
+	}
+
+	if (provider === 'npm') {
+		return ['objects[].package.name', 'objects[].package.links.npm', 'objects[].score.final'];
+	}
+
+	if (provider === 'packagist') {
+		return ['results[].name', 'results[].url', 'results[].downloads'];
+	}
+
+	if (provider === 'stackoverflow') {
+		return ['items[].title', 'items[].link', 'items[].score'];
+	}
+
+	if (provider === 'reddit') {
+		return ['data.children[].data.title', 'data.children[].data.permalink', 'data.children[].data.score'];
+	}
+
+	return ['manual-search-result.title', 'manual-search-result.url', 'manual-review-note'];
+}
+
+export function getResearchSampleReviewRule(provider: CommunityProvider): string {
+	if (provider === 'github-repositories') {
+		return 'Before using counts in release notes, inspect top repositories for adapter relevance, recency, license, and maintenance activity.';
+	}
+
+	if (provider === 'github-issues') {
+		return 'Before using discussion counts as support evidence, sample top issues for repeated SvelteKit/PHP hosting failures rather than generic mentions.';
+	}
+
+	if (provider === 'npm' || provider === 'packagist') {
+		return 'Before using registry totals, inspect top package names to avoid counting unrelated packages or abandoned experiments as adapter demand.';
+	}
+
+	if (provider === 'stackoverflow') {
+		return 'Before using Q&A counts, sample top questions for unresolved routing, deployment, or form-action blockers.';
+	}
+
+	if (provider === 'reddit') {
+		return 'Treat top posts as qualitative language only; do not convert Reddit samples into release-blocking demand evidence.';
+	}
+
+	return 'Open the manual search link and capture a dated reviewer note before using this source in release claims.';
+}
+
 export function describeCommunitySource(community: AlphaCommunitySource, keyword: string) {
 	const provider = classifyCommunitySource(community);
 
@@ -326,14 +555,25 @@ export function describeCommunitySource(community: AlphaCommunitySource, keyword
 		evidenceKind: getResearchEvidenceKind(provider),
 		collectionRisk: getResearchCollectionRisk(provider),
 		collectionPriority: getResearchPriority(provider),
+		actionLane: getResearchActionLane(provider),
+		confidenceTier: getResearchConfidenceTier(provider),
 		freshnessMaxAgeHours: getResearchFreshnessMaxAgeHours(provider),
 		evidenceWeight: getResearchEvidenceWeight(provider),
 		trustBoundary: getResearchTrustBoundary(provider),
+		sourceHealth: getResearchSourceHealth(provider),
 		analyticsLinkageMarker: 'analytics-linked-keyword-graph',
+		alphaEvidenceChecklistMarker: 'alpha-community-source-evidence-checklist',
+		alphaEvidenceChecklist: getResearchAlphaEvidenceChecklist(provider),
 		sourceToKeywordEdge: buildSourceToKeywordEdge(community, keyword, provider),
 		manualReviewRequired: provider === 'search-link-only' || provider === 'reddit',
 		proofUse: getResearchProofUse(provider),
+		releaseUse: getResearchReleaseUse(provider),
+		releaseClaimUse: getResearchReleaseClaimUse(provider),
 		reviewerAction: getResearchReviewerAction(provider),
-		collectorNote: getResearchCollectorNote(provider)
+		collectorNote: getResearchCollectorNote(provider),
+		resultTotalField: getResearchResultTotalField(provider),
+		topResultFields: getResearchTopResultFields(provider),
+		sampleReviewRule: getResearchSampleReviewRule(provider),
+		blockedOutcomePolicy: getResearchBlockedOutcomePolicy(provider)
 	};
 }

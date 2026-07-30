@@ -1,8 +1,39 @@
 # SvelteKit PHP adapter feature catalogue
 
-Last reviewed: 2026-06-16
+Last reviewed: 2026-07-06
 
 This is the human-readable feature map for `sveltekit-php`. It combines official SvelteKit adapter expectations, Azure Static Web Apps patterns, PHP-FPM/Composer ideas, WordPress/CMS embedding ideas, and this repo's current support level.
+
+## Current Svelte 5/SvelteKit 2 adapter parity snapshot
+
+Latest package evidence captured for the alpha track:
+
+| Package | Latest | Repo range | Support | Notes |
+| --- | ---: | --- | --- | --- |
+| `svelte` | `5.56.4` | `^5.45.6` | 🟢 | Same-major Svelte 5 support is part of the alpha fixture lane. |
+| `@sveltejs/kit` | `2.69.1` | `^2.49.1` | 🟢 | Same-major SvelteKit 2 adapter shape is part of the alpha fixture lane. |
+| `@sveltejs/vite-plugin-svelte` | `7.1.4` | `^6.2.1` | 🟡 | Latest major is validated by `alpha:latest-vite-major:smoke`; it is not the support floor. |
+| `vite` | `8.1.3` | `^7.2.6` | 🟡 | Latest major is validated by `alpha:latest-vite-major:smoke`; it is not the support floor. |
+
+Official adapter comparison snapshot:
+
+| Adapter | Latest | Support | What this repo should emulate |
+| --- | ---: | --- | --- |
+| `@sveltejs/adapter-node` | `5.5.7` | 🟡 | Origin, trusted proxy headers, address policy, body-size, and lifecycle guard patterns. |
+| `@sveltejs/adapter-static` | `3.0.10` | 🟢 | Static/prerendered output, fallback/strict thinking, trailing slash rules, and no-hydration static pages. |
+| `@sveltejs/adapter-cloudflare` | `7.2.9` | 🟡 | Platform context and static/dynamic header boundaries. |
+| `@sveltejs/adapter-netlify` | `6.0.4` | 🟡 | Forms and platform-context comparison, not Netlify behavior claims. |
+| `@sveltejs/adapter-vercel` | `6.3.4` | 🟡 | Per-route config, skew protection, ISR, and image optimization as deferred ideas. |
+| `@sveltejs/adapter-auto` | `7.0.1` | 🟡 | Package discoverability and explicit adapter selection, not zero-config PHP host detection. |
+
+Live consumer evidence:
+
+| Surface | Result | Support |
+| --- | --- | --- |
+| `https://blog.ryanspice.com/` | `200`, `data-site="ryan"`, Ryan metadata present, no observed `sveltekit:start`, no module script marker, no `__sveltekit` marker. | 🟢 Consumer proof for static/no-hydration theme stability. |
+| `robots.txt` and `sitemap.xml` | Both returned `200`. | 🟢 Public crawler surface is healthy. |
+| `seo_audit_python` | 32 pages, score `91`, grade `A-`, 2 high, 5 medium, 13 low, 1 info findings. | 🟡 Useful consumer proof, but content/template cleanup remains. |
+| Dedicated hosted PHP adapter fixture | Working-ground route is current alpha hosted proof. | 🟢 `https://blog.canopydigital.ca/dev/sveltekitphp/` was refreshed and `bun run alpha:deploy:dev-host -- --apply --smoke` passed hosted smoke for `1.0.2-alpha.0` on 2026-07-01. |
 
 ## Legend
 
@@ -31,6 +62,9 @@ This pass rechecked the catalogue against current official docs and community ad
 - [x] 🟢 Official adapter contract: SvelteKit adapters still revolve around `adapt(builder)`, optional `emulate`, optional `supports`, output writing, manifest generation, `server.respond`, platform data, bundling, and correct placement of static/client/server output.
 - [x] 🟢 Static adapter baseline: `adapter-static` still frames fully prerendered output, `fallback`, `precompress`, `strict`, and trailing-slash behavior as the relevant static-host contract.
 - [x] 🟢 Node adapter baseline: `adapter-node` remains the best source for env-driven runtime knobs: `ORIGIN`, forwarded host/protocol/port headers, address headers, body size limits, keep-alive/shutdown behavior, `envPrefix`, and custom server/health-route patterns.
+- [x] 🟢 Latest Svelte/SvelteKit same-major snapshot: `svelte@5.56.4` and `@sveltejs/kit@2.69.1` remain same-major alpha gate targets.
+- [x] 🟡 Latest Vite/plugin snapshot: `vite@8.1.3` and `@sveltejs/vite-plugin-svelte@7.1.4` are covered by `alpha:latest-vite-major:smoke` as latest-major validation lanes, not dependency-floor upgrades.
+- [x] 🟢 Live blog consumer proof: `blog.ryanspice.com` currently corroborates static/no-hydration homepage behavior and returns healthy robots/sitemap responses.
 - [x] 🟢 Azure SWA baseline: `svelte-adapter-azure-swa` still splits static output and Azure Function SSR output, uses `build/static` and `build/server` by default, exposes `apiDir`/`staticDir`, and protects critical SWA routing config.
 - [x] 🟢 Azure platform config: `staticwebapp.config.json` remains the useful model for declarative routes, auth/roles, rewrites, redirects, fallback exclusions, response overrides, headers, MIME types, runtime selection, forwarding hosts, and required headers.
 - [x] 🟢 PHP/community baseline: `vite-plugin-sveltekit-php-backend` is still a PHP-FPM/Composer/SvelteKit-as-router lane, not the same lane as shared-hosting static PHP deployment.
@@ -48,16 +82,18 @@ This pass rechecked the catalogue against current official docs and community ad
 | [x] | 🟢 | Env safety | `.env` safety, `.env.example`, release-prep verification, and deploy precheck exist. | Keep release-prep gate before publish. |
 | [x] | 🟢 | Generated artifact sync | `verify:artifacts` exists and strict mode is part of the local v1 gate. | Keep generated output source-owned. |
 | [x] | 🟢 | MIT license | Root `LICENSE` and package metadata now declare MIT. | Re-run package dry-run before publish. |
-| [x] | 🟢 | `csr=false` no-hydration fixture | `/alpha-readiness/no-hydration` proves prerendered no-hydration static output. | Keep in hosted smoke. |
+| [x] | 🟢 | `csr=false` no-hydration fixture | `/alpha-readiness/no-hydration` proves prerendered no-hydration static output with `csr-disabled-prerender-contract` and `theme-stable-ssr-html` markers. | Keep as required alpha evidence and hosted smoke coverage. |
 | [x] | 🟢 | `php-static` client-fallback boundary | Non-prerendered `php-static` page shims expose fallback headers instead of pretending to be PHP document SSR. | Keep boundary explicit in docs and smoke. |
+| [x] | 🟢 | Svelte 5/SvelteKit 2 same-major adapter shape | `supports`, `emulate().platform`, php-static, PHP handlers/actions, no-hydration fixture, and report graphics align with current SvelteKit 2 adapter guidance. | Keep `alpha:latest-same-major:smoke` in the alpha lane. |
+| [x] | 🟢 | Live blog static/no-hydration consumer proof | `blog.ryanspice.com` homepage, robots, sitemap, and SEO crawl evidence are now recorded as consumer proof. | Keep separate from hosted adapter fixture proof. |
 | [x] | 🟡 | `js-ssr` sidecar lane | Real dynamic Svelte document SSR is available only through the JS sidecar mode. | Needs stronger production recipe and hosted proof. |
 | [x] | 🟡 | Root `router.php` parity | Root router exists, generated router is hardened, but parity remains easy to drift. | Add fixture-driven parity checks. |
-| [x] | 🟡 | Base/path resolution | Existing routing handles normal paths; Azure-style fallback exclusions and trailing-slash assertions need stronger coverage. | Add path/fallback/MIME smoke cases. |
-| [x] | 🟡 | Origin/proxy handling | Current runtime has enough to work locally, but Node-style trusted proxy/origin semantics are not fully expressed as a contract. | Add env contract and docs. |
+| [x] | 🟡 | Base/path resolution | Existing routing handles normal paths, fallback asset exclusions, and MIME parity; trailing-slash assertions still need stronger hosted coverage. | Add trailing-slash fixture assertions. |
+| [x] | 🟡 | Origin/proxy handling | `docs/HOSTING-CONTRACT.md` now defines the Node-style origin/proxy env contract and spoofing warning; runtime trusted-header guards remain future work. | Add runtime parsing only with host/proxy fixtures. |
 | [ ] | 🔴 | External hosted PHP proof | Local PHP hosted gate passed, but real external PHP host smoke is still required before stable. | Deploy fixture and run `v1:gate:hosted`. |
 | [ ] | 🔴 | npm publish proof | Package is not publish-proven because local npm auth previously failed. | Authenticate and publish alpha only. |
 | [x] | 🟢 | Adapter `supports` hooks | Implemented for `$app/server` `read` and `instrumentation.server.js`: `php-static` fails clearly, `js-ssr` remains the sidecar lane. | Keep messages aligned with SvelteKit docs. |
-| [ ] | 🔴 | Adapter `emulate().platform` | Not yet implemented. Would make mode/platform assumptions clearer in dev/build/preview. | Add after supports or defer to v1.x. |
+| [x] | 🟢 | Adapter `emulate().platform` | Implemented as a non-secret `event.platform.php` contract for dev/build/preview with mode, output, base path, runtime capability, version, prerender, and build-identity presence. | Keep the surface capability-only; do not expose env values or marker payloads. |
 | [ ] | 🔴 | Composer bootstrap | Not implemented in core. Useful but requires path safety and fixtures. | Candidate v1.x item. |
 | [ ] | 🔴 | PHP-FPM dev bridge | Not this repo's current deployment lane. | Keep as future profile/package. |
 | [ ] | 🔴 | WordPress/CMS profile | Not implemented in core. | Recipe first, optional profile later. |
@@ -75,6 +111,7 @@ This pass rechecked the catalogue against current official docs and community ad
 | [x] | 🟢 | Adapter `supports` checks | Users should get build-time clarity for unsupported production APIs. | Implemented for `read` and instrumentation. |
 | [x] | 🟢 | Reserved route validation | Azure SWA's `/api` reserved-route check is a useful model; this adapter needs its own generated-prefix guard. | Implemented for generated adapter segments and files in strict mode. |
 | [x] | 🟢 | Fallback asset exclusions | Azure `navigationFallback.exclude` maps directly to avoiding JS/CSS/image requests receiving fallback HTML. | Hosted smoke now probes missing asset-like paths. |
+| [x] | 🟡 | Vite 8 / plugin 7 validation lane | Latest npm has moved beyond the repo's current Vite/plugin major range, and the isolated smoke lane proves the current adapter fixture still builds. | Keep `alpha:latest-vite-major:smoke` current before raising dependency floors. |
 | [x] | 🟡 | Origin/proxy/body-size runtime contract | Node adapter docs show these are production correctness and security features, not polish. | Docs are added in `docs/HOSTING-CONTRACT.md`; runtime guards remain future work. |
 
 ## P1 reliability checklist
@@ -82,14 +119,14 @@ This pass rechecked the catalogue against current official docs and community ad
 | Check | Support | Item | Source model | PHP path |
 | --- | --- | --- | --- | --- |
 | [x] | 🟢 | `supports.read` / `supports.instrumentation` | Official writing-adapters API | Descriptive build-time errors for unsupported `php-static` features. |
-| [ ] | 🔴 | Mode-aware `event.platform.php` | Official `emulate().platform` | Expose mode/base/path capabilities without secrets. |
-| [ ] | 🔴 | Trusted forwarded headers | `adapter-node` | Add `SK_ORIGIN`, trusted proto/host/port headers, and warnings for spoofable headers. |
-| [ ] | 🔴 | Client address policy | `adapter-node` `ADDRESS_HEADER` / `XFF_DEPTH` | Add right-side trusted proxy depth parsing where PHP exposes headers. |
-| [ ] | 🔴 | Body size limit | `adapter-node` `BODY_SIZE_LIMIT` | Add `SK_BODY_SIZE_LIMIT` docs/guard and explain PHP `post_max_size` / `upload_max_filesize`. |
+| [x] | 🟢 | Mode-aware `event.platform.php` | Official `emulate().platform` | Exposes mode/base/path/runtime capabilities without secrets. |
+| [x] | 🟡 | Trusted forwarded headers | `adapter-node` | Docs define `SK_ORIGIN`, trusted proto/host/port headers, and spoofing warnings; runtime parsing stays future until proxy fixtures exist. |
+| [x] | 🟡 | Client address policy | `adapter-node` `ADDRESS_HEADER` / `XFF_DEPTH` | Docs define `SK_ADDRESS_HEADER` and `SK_XFF_DEPTH` as disabled-by-default; right-side trusted proxy parsing remains future work. |
+| [x] | 🟡 | Body size limit | `adapter-node` `BODY_SIZE_LIMIT` | Docs define PHP-owned limits and future `SK_BODY_SIZE_LIMIT`; runtime raw-body guard remains future work. |
 | [ ] | 🔴 | Host config generation model | Azure SWA protected config merge | Core `.htaccess`/Nginx/PHP rules stay protected; user headers/redirects/MIME rules merge safely. |
-| [ ] | 🔴 | Route-specific/global headers docs | Azure SWA `globalHeaders` / route headers | Document static file headers vs PHP dynamic response headers. |
-| [ ] | 🔴 | Custom MIME map | Azure SWA `mimeTypes` | Add docs/snippets for `.json`, `.webmanifest`, `.svg`, `.wasm`, and generated chunks. |
-| [ ] | 🔴 | Trailing slash recipe | `adapter-static` / Azure trailing-slash behavior | Document `trailingSlash: 'always'` when host expects directory index output. |
+| [x] | 🟡 | Route-specific/global headers docs | Azure SWA `globalHeaders` / route headers | `docs/HOSTING-CONTRACT.md` documents static-file versus PHP-response ownership; generated host-config merge remains future work. |
+| [x] | 🟡 | Custom MIME map | Azure SWA `mimeTypes` | Router MIME parity and host snippets cover JSON maps, webmanifest, SVG, WASM, AVIF, and fonts; user-configurable MIME merge remains future work. |
+| [x] | 🟡 | Trailing slash recipe | `adapter-static` / Azure trailing-slash behavior | `docs/HOSTING-CONTRACT.md` documents `trailingSlash` host matching; fixture assertions remain future work. |
 | [ ] | 🔴 | Composer autoload hook | PHP-FPM/Composer adapter lane | Add optional `phpBootstrap` with path safety and PHP smoke fixture. |
 
 ## P2 differentiation checklist
@@ -120,7 +157,7 @@ This pass rechecked the catalogue against current official docs and community ad
 
 | Family | Checked source | What they do better | Our support | Adoption decision |
 | --- | --- | --- | --- | --- |
-| Official adapter API | SvelteKit writing-adapters docs | `supports`, `emulate`, platform context, clear output expectations. | 🟢 `supports` guardrails exist; 🔴 `emulate` is still missing; 🟢 adapter output exists. | Adopt `emulate` after hosted proof. |
+| Official adapter API | SvelteKit writing-adapters docs | `supports`, `emulate`, platform context, clear output expectations. | 🟢 `supports` guardrails exist; 🟢 `emulate().platform` exposes `event.platform.php`; 🟢 adapter output exists. | Keep parity checks tied to release-prep so the adapter contract does not drift. |
 | Static adapter | SvelteKit adapter-static docs | Clear strict/fallback/precompress/trailing-slash contract. | 🟡 Partial. Static/prerender lane exists; strict fallback semantics need stronger checks. | Adopt stricter mode warnings and fallback exclusions. |
 | Node adapter | SvelteKit adapter-node docs | Runtime env contract for origin, proxy headers, body size, address, shutdown, custom server. | 🟡 Partial. Basic PHP runtime works; Node-style safety knobs not fully formalized. | Adopt origin/proxy/body-size docs and small guards. |
 | Vercel | SvelteKit adapter-vercel docs | Per-route config, split functions, image config, ISR, skew protection. | 🔴 Mostly missing/not claimed. | Only adopt deployment-skew docs; defer ISR/image config. |
@@ -143,7 +180,7 @@ This pass rechecked the catalogue against current official docs and community ad
 - [x] 🟢 Local release gates and artifact-sync gate.
 - [x] 🟢 Env safety checks and deploy precheck.
 - [x] 🟢 Package metadata, MIT license, and publish allowlist.
-- [x] 🟢 No-hydration `csr=false` fixture for blog/static skins.
+- [x] 🟢 No-hydration `csr=false` fixture for blog/static skins, required alpha evidence, and hosted smoke forbidden hydration-marker checks.
 - [x] 🟢 Explicit client-fallback boundary for non-prerendered `php-static` pages.
 - [x] 🟢 Adapter `supports` guardrails for unsupported `php-static` production APIs.
 - [x] 🟢 Reserved route validation for generated adapter paths.
@@ -190,3 +227,4 @@ This pass rechecked the catalogue against current official docs and community ad
 - Keep host-specific features behind recipes or profiles until real deployments need them.
 - If a feature can break routing, path safety, or generated artifact sync, it must ship with a fixture and a verification gate.
 - If a feature mostly helps WordPress, Azure, or PHP-FPM users, avoid making it required for basic shared hosting.
+

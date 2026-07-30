@@ -1,4 +1,5 @@
 import type { AlphaReadinessReport } from './alpha-readiness';
+import { buildAlphaHardProofBlockers, type AlphaHardProofBlocker } from './alpha-hard-proof-blockers';
 import { requiredAlphaEvidence } from './alpha-required-evidence';
 
 type ManifestLike = {
@@ -22,6 +23,7 @@ type ManifestLike = {
 		reason?: string | null;
 		failure?: string | null;
 	};
+	hardProofBlockers?: AlphaHardProofBlocker[];
 } | null;
 
 export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: ManifestLike = null) {
@@ -30,9 +32,15 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 	const blockedAreas = report.readinessAreas.filter((area) => area.status === 'blocked');
 	const hostedStatus = manifest?.hostedAlphaSmoke?.status ?? 'missing';
 	const hostedCheckCount = manifest?.hostedAlphaSmoke?.checkCount ?? 0;
+	const hostedProofLine =
+		hostedStatus === 'passed'
+			? `- Hosted PHP proof is present for the checked alpha target: \`hosted-php-smoke-proof\` has ${hostedCheckCount} hosted checks recorded in \`report/alpha-remote-smoke.json\`. Stable still requires the current full local gate, strict artifact sync, packed consumer proof, real native-host proof for OS-native claims, and a fresh hosted gate for the release deployment target.`
+			: '- Hosted PHP proof is external: `hosted-php-smoke-proof` remains incomplete until `ALPHA_SMOKE_BASE_URL` targets a real PHP deployment and `bun run alpha:gate:hosted` passes.';
 	const requiredEvidence = manifest?.requiredEvidence ?? requiredAlphaEvidence;
+	const hardProofBlockers = manifest?.hardProofBlockers ?? buildAlphaHardProofBlockers();
 	const endpoints = manifest?.runtimeEndpoints ?? [
 		{ path: '/alpha-readiness', kind: 'native-styled-report-page' },
+		{ path: '/alpha-readiness/no-hydration', kind: 'no-hydration-prerender-fixture' },
 		{ path: '/alpha-readiness/report.json', kind: 'readiness-json-endpoint' },
 		{ path: '/alpha-readiness/report.html', kind: 'html-report-endpoint' },
 		{ path: '/alpha-readiness/report.md', kind: 'markdown-report-endpoint' },
@@ -46,6 +54,7 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		{ path: '/alpha-readiness/package-contract.json', kind: 'package-contract-json-endpoint' },
 		{ path: '/alpha-readiness/native-host-contract.json', kind: 'native-host-contract-json-endpoint' },
 		{ path: '/alpha-readiness/native-host-guide.md', kind: 'native-host-guide-markdown-endpoint' },
+		{ path: '/alpha-readiness/native-host-wrapper-smoke.json', kind: 'native-host-wrapper-smoke-json-endpoint' },
 		{
 			path: '/alpha-readiness/hosted-smoke-checklist.json',
 			kind: 'hosted-smoke-checklist-json-endpoint'
@@ -69,7 +78,7 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		'',
 		'## Release call',
 		'',
-		`This is an alpha candidate, not stable 1.0.0. The local evidence bundle is designed for runtime correctness, deployment safety, native-styled review, and open-source community research handoff.`,
+		`This is an alpha candidate, not stable 1.0.2. The local evidence bundle is designed for runtime correctness, deployment safety, native-styled review, and open-source community research handoff.`,
 		`Release policy: ${report.releasePolicy.marker}; channel ${report.releasePolicy.channel}; track ${report.releasePolicy.track}; rank ${report.releasePolicy.rank}.`,
 		`Rule: ${report.releasePolicy.releaseRule}`,
 		`Stable promotion rule: ${report.releasePolicy.stablePromotionRule}`,
@@ -83,6 +92,33 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		...requiredEvidence.map((marker) => `- ${marker}`),
 		'',
 		`Hosted smoke status: ${hostedStatus} (${hostedCheckCount} checks recorded).`,
+		'',
+		'## Alpha vs stable proof status',
+		'',
+		'- Alpha policy proof is deterministic: `alpha-over-rc-release-policy` pins the project-specific alpha track and blocks RC/latest/stable labels.',
+		'- No-hydration proof is deterministic locally: `/alpha-readiness/no-hydration` carries `csr-disabled-prerender-contract`, but stable still needs hosted proof that the deployed HTML excludes `<script`, `sveltekit:start`, and `data-sveltekit-hydrate`.',
+		'- Native host compatibility proof is source-observed: `native-host-compatibility-matrix` maps UltraGear Windows Mica, taskbar progress, drag, and maximize cues, including `ShellFeatureProbe.mica_supported` and `current_shell_features()`, to browser-safe host events, but it does not replace real OS-native wrapper smoke proof.',
+		'- Native wrapper replay is deterministic handoff evidence: `native-host-wrapper-event-replay` rows must produce `expectedHistoryResult.mode=native-host`, but `realHostVerified` stays false until an actual Windows/macOS wrapper runs it.',
+		'- Community analytics handoff is reviewer-auditable: `result-total-field-contract`, `top-result-field-contract`, and `sample-review-rule` are exposed in JSON/Markdown/SVG and in `alpha-community-sources.csv` as `result_total_field`, `top_result_fields`, and `sample_review_rule`.',
+		hostedProofLine,
+		'',
+		'## Support lanes for 1.0.2-alpha',
+		'',
+		'- Supported: `php-static` covers prerendered/static HTML, PHP data/action handlers, endpoint dispatch, base-path deployment, root/generated router parity, and no-hydration `csr=false` pages.',
+		'- Supported with sidecar: `js-ssr` covers request-time Svelte document SSR, exact streamed/deferred document behavior, and Node-like rendering that `php-static` intentionally does not emulate.',
+		'- Validation lane: latest same-major Svelte 5/SvelteKit 2 is smoke-tested, and Vite 8 plus `@sveltejs/vite-plugin-svelte` 7 are smoke-tested in an isolated fixture without changing dependency floors.',
+		'- Unsupported for this 1.x line: SvelteKit remote functions, `.remote.*` route files, WordPress plugin mode, PHP-FPM package mode, ISR, built-in image optimization, and adapter-owned auth/roles until fixtures, docs, and hosted proof exist.',
+		'- Future and host-owned: native wrapper evidence is deterministic browser/PHP handoff only; real Windows Mica, macOS vibrancy, taskbar progress, drag, and maximize claims require an external wrapper smoke.',
+		'- Proof boundary: `blog.ryanspice.com` is consumer proof for static/no-hydration behavior; `/dev/sveltekitphp` or another hosted PHP fixture plus npm-published consumer proof remains required before RC/stable.',
+		'',
+		'## Hard proof blockers',
+		'',
+		'These `hardProofBlockers` rows are the stable-promotion ledger. They define what still blocks stable `1.0.2`, real native-host claims, or fresh community claims.',
+		'',
+		...hardProofBlockers.map(
+			(blocker) =>
+				`- ${blocker.id}: ${blocker.status}; marker ${blocker.marker}; command \`${blocker.requiredCommand}\`; blocks ${blocker.blocks}. ${blocker.reviewerAction}`
+		),
 		'',
 		'## What is ready',
 		''
@@ -125,6 +161,8 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 			'Generated reports, graphics, CSVs, manifests, and contracts from source-controlled alpha modules.',
 		'directional-community-signal':
 			'Public-source community analytics collected by bun run alpha:analytics; counts are not telemetry.',
+		'no-live-community-api-runtime-boundary':
+			'Community analytics runtime endpoints serve deterministic handoffs; public-source collection stays in explicit local/CI commands.',
 		'deterministic-runtime-evidence':
 			'Runtime endpoints serve deterministic report data and do not call live community APIs.',
 		'requires-alpha-smoke-base-url-for-pass-evidence':
@@ -158,6 +196,16 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 			route: '/alpha-readiness/bridge-reuse.json',
 			markers: [
 				'lg-ultragear-native-platform-provenance',
+				'lg-ultragear-host-permission-checklist',
+				'realHostPermissionChecklist',
+				'real-host-permission-cue-required',
+				'hostPermissionCues',
+				'requiredHostPermission',
+				'src-tauri/capabilities/default.json',
+				'core:window:allow-set-effects',
+				'core:window:allow-set-progress-bar',
+				'core:window:allow-start-dragging',
+				'core:window:allow-toggle-maximize',
 				'packages/desktop-shell-ui/src/index.ts',
 				'@scriptgpt/desktop-shell-ui',
 				'desktopShellUiBinding',
@@ -166,9 +214,21 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 				'toggleWindowMaximize',
 				'Effect.Mica',
 				'win.setEffects',
+				'windowChromeState',
+				'mica-active',
+				'mica-inactive',
+				'plain',
+				'webview.setBackgroundColor([0, 0, 0, 0])',
 				'--window-bg-mica',
 				'--window-wash-inactive',
 				'data-native-platform',
+				'data-window-chrome-state',
+				'data-window-chrome-state="mica-active"',
+				'transparent-webview-material-boundary',
+				'data-transparent-webview-material-boundary="host-owned"',
+				'macos-material-host-policy',
+				'source-observed-macos-host-scaffold',
+				'macos-native-vibrancy-unverified',
 				'data-window-control-group',
 				'dragBlockSelector',
 				'win.startDragging',
@@ -181,7 +241,54 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 				'report-ready'
 			],
 			proofUse:
-				'Records the exact LG UltraGear source files and cue families behind Windows Mica, macOS-style chrome, host-owned window actions, and structured report/progress handoff.'
+				'Records the exact LG UltraGear source files and cue families behind Windows Mica, source-observed macOS host-material scaffolding, unverified native macOS vibrancy, macOS-style chrome, host-owned transparent webview material state, host-owned window actions, and structured report/progress handoff.'
+		},
+		realHostPermissionChecklist: {
+			route: '/alpha-readiness/native-host-contract.json',
+			markers: [
+				'lg-ultragear-host-permission-checklist',
+				'realHostPermissionChecklist',
+				'real-host-permission-cue-required',
+				'hostPermissionCues',
+				'requiredHostPermission',
+				'src-tauri/capabilities/default.json',
+				'core:window:allow-set-effects',
+				'core:window:allow-set-progress-bar',
+				'core:window:allow-start-dragging',
+				'core:window:allow-is-maximized',
+				'core:window:allow-maximize',
+				'core:window:allow-unmaximize',
+				'core:window:allow-toggle-maximize',
+				'core:window:allow-theme',
+				'core:window:allow-set-focus'
+			],
+			proofUse:
+				'Separates browser-safe native styling evidence from real OS-native wrapper proof by requiring explicit host permission evidence.'
+		},
+		nativeHostCompatibilityMatrix: {
+			route: '/alpha-readiness/native-host-contract.json',
+			markers: [
+				'native-host-compatibility-matrix',
+				'source-observed-host-compatibility-contract',
+				'packages/ultragear-widget-ui/src/app.ts',
+				'src-tauri/src/lib.rs',
+				'features.micaSupported',
+				'ShellFeatureProbe.mica_supported',
+				'current_shell_features()',
+				'cfg!(target_os = "windows")',
+				'windows-mica-effects',
+				'taskbar-progress-reporting',
+				'native-titlebar-drag-maximize',
+				'enableMicaWindowChrome(win)',
+				'syncTaskbarProgress(win, { saveInFlight, refreshInFlight, hasQueuedSave })',
+				'toggleDesktopWindowMaximize(win)',
+				'win.startDragging()',
+				'set-window-effect',
+				'set-progress',
+				'native-window-action'
+			],
+			proofUse:
+				'Maps observed UltraGear Windows/native host cues to browser-safe adapter host actions while keeping real OS-native support blocked on wrapper smoke proof.'
 		},
 		progressReportHandoff: {
 			route: '/alpha-readiness',
@@ -242,10 +349,30 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 			proofUse:
 				'Shows that native commands remain host-owned while the browser/PHP runtime exposes live Mica/progress/report handoff controls and records deterministic fallback state.'
 		},
+		noHydrationPrerenderFixture: {
+			route: '/alpha-readiness/no-hydration',
+			markers: [
+				'no-hydration-fixture',
+				'csr-disabled-prerender-contract',
+				'theme-stable-ssr-html',
+				'prerender=true',
+				'csr=false',
+				'forbiddenText:<script',
+				'forbiddenText:sveltekit:start',
+				'forbiddenText:data-sveltekit-hydrate'
+			],
+			proofUse:
+				'Proves blog/static-theme pages can remain prerendered and client-hydration-free so the SSR theme is not repainted after load.'
+		},
 		nativeHostBindingGuide: {
 			route: '/alpha-readiness/native-host-guide.md',
 			markers: [
 				'native host binding guide',
+				'lg-ultragear-host-permission-checklist',
+				'realHostPermissionChecklist',
+				'hostPermissionCues',
+				'requiredHostPermission',
+				'src-tauri/capabilities/default.json',
 				'data-native-host-handoff-controls',
 				'native-window-action',
 				'set-window-effect',
@@ -265,6 +392,23 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 			],
 			proofUse:
 				'Gives desktop-wrapper implementers a concrete host binding guide for Mica, titlebar, progress, report-ready handoff, and fallback history.'
+		},
+		nativeHostWrapperSmoke: {
+			route: '/alpha-readiness/native-host-wrapper-smoke.json',
+			markers: [
+				'native-host-wrapper-smoke',
+				'native-host-wrapper-probe',
+				'contract-ready',
+				'realHostVerified',
+				'deterministic-host-wrapper-handoff',
+				'report/alpha-native-host-wrapper-smoke.json',
+				'TaskbarProgressState',
+				'enableMicaWindowChrome',
+				'syncTaskbarProgress',
+				'toggleWindowMaximize'
+			],
+			proofUse:
+				'Publishes deterministic wrapper-smoke handoff evidence while keeping real Windows/macOS host execution explicit and still unclaimed.'
 		},
 		nativeVisualMatrix: {
 			route: '/alpha-readiness',
@@ -287,6 +431,8 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 				'providerCoverage',
 				'evidenceKindCoverage',
 				'collectionRiskCoverage',
+				'resultTotalFieldCoverage',
+				'sampleReviewRuleCoverage',
 				'Open-source analytics sources reviewers can audit first'
 			],
 			proofUse:
@@ -303,7 +449,17 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 				'manual-research-lanes',
 				'curated-signal-score',
 				'collected-demand-score',
-				'directional-community-signal'
+				'directional-community-signal',
+				'no-live-community-api-runtime-boundary',
+				'result-total-field-contract',
+				'top-result-field-contract',
+				'sample-review-rule',
+				'resultTotalField',
+				'topResultFields',
+				'sampleReviewRule',
+				'result_total_field',
+				'top_result_fields',
+				'sample_review_rule'
 			],
 			proofUse:
 				'Links each alpha keyword to source hosts, API endpoints, manual research links, curated signal scores, collected demand-score handoff fields, CSV rows, and analytics handoff notes.'
@@ -329,6 +485,9 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 			'report/alpha-remote-smoke.json',
 			'report/alpha-release-checklist.md',
 			'report/alpha-native-host-contract.json',
+			'report/alpha-native-host-wrapper-smoke.json',
+			'report/alpha-bridge-reuse.json',
+			'report/alpha-hosted-smoke-checklist.json',
 			'report/alpha-community-source-map.svg'
 		].includes(artifact.path)
 	);
@@ -343,6 +502,7 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 
 	lines.push('', '## Required release commands', '');
 	lines.push('- `bun run alpha:report:full`');
+	lines.push('- `bun run alpha:native:smoke`');
 	lines.push('- `bun run verify:alpha`');
 	lines.push('- `bun run alpha:gate`');
 	lines.push('- `ALPHA_SMOKE_BASE_URL=https://example.com/ bun run alpha:gate:hosted`');
@@ -355,4 +515,5 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 	lines.push('');
 	return lines.join('\n');
 }
+
 

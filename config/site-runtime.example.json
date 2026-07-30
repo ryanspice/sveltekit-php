@@ -1,0 +1,7 @@
+{
+  "sites": {
+    "ryanspice.com": {
+      "runtimeRoot": "%LOCALAPPDATA%/sveltekit-php/sites/ryanspice.com"
+    }
+  }
+}

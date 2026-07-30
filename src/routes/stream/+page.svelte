@@ -18,11 +18,11 @@
 		Step 2:
 		{#if data.step2}
 			{#await data.step2}
-				<span style="color: blue">Loading... (check network tab for progressive flush)</span>
+				<span class="loading-text">Loading... (check network tab for progressive flush)</span>
 			{:then val}
 				<strong>{val}</strong>
 			{:catch err}
-				<span style="color: red">Error: {err.message}</span>
+				<span class="error-text">Error: {err.message}</span>
 			{/await}
 		{:else}
 			<span>(step2 missing)</span>
@@ -31,3 +31,13 @@
 
 	<a href="{base}/">Back to Home</a>
 </div>
+
+<style>
+	.loading-text {
+		color: blue;
+	}
+
+	.error-text {
+		color: red;
+	}
+</style>

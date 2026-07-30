@@ -14,6 +14,7 @@ Current package track: `1.0.2-alpha.0`.
 - `php-static` is the deployment default
 - `js-ssr` is JavaScript-sidecar SSR behind PHP
 - Prerendered SSR still hydrates unless the app exports `csr = false`; use the build identity contract below for static skins where client data must not downgrade the deployed theme or tenant
+- SvelteKit remote functions (`kit.experimental.remoteFunctions` and `.remote.*` files) are unsupported in `1.0.2-alpha` and fail the build; see [`docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`](docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md)
 - Historical audit notes under `docs/AUDIT-*` and `docs/CHAT-*` are archival snapshots, not the current contract
 - Live example: [blog.ryanspice.com](https://blog.ryanspice.com) uses this adapter for its PHP-hosted release path
 - Adapter landscape and competitive positioning: [`docs/ADAPTER-LANDSCAPE.md`](docs/ADAPTER-LANDSCAPE.md)
@@ -32,6 +33,13 @@ Current package track: `1.0.2-alpha.0`.
   - `js-ssr`: PHP frontend proxy + JavaScript SSR sidecar (Full SSR + Streaming).
 
 `js-ssr` is the SSR mode string. It uses a JavaScript SSR sidecar behind the PHP entrypoint.
+
+Mode choice:
+
+- Choose `php-static` for prerendered static/blog/marketing pages and PHP-hosted form actions, data, and endpoint helpers.
+- Choose `php-static` with `prerender = true` and `csr = false` when the deployed HTML must stay static with no client hydration repaint.
+- Choose `js-ssr` when a route needs request-time Svelte document SSR, exact streamed/deferred behavior, or dynamic document rendering beyond PHP static shims.
+- Do not choose this adapter for SvelteKit remote functions yet; they are intentionally blocked until PHP generated-endpoint routing proof exists.
 
 - **API Proxy**: `/api/*` routes are automatically handled by PHP.
 
@@ -140,10 +148,13 @@ The alpha surface is expected to prove:
 
 - Windows 11 Mica/macOS-style browser-safe native shell cues reused from `B:\Dev\GPTLIGHTINGSTRENGTHTEST\lg-ultragear-bridge`.
 - A native-host guide at `/alpha-readiness/native-host-guide.md` and `report/alpha-native-host-guide.md` for optional desktop wrappers.
+- A no-hydration prerender proof at `/alpha-readiness/no-hydration` for blog/static skins that must keep stable SSR theme HTML without client hydration repaint.
+- A deterministic native wrapper smoke contract at `/alpha-readiness/native-host-wrapper-smoke.json` and `report/alpha-native-host-wrapper-smoke.json`, with `realHostVerified: false` until an actual Windows/macOS wrapper supplies proof.
+- Browser-safe system appearance helpers from UltraGear (`prefersDarkMode`, `bindColorSchemeWatcher`, and `window.matchMedia("(prefers-color-scheme: dark)")`) so native-style reports can track OS theme without native APIs in the PHP adapter runtime.
 - Report graphics at `/alpha-readiness/report.svg` and `/alpha-readiness/community-source-map.svg`.
 - Keyword-to-source graph evidence linking open-source/community searches, supported public API lanes, manual research lanes, CSV handoffs, and Markdown analytics handoffs.
 - `community-analytics-freshness-contract` metadata so collected counts are treated as directional evidence with an explicit refresh boundary.
-- Hosted PHP proof through `ALPHA_SMOKE_BASE_URL` before the same evidence can support stable `1.0.0`.
+- Hosted PHP proof through `ALPHA_SMOKE_BASE_URL` before the same evidence can support stable `1.0.2`.
 - **Streaming**: Visit `/stream` to see streaming responses (simulated in dev, real in prod).
 - **Layouts**: Visit `/parent-child` to test nested layout data inheritance.
 
@@ -154,6 +165,7 @@ The `/alpha-readiness` fixture is the operator-facing report surface for the 1.0
 The page provides:
 
 - Native-shell styled release status cards.
+- A no-hydration prerender fixture at `/alpha-readiness/no-hydration` with `csr-disabled-prerender-contract` and `theme-stable-ssr-html` markers.
 - A downloadable JSON readiness report at `/alpha-readiness/report.json`.
 - A standalone HTML report at `/alpha-readiness/report.html`.
 - A Markdown report at `/alpha-readiness/report.md`.
@@ -164,7 +176,10 @@ The page provides:
 - A gate matrix at `/alpha-readiness/gate-matrix.json`.
 - An evidence index at `/alpha-readiness/evidence-index.json`.
 - A package contract at `/alpha-readiness/package-contract.json`.
+- A synchronized `hardProofBlockers` ledger in the report, manifest, gate matrix, evidence index, package contract, release notes, and reviewer index.
 - A native-host contract at `/alpha-readiness/native-host-contract.json`.
+- A native-host wrapper guide at `/alpha-readiness/native-host-guide.md`.
+- A deterministic wrapper smoke contract at `/alpha-readiness/native-host-wrapper-smoke.json`.
 - A hosted-smoke checklist at `/alpha-readiness/hosted-smoke-checklist.json`.
 - An UltraGear bridge-reuse map at `/alpha-readiness/bridge-reuse.json`.
 - An alpha reviewer index at `/alpha-readiness/review-index.md`.
@@ -217,7 +232,7 @@ After deploying to a real PHP host, run the optional remote smoke against the ho
 ALPHA_SMOKE_BASE_URL=https://example.com/ bun run alpha:remote:smoke
 ```
 
-This checks the hosted home page, `/alpha-readiness`, `/alpha-readiness/report.json`, `/alpha-readiness/report.html`, `/alpha-readiness/report.md`, `/alpha-readiness/release-notes.md`, `/alpha-readiness/report.svg`, `/alpha-readiness/community-source-map.svg`, `/alpha-readiness/release-manifest.json`, `/alpha-readiness/gate-matrix.json`, `/alpha-readiness/evidence-index.json`, `/alpha-readiness/package-contract.json`, `/alpha-readiness/native-host-contract.json`, `/alpha-readiness/hosted-smoke-checklist.json`, `/alpha-readiness/bridge-reuse.json`, `/alpha-readiness/review-index.md`, `/alpha-readiness/community-signals.json`, `/alpha-readiness/community-analytics.md`, `/alpha-readiness/community-research-pack.json`, `/alpha-readiness/readiness.csv`, `/alpha-readiness/community-signals.csv`, `/alpha-readiness/community-sources.csv`, `/form-basic`, the default `/form-basic` POST action echo, expected content types, and traversal-style probes without printing URL credentials or env values. Keep credentials out of the URL; use a public smoke endpoint or CI secret-managed deploy target.
+This checks the hosted home page, `/alpha-readiness`, `/alpha-readiness/no-hydration`, `/alpha-readiness/report.json`, `/alpha-readiness/report.html`, `/alpha-readiness/report.md`, `/alpha-readiness/release-notes.md`, `/alpha-readiness/report.svg`, `/alpha-readiness/community-source-map.svg`, `/alpha-readiness/release-manifest.json`, `/alpha-readiness/gate-matrix.json`, `/alpha-readiness/evidence-index.json`, `/alpha-readiness/package-contract.json`, `/alpha-readiness/native-host-contract.json`, `/alpha-readiness/native-host-guide.md`, `/alpha-readiness/native-host-wrapper-smoke.json`, `/alpha-readiness/hosted-smoke-checklist.json`, `/alpha-readiness/bridge-reuse.json`, `/alpha-readiness/review-index.md`, `/alpha-readiness/community-signals.json`, `/alpha-readiness/community-analytics.md`, `/alpha-readiness/community-research-pack.json`, `/alpha-readiness/readiness.csv`, `/alpha-readiness/community-signals.csv`, `/alpha-readiness/community-sources.csv`, `/form-basic`, the default `/form-basic` POST action echo, expected content types, no-hydration markers, native wrapper smoke markers, and traversal-style probes without printing URL credentials or env values. The no-hydration fixture must include `csr-disabled-prerender-contract` and must not include `<script`, `sveltekit:start`, or `data-sveltekit-hydrate`. Keep credentials out of the URL; use a public smoke endpoint or CI secret-managed deploy target.
 
 The remote smoke writes `report/alpha-remote-smoke.json`. Subsequent `bun run alpha:report` exports embed that hosted evidence into the Markdown, HTML, and full JSON readiness reports.
 
@@ -288,6 +303,8 @@ The adapter scans generated `.php`, `.html`, and `.json` files, fails on missing
 
 Non-prerendered `php-static` pages are not PHP-side Svelte document SSR. They are client fallback pages with PHP data/action helpers. Generated route shims now expose that boundary with `X-SvelteKit-PHP-Page-Mode: client-fallback` and `X-SvelteKit-PHP-SSR: unsupported-in-php-static`; use `js-ssr` for real dynamic document SSR.
 
+`php-static` also does not claim exact SvelteKit/devalue streaming-deferred parity for request-time Svelte documents. It can serve prerendered HTML and PHP data/action endpoints, but exact streamed Svelte document/deferred chunk behavior belongs to `js-ssr`, where the PHP entrypoint proxies to the JavaScript SSR sidecar.
+
 ### Troubleshooting: theme changes after load
 
 If a static or blog-style deployment flashes the right theme and then changes after load, the issue is usually hydration or mismatched build identity, not PHP serving the wrong file.
@@ -330,6 +347,26 @@ Then visit `http://127.0.0.1:8080`.
 Use `.env.example` as the public template. Keep real deployment values in your shell, CI secrets, or another ignored local file; `.env` in this repo is only a local operational placeholder.
 
 The runtime base path is read from `SK_BASE_PATH` first and `DEPLOY_BASE` second. Leave both empty for root deployments.
+
+### Local site runtime roots
+
+Generated output, caches, private drafts, databases, encrypted files, and other mutable backend state should stay outside source-controlled and cloud-synced project folders. For normal Windows development, prefer a private path such as `%LOCALAPPDATA%\sveltekit-php\sites\<site-id>`. For servers, prefer a host-private path such as `/var/lib/sveltekit-php/sites/<site-id>`.
+
+This checkout also supports an adapter-developer POC lane for `ryanspice.com`: an ignored local config can map the site to `B:\Dev\sveltekit-php\.runtime\sites\ryanspice.com`. That path is acceptable for local adapter work because the adapter developer controls this checkout, but it is not the general recommendation for consumers.
+
+Use `config/site-runtime.example.json` as the committed template and keep real machine-specific overrides in ignored `config/site-runtime.local.json`. Resolve the current site root with:
+
+```powershell
+pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\Resolve-SiteRuntime.ps1 -SiteId ryanspice.com -Create
+```
+
+If a SvelteKit build writes adapter output outside the project or OS temp directory, set `SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS` to the trusted parent root before running `vite build`. The value is a semicolon-separated path list on Windows, for example:
+
+```powershell
+$env:SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS = 'B:\Dev\sveltekit-php\.runtime'
+```
+
+`.runtime\` is ignored and must not contain files intended for Git, OneDrive publishing, or deployment source control.
 
 Before running deploy or publish automation, verify required deploy values:
 

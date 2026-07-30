@@ -2309,8 +2309,10 @@ try {
 	return;
 } catch (Throwable $e) {
 	http_response_code(500);
+	error_log('[sveltekit-php] action error: ' . $e->getMessage());
 	header('Content-Type: application/json; charset=utf-8');
-    echo sk_json_encode(['type' => 'error', 'error' => ['message' => $e -> getMessage()]]);
+	echo sk_json_encode(['type' => 'error', 'error' => ['message' => 'Internal Server Error'], 'status' => 500]);
+	exit;
 }
 `;
 }
@@ -2387,7 +2389,7 @@ if (!empty($sk_deferreds)) {
 		// For now, we use simple JSON encoding to avoid the need for unflattening on the client.
 		$serialized = sk_json_encode($data);
 
-		echo '<script>if(typeof ${appId} !== "undefined") { ${appId}.resolve('.$id. ', () => ['.$serialized.', null]); } else { console.error("App ID undefined: ${appId}"); }</script>';
+		echo '<script>if(typeof ${appId} !== "undefined") { ${appId}.resolve('.$id. ', () => ['.$serialized.', null]); } else { globalThis.console.error("App ID undefined: ${appId}"); }</script>';
 		flush();
 	}
 }
@@ -2604,9 +2606,9 @@ try {
 	exit;
 } catch (Throwable $e) {
 	http_response_code(500);
-	// In dev, show error. In prod, maybe generic?
-	// For now, simple text output
-	echo "Internal Server Error: ".$e -> getMessage();
+	error_log('[sveltekit-php] endpoint error: ' . $e->getMessage());
+	header('Content-Type: text/plain; charset=utf-8');
+	echo 'Internal Server Error';
 	exit;
 }
 
@@ -2674,7 +2676,7 @@ await server.init({ env: process.env });
 const PORT = process.env.PORT || 3000;
 const DEBUG = process.env.SK_DEBUG === 'true' || process.env.ADAPTER_DEBUG === 'true';
 const debugLog = (...args) => {
-    if (DEBUG) console.log(...args);
+    if (DEBUG) globalThis.console.log(...args);
 };
 
 http.createServer(async (req, res) => {
@@ -2775,12 +2777,12 @@ http.createServer(async (req, res) => {
     }
 
 } catch (e) {
-    console.error(e);
+    globalThis.console.error(e);
     res.statusCode = 500;
     res.end('Internal Server Error');
 }
 }).listen(PORT, () => {
-    console.log(\`Listening on port \${PORT}\`);
+    globalThis.console.log(\`Listening on port \${PORT}\`);
 });
 `;
 }
@@ -3288,7 +3290,9 @@ try {
     $res = $fn_name($param);
 } catch (Throwable $e) {
     http_response_code(500);
-    echo "Internal Server Error: " . $e->getMessage();
+    error_log('[sveltekit-php] endpoint error: ' . $e->getMessage());
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Internal Server Error';
     exit;
 }
 
@@ -3416,6 +3420,12 @@ function getHtaccessPhpStatic(base, precompress = false, fallback, trailingSlash
 	${precompress ? `Header append Vary "Accept-Encoding"
 ` : ""}
 </IfModule>
+<IfModule mod_mime.c>
+	AddType text/markdown       .md
+	AddType text/csv            .csv
+	AddType image/svg+xml       .svg
+	AddType application/json    .json
+</IfModule>
 ${precompress ? `<IfModule mod_mime.c>
 	AddEncoding br .br
 	AddEncoding gzip .gz
@@ -3521,6 +3531,58 @@ var RESERVED_ROUTE_FILES = new Set([
   "route-manifest",
   "compat"
 ]);
+var REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER = "remote-functions-alpha-policy";
+var REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE = "sveltekit-php: SvelteKit remote functions are not supported by the PHP runtime in 1.0.2-alpha. Remote functions generate server HTTP endpoints that are not yet mapped through the PHP router. Disable kit.experimental.remoteFunctions and remove .remote.* files, or use a Node/edge adapter until remote-functions-alpha-policy has fixture proof.";
+var REMOTE_FUNCTION_FILE_RE = /\.remote\.(?:js|ts|mjs|mts|cjs|cts)$/i;
+async function collectRemoteFunctionFiles(root) {
+  const files = [];
+  const visit = async (dir) => {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const abs = path3.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "node_modules" || entry.name === ".git" || entry.name === ".svelte-kit" || entry.name === "build") {
+          continue;
+        }
+        await visit(abs);
+      } else if (entry.isFile() && REMOTE_FUNCTION_FILE_RE.test(entry.name)) {
+        files.push(abs);
+      }
+    }
+  };
+  await visit(root);
+  return files;
+}
+async function assertRemoteFunctionsUnsupported(builder) {
+  const kit = builder.config.kit;
+  const remoteFunctionsEnabled = kit.experimental?.remoteFunctions === true;
+  const cwd = path3.resolve(process.cwd());
+  const roots = Array.from(new Set([
+    path3.join(cwd, "src"),
+    kit.files?.routes ? path3.resolve(kit.files.routes) : "",
+    kit.files?.lib ? path3.resolve(kit.files.lib) : ""
+  ].filter(Boolean)));
+  const remoteFiles = (await Promise.all(roots.map((root) => collectRemoteFunctionFiles(root)))).flat().map((file) => path3.relative(cwd, file).replaceAll(path3.sep, "/")).sort();
+  const uniqueRemoteFiles = Array.from(new Set(remoteFiles));
+  if (!remoteFunctionsEnabled && uniqueRemoteFiles.length === 0)
+    return;
+  const reasons = [
+    remoteFunctionsEnabled ? "- kit.experimental.remoteFunctions is enabled" : "",
+    ...uniqueRemoteFiles.map((file) => `- ${file}`)
+  ].filter(Boolean);
+  throw new Error([
+    REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE,
+    `Policy marker: ${REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER}`,
+    "Detected unsupported remote-functions surface:",
+    ...reasons
+  ].join(`
+`));
+}
 function normalizeMarkerList(value) {
   if (value == null)
     return [];
@@ -3538,6 +3600,20 @@ function normalizeMarkerList(value) {
       return normalizeMarkerList(parsed);
   } catch {}
   return trimmed.split(/\r?\n|;;/).map((item) => item.trim()).filter(Boolean);
+}
+function normalizeSafeExternalRoots(value) {
+  if (!value)
+    return [];
+  const trimmed = value.trim();
+  if (!trimmed)
+    return [];
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item) => typeof item === "string").map((item) => item.trim()).filter(Boolean).map((item) => path3.resolve(item));
+    }
+  } catch {}
+  return trimmed.split(";").map((item) => item.trim()).filter(Boolean).map((item) => path3.resolve(item));
 }
 function resolveBuildIdentityContract(buildIdentity) {
   if (buildIdentity === false)
@@ -3621,6 +3697,9 @@ function buildStamp(mode, basePath, buildIdentity) {
 function normalizeRouteIdSegments(routeId) {
   return routeId.split("/").map((segment) => segment.trim()).filter(Boolean).filter((segment) => !(segment.startsWith("(") && segment.endsWith(")")));
 }
+function isRouteParamSegment(segment) {
+  return segment.startsWith("[") && segment.endsWith("]");
+}
 function validateReservedRouteIds(routes, strict, builder) {
   const conflicts = routes.map((route) => route.id).filter(Boolean).filter((routeId) => {
     const segments = normalizeRouteIdSegments(routeId);
@@ -3629,7 +3708,7 @@ function validateReservedRouteIds(routes, strict, builder) {
     const firstSegment = segments[0];
     const lastSegment = segments[segments.length - 1] ?? "";
     const lastBase = lastSegment.replace(/\.[^.]+$/, "");
-    return RESERVED_ROUTE_SEGMENTS.has(firstSegment) || RESERVED_ROUTE_FILES.has(lastBase) || segments.some((segment) => segment.includes(".."));
+    return RESERVED_ROUTE_SEGMENTS.has(firstSegment) || RESERVED_ROUTE_FILES.has(lastBase) || segments.some((segment) => !isRouteParamSegment(segment) && segment.includes(".."));
   });
   if (conflicts.length === 0)
     return;
@@ -3672,10 +3751,55 @@ function sveltekitPhpAdapter(options = {}) {
         throw new Error("sveltekit-php: instrumentation.server.js is not supported in php-static production runtime. Use js-ssr for JavaScript server instrumentation.");
       }
     },
+    async emulate() {
+      return {
+        async platform({ prerender } = {}) {
+          return {
+            php: {
+              adapter: "@ryanspice/sveltekit-adapter-php",
+              adapterVersion: ADAPTER_VERSION,
+              mode,
+              ssr,
+              prerendering: Boolean(prerender),
+              output: {
+                out,
+                assets,
+                fallback: fallback === false ? false : typeof fallback === "string" ? fallback : "200.html",
+                precompress,
+                strict,
+                baseMode
+              },
+              paths: {
+                base: options.basePath ?? ""
+              },
+              runtime: {
+                documentSsr: mode === "js-ssr",
+                phpStaticClientFallback: mode === "php-static",
+                phpHandlers: true,
+                actionHandlers: true,
+                endpointHandlers: true,
+                javascriptSidecar: mode === "js-ssr",
+                nativeHostRuntime: false
+              },
+              remoteFunctions: {
+                supported: false,
+                policy: "unsupported-alpha",
+                marker: REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER,
+                generatedHttpEndpointSupport: false
+              },
+              buildIdentity: {
+                configured: Boolean(buildIdentity)
+              }
+            }
+          };
+        }
+      };
+    },
     async adapt(builder) {
       const debug = (...args) => {
         if (debugEnabled)
-          console.log(...args);
+          process.stdout.write(`${args.map(String).join(" ")}
+`);
       };
       const debugMinor = (message) => {
         if (debugEnabled)
@@ -3729,11 +3853,13 @@ function sveltekitPhpAdapter(options = {}) {
       };
       builder.log.minor(`Adapting for mode: ${mode}`);
       builder.log.minor("Cleaning output/temp");
+      await assertRemoteFunctionsUnsupported(builder);
       validateReservedRouteIds(builder.routes, strict, builder);
       const isInside = (parent, child) => {
         const rel = path3.relative(parent, child);
         return rel !== "" && !rel.startsWith("..") && !path3.isAbsolute(rel);
       };
+      const isInsideOrSame = (parent, child) => path3.resolve(parent) === path3.resolve(child) || isInside(parent, child);
       const assertSafeBuildTarget = (target, label) => {
         const resolved = path3.resolve(target);
         const cwd = path3.resolve(process.cwd());
@@ -3748,13 +3874,21 @@ function sveltekitPhpAdapter(options = {}) {
           path3.join(cwd, "tests"),
           routesRoot
         ];
+        const safeExternalRoots = normalizeSafeExternalRoots(process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS);
         if (resolved === root || resolved === cwd || resolved === home) {
           throw new Error(`Unsafe build target for ${label}: ${resolved}`);
         }
         if (sourceRoots.some((source) => resolved === source || isInside(source, resolved))) {
           throw new Error(`Unsafe build target for ${label}: ${resolved}`);
         }
-        if (!isInside(cwd, resolved) && !isInside(temp, resolved)) {
+        for (const safeRoot of safeExternalRoots) {
+          const safeRootFsRoot = path3.parse(safeRoot).root;
+          if (safeRoot === safeRootFsRoot || safeRoot === cwd || safeRoot === home || sourceRoots.some((source) => safeRoot === source || isInside(source, safeRoot))) {
+            throw new Error(`Unsafe configured external build root for ${label}: ${safeRoot}`);
+          }
+        }
+        const isConfiguredExternalTarget = safeExternalRoots.some((safeRoot) => isInsideOrSame(safeRoot, resolved));
+        if (!isInside(cwd, resolved) && !isInside(temp, resolved) && !isConfiguredExternalTarget) {
           throw new Error(`Unsafe build target for ${label}: ${resolved}`);
         }
       };

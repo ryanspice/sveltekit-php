@@ -21,6 +21,7 @@ const requiredEnvKeys = [
 	'DEPLOY_PORT',
 	'DEPLOY_REMOTE',
 	'DEPLOY_LOCAL',
+	'DEPLOY_IDENTITY_FILE',
 	'DEPLOY_THRESHOLD_FILES',
 	'DEPLOY_THRESHOLD_BYTES',
 	'ALPHA_SMOKE_BASE_URL',
@@ -29,7 +30,13 @@ const requiredEnvKeys = [
 	'ALPHA_SMOKE_REPORT_PATH'
 ];
 
-const deploySecretKeys = new Set(['DEPLOY_PROFILE', 'DEPLOY_HOST', 'DEPLOY_USER', 'DEPLOY_REMOTE']);
+const deploySecretKeys = new Set([
+	'DEPLOY_PROFILE',
+	'DEPLOY_HOST',
+	'DEPLOY_USER',
+	'DEPLOY_REMOTE',
+	'DEPLOY_IDENTITY_FILE'
+]);
 const safeCommittedKeys = new Set([
 	'SK_BASE_PATH',
 	'DEPLOY_BASE',
@@ -136,8 +143,8 @@ function validateSafeCommittedValue(key, value) {
 		throw new Error(`${key} must be php-static, js-ssr, empty, or a placeholder.`);
 	}
 
-	if (key === 'ADAPTER_BASE_MODE' && !['fixed', 'dynamic'].includes(value)) {
-		throw new Error(`${key} must be fixed, dynamic, empty, or a placeholder.`);
+	if (key === 'ADAPTER_BASE_MODE' && !['fixed', 'auto'].includes(value)) {
+		throw new Error(`${key} must be fixed, auto, empty, or a placeholder.`);
 	}
 
 	if (key === 'PRECOMPRESS' && !['true', 'false'].includes(value)) {
@@ -190,8 +197,12 @@ function validateSafeCommittedValue(key, value) {
 
 async function verifyEnvFiles() {
 	const exampleText = await readOptionalText('.env.example');
+	const gitignoreText = await readOptionalText('.gitignore');
 	if (!exampleText) {
 		throw new Error('.env.example is required for alpha release prep.');
+	}
+	if (!gitignoreText) {
+		throw new Error('.gitignore is required so runtime-local env files stay out of release artifacts.');
 	}
 
 	const exampleEntries = parseEnvFile(exampleText);
@@ -204,17 +215,15 @@ async function verifyEnvFiles() {
 		validateSafeCommittedValue(key, value);
 	}
 
-	const envText = await readOptionalText('.env');
-	if (envText) {
-		const envEntries = parseEnvFile(envText);
-		for (const [key, value] of envEntries) {
-			validateSafeCommittedValue(key, value);
-		}
-		console.log(`PASS env-safety: .env has ${envEntries.size} checked keys and no deploy secrets.`);
-	} else {
-		console.log('PASS env-safety: .env is absent; .env.example defines the public template.');
+	const gitignoreLines = gitignoreText
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter((line) => line && !line.startsWith('#'));
+	if (!gitignoreLines.includes('.env') || !gitignoreLines.includes('.env.*') || !gitignoreLines.includes('!.env.example')) {
+		throw new Error('.gitignore must keep .env and .env.* ignored while allowing .env.example.');
 	}
 
+	console.log('PASS env-safety: release-prep checks .env.example and .gitignore without reading runtime-local .env.');
 	console.log(`PASS env-example: .env.example defines ${requiredEnvKeys.length} release-prep keys.`);
 }
 
@@ -284,10 +293,12 @@ async function verifyPackageMetadata() {
 		'README.md',
 		'docs/ADAPTER-FEATURE-CATALOG.md',
 		'docs/ADAPTER-LANDSCAPE.md',
+		'docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md',
 		'docs/ALPHA-READINESS.md',
 		'docs/ALPHA-RELEASE-CHECKLIST.md',
 		'docs/DEV-ADAPTER-BOUNDARY.md',
 		'docs/HOSTING-CONTRACT.md',
+		'docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md',
 		'docs/recipes/composer-bootstrap.md',
 		'docs/recipes/wordpress.md'
 	]) {
@@ -301,16 +312,44 @@ async function verifyPackageMetadata() {
 		'alpha:gate',
 		'alpha:gate:hosted',
 		'alpha:consumer:smoke',
+		'alpha:latest-same-major:smoke',
+		'alpha:latest-vite-major:smoke',
+		'alpha:native:smoke',
+		'alpha:published:smoke',
 		'alpha:remote:placeholder',
 		'alpha:remote:smoke',
 		'alpha:report:full',
 		'verify:artifacts',
 		'verify:alpha',
-		'verify:release-prep'
+		'verify:latest-sveltekit-audit',
+		'verify:remote-functions',
+		'verify:root-router-parity',
+		'verify:release-prep',
+		'release:npm-state',
+		'release:npm-state:strict',
+		'v1:gate:local',
+		'v1:gate:hosted',
+		'v1:gate'
 	]) {
 		if (!packageJson.scripts?.[scriptName]) {
 			throw new Error(`package.json is missing required script: ${scriptName}`);
 		}
+	}
+
+	if (!packageJson.scripts?.['v1:gate:local']?.includes('verify:root-router-parity')) {
+		throw new Error('package.json v1:gate:local must include verify:root-router-parity.');
+	}
+	if (!packageJson.scripts?.['v1:gate:local']?.includes('alpha:latest-vite-major:smoke')) {
+		throw new Error('package.json v1:gate:local must include alpha:latest-vite-major:smoke.');
+	}
+	if (!packageJson.scripts?.['v1:gate:hosted']?.includes('--skip-local')) {
+		throw new Error('package.json v1:gate:hosted must skip the local gate because v1:gate already runs v1:gate:local first.');
+	}
+	if (
+		!packageJson.scripts?.['v1:gate']?.includes('v1:gate:local') ||
+		!packageJson.scripts?.['v1:gate']?.includes('v1:gate:hosted')
+	) {
+		throw new Error('package.json v1:gate must compose v1:gate:local and v1:gate:hosted.');
 	}
 
 	console.log(`PASS package-alpha: ${packageJson.name}@${packageJson.version} is publish-shaped with ${requiredAlphaEvidence.length} required evidence markers.`);
@@ -322,16 +361,46 @@ async function verifyAlphaReleaseChecklistDoc() {
 		'1.0.2-alpha release checklist',
 		'alpha-over-rc-release-policy',
 		'desktop-shell-ui-command-mapping',
+			'data-window-chrome-state',
+			'transparent-webview-material-boundary',
+		'csr-disabled-prerender-contract',
 		'community-analytics-csv-linkage',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
+		'result_total_field',
+		'top_result_fields',
+		'sample_review_rule',
 		'router-path-safety-artifact-sync',
+		'adapter-platform-emulation',
+		'latest-sveltekit-compatibility-audit',
+		'remote-functions-alpha-policy',
 		'deploy-env-preflight-safety',
+		'hardProofBlockers',
+		'hard-proof-blocker-ledger',
+		'stablePromotionBlockers',
+		'packed-consumer-install-import-proof',
+		'npm-publish-auth-proof',
+		'source-to-generated-bundle-check',
+		'real-native-host-wrapper-smoke-required',
+		'needs-current-run-proof',
+		'needs-real-host-proof',
+		'stable-native-claim',
+		'fresh-community-claim',
+		'event.platform.php',
 		'bun run alpha:gate',
 		'bun run alpha:gate:hosted',
 		'getDesktopShellUiCommandMapping',
 		'toDesktopShellUiTaskbarProgressState',
+		'native-host-wrapper-smoke',
+		'deterministic-host-wrapper-handoff',
+		'noNativeApiBoundary',
 		'TaskbarProgressState',
 		'saveInFlight',
 		'hasQueuedSave',
+		'no-hydration-fixture',
+		'theme-stable-ssr-html',
+		'data-sveltekit-hydrate',
 		'sourceToKeywordEdge',
 		'weighted_demand_score',
 		'ALPHA_SMOKE_BASE_URL'
@@ -346,6 +415,10 @@ async function verifyAlphaReleaseChecklistDoc() {
 }
 
 async function verifyAlphaReleaseChecklistRuntimeContract() {
+	const hardProofBlockerSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-hard-proof-blockers.ts'),
+		'utf8'
+	);
 	const releaseChecklistSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-checklist.ts'), 'utf8');
 	const releaseChecklistEndpoint = await readFile(
 		path.join(repoRoot, 'src', 'routes', 'alpha-readiness', 'release-checklist.md', '+server.ts'),
@@ -358,7 +431,15 @@ async function verifyAlphaReleaseChecklistRuntimeContract() {
 	const hostedChecklistSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-hosted-smoke-checklist.ts'), 'utf8');
 	const reviewIndexSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-review-index.ts'), 'utf8');
 	const packageContractSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-package-contract.ts'), 'utf8');
+	const bridgeReuseSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-bridge-reuse.ts'), 'utf8');
+	const nativeHostContractSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-native-host-contract.ts'), 'utf8');
+	const nativeHostGuideSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-native-host-guide.ts'), 'utf8');
+	const nativeHostWrapperSmokeSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-native-host-wrapper-smoke.ts'),
+		'utf8'
+	);
 	const joined = [
+		hardProofBlockerSource,
 		releaseChecklistSource,
 		releaseChecklistEndpoint,
 		exportPipeline,
@@ -367,16 +448,90 @@ async function verifyAlphaReleaseChecklistRuntimeContract() {
 		gateMatrixSource,
 		hostedChecklistSource,
 		reviewIndexSource,
-		packageContractSource
+		packageContractSource,
+		bridgeReuseSource,
+		nativeHostContractSource,
+		nativeHostGuideSource,
+		nativeHostWrapperSmokeSource
 	].join('\n');
 	const requiredMarkers = [
 		'renderAlphaReleaseChecklistMarkdown',
 		'1.0.2-alpha release checklist',
 		'alpha-over-rc-release-policy',
 		'desktop-shell-ui-command-mapping',
+			'data-window-chrome-state',
+			'transparent-webview-material-boundary',
+		'csr-disabled-prerender-contract',
 		'community-analytics-csv-linkage',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
+		'result_total_field',
+		'top_result_fields',
+		'sample_review_rule',
 		'router-path-safety-artifact-sync',
+		'adapter-platform-emulation',
+		'latest-sveltekit-compatibility-audit',
+		'remote-functions-alpha-policy',
 		'deploy-env-preflight-safety',
+		'alphaHardProofBlockers',
+		'AlphaHardProofBlocker',
+		'full-local-alpha-gate',
+		'hosted-php-smoke-proof',
+		'buildAlphaHardProofBlockers',
+		'hardProofBlockers',
+		'hard-proof-blocker-ledger',
+		'stablePromotionBlockers',
+		'packed-consumer-install-import-proof',
+		'source-to-generated-bundle-check',
+		'real-native-host-wrapper-smoke-required',
+		'community-analytics-freshness-proof',
+		'needs-current-run-proof',
+		'needs-real-host-proof',
+		'needs-hosted-proof',
+		'needs-freshness-review',
+		'stable-native-claim',
+		'fresh-community-claim',
+		'deterministic-local-gate-required',
+		'requires-alpha-smoke-base-url-for-pass-evidence',
+		'real-php-host-smoke-evidence',
+		'hostedProofInterpretation',
+		'hosted-php-smoke-proof',
+		'hostedAlphaSmokeProof',
+		'hostedAlphaSmokeArtifact',
+		'alphaEvidenceStatus',
+		'alpha-hosted-proof-present',
+		'hosted-smoke-passed',
+		'hostedSmokeStatus',
+		'native-host-compatibility-matrix',
+		'source-observed-host-compatibility-contract',
+		'features.micaSupported',
+		'windowChromeState',
+		'mica-active',
+		'mica-inactive',
+		'plain',
+		'webview.setBackgroundColor([0, 0, 0, 0])',
+		'ShellFeatureProbe.mica_supported',
+		'current_shell_features()',
+		'cfg!(target_os = "windows")',
+		'windows-mica-effects',
+		'taskbar-progress-reporting',
+		'native-titlebar-drag-maximize',
+		'packed-artifact-install-import',
+		'real-os-native-host-proof-required',
+		'lg-ultragear-host-permission-checklist',
+		'realHostPermissionChecklist',
+		'hostPermissionCues',
+		'requiredHostPermission',
+		'real-host-permission-cue-required',
+		'core:window:allow-set-effects',
+		'core:window:allow-set-progress-bar',
+		'core:window:allow-start-dragging',
+		'core:window:allow-toggle-maximize',
+		'src-tauri/capabilities/default.json',
+		'adapterPlatformEmulationProof',
+		'remoteFunctionsAlphaPolicyProof',
+		'event.platform.php',
 		'sourceToKeywordEdge',
 		'weighted_demand_score',
 		'ALPHA_SMOKE_BASE_URL',
@@ -426,6 +581,8 @@ async function verifyCiWorkflow() {
 		'name: CI',
 		'bun run build:adapter',
 		'bun run verify:artifacts -- --strict',
+		'bun run verify:latest-sveltekit-audit',
+		'bun run alpha:latest-same-major:smoke',
 		'bun run verify:release-prep',
 		'bun run test:unit',
 		'bun scripts/verify-all.mjs --mode=php-static --skipBuild',
@@ -476,6 +633,14 @@ async function verifyRemoteSmokeCoverage() {
 		'native-visual-matrix',
 		'windows-mica-visual-row',
 		'macos-traffic-light-row',
+		'macos-vibrancy-visual-row',
+		'macos-vibrancy-host-policy',
+		'macos-material-host-policy',
+		'source-observed-macos-host-scaffold',
+		'macos-native-vibrancy-unverified',
+		'source-observed macOS host policy',
+		'data-macos-material-host-policy',
+		'data-macos-native-vibrancy',
 		'data-alpha-proof-ledger',
 		'proofLedger',
 		'Alpha proof ledger',
@@ -490,6 +655,10 @@ async function verifyRemoteSmokeCoverage() {
 		'curated-signal-score',
 		'collected-demand-score',
 		'directional-community-signal',
+		'no-live-community-api-runtime-boundary',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
 		'source-to-keyword-edge',
 		"path: 'alpha-readiness/report.md'",
 		"expectedContentType: 'text/markdown'",
@@ -522,6 +691,29 @@ async function verifyRemoteSmokeCoverage() {
 		'hosted-php-smoke-proof-required',
 		'nativePlatformProvenance',
 		'lg-ultragear-native-platform-provenance',
+		'macos-material-host-policy',
+		'source-observed-macos-host-scaffold',
+		'macos-native-vibrancy-unverified',
+		'native-host-compatibility-matrix',
+		'source-observed-host-compatibility-contract',
+		'features.micaSupported',
+		'windowChromeState',
+		'mica-active',
+		'mica-inactive',
+		'plain',
+		'webview.setBackgroundColor([0, 0, 0, 0])',
+		'data-window-chrome-state',
+		'data-window-chrome-state="mica-active"',
+		'transparent-webview-material-boundary',
+		'data-transparent-webview-material-boundary="host-owned"',
+		'data-macos-material-host-policy',
+		'data-macos-native-vibrancy',
+		'ShellFeatureProbe.mica_supported',
+		'current_shell_features()',
+		'cfg!(target_os = "windows")',
+		'windows-mica-effects',
+		'taskbar-progress-reporting',
+		'native-titlebar-drag-maximize',
 		'ALPHA_SMOKE_BASE_URL',
 		'ALPHA_SMOKE_TIMEOUT_MS',
 		'ALPHA_SMOKE_REPORT_PATH',
@@ -554,6 +746,10 @@ async function verifyRemoteSmokeCoverage() {
 		'curated-signal-score',
 		'collected-demand-score',
 		'directional-community-signal',
+		'no-live-community-api-runtime-boundary',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
 		"expectedContentType: 'image/svg+xml'",
 		"path: 'alpha-readiness/release-manifest.json'",
 		'release-manifest-json-endpoint',
@@ -574,8 +770,18 @@ async function verifyRemoteSmokeCoverage() {
 		'Project-rank policy',
 		'alpha-runtime-gate-ledger',
 		'hosted-php-smoke-proof-required',
+		'hostedProofInterpretation',
+		'hosted-php-smoke-proof',
+		'alphaEvidenceStatus',
+		'real-php-host-smoke-evidence',
+		'hostedSmokeStatus',
 		'nativeChromeVisualContract',
 		'nativeVisualMatrix',
+		'macos-vibrancy-visual-row',
+		'macos-vibrancy-host-policy',
+		'macos-material-host-policy',
+		'source-observed-macos-host-scaffold',
+		'macos-native-vibrancy-unverified',
 		'ultraGearSourceParity',
 		'nativePlatformProvenance',
 		'lg-ultragear-native-platform-provenance',
@@ -629,6 +835,15 @@ async function verifyRemoteSmokeCoverage() {
 		'alpha-runtime-gate-ledger',
 		'hosted-php-smoke-proof-required',
 		'lg-ultragear-native-platform-provenance',
+		'macos-material-host-policy',
+		'source-observed-macos-host-scaffold',
+		'macos-native-vibrancy-unverified',
+		'windowChromeState',
+		'data-window-chrome-state',
+		'transparent-webview-material-boundary',
+		'data-macos-material-host-policy',
+		'data-macos-native-vibrancy',
+		'webview.setBackgroundColor([0, 0, 0, 0])',
 		"path: 'alpha-readiness/gate-matrix.json'",
 		'local-alpha-gate',
 		'hosted-alpha-gate',
@@ -647,14 +862,24 @@ async function verifyRemoteSmokeCoverage() {
 		'liveEvidenceSurfaces',
 		'alpha-release-checklist',
 		'native-host-bridge-status',
+		'native-host-wrapper-smoke',
 		'native-visual-matrix',
+		'deterministic-host-wrapper-handoff',
+		'noNativeApiBoundary',
 		'lg-ultragear-native-platform-provenance',
 		'progress-report-handoff',
 		'progress-report-graphic',
 		'required-alpha-evidence',
 		'requiredEvidence',
 		'native-host-binding-guide',
+		'real-host-permission-checklist',
+		'nativeHostWrapperSmokeProof',
+		'report/alpha-native-host-wrapper-smoke.json',
+		"path: 'alpha-readiness/native-host-wrapper-smoke.json'",
+		'deterministic-host-wrapper-handoff',
+		'noNativeApiBoundary',
 			'desktop-shell-ui-command-mapping',
+		'csr-disabled-prerender-contract',
 		'windows-11-mica-browser-safe-shell',
 		'macos-style-native-titlebar-rhythm',
 		'alpha-readiness-report-graphics',
@@ -671,6 +896,9 @@ async function verifyRemoteSmokeCoverage() {
 		'environment-preflight-check',
 		'nativePlatformProvenanceProof',
 		'lg-ultragear-native-platform-provenance',
+		'macos-material-host-policy',
+		'source-observed-macos-host-scaffold',
+		'macos-native-vibrancy-unverified',
 		'nativeHostBindingGuideProof',
 		'native host binding guide',
 		'/alpha-readiness/native-host-guide.md',
@@ -696,17 +924,30 @@ async function verifyRemoteSmokeCoverage() {
 		'Required alpha evidence',
 		'requiredEvidence',
 		'native-host-binding-guide',
+		'real-host-permission-checklist',
 			'desktop-shell-ui-command-mapping',
+		'csr-disabled-prerender-contract',
 		'windows-11-mica-browser-safe-shell',
 		'macos-style-native-titlebar-rhythm',
 		'alpha-readiness-report-graphics',
 		'community-keyword-search-graph',
 		'community-analytics-freshness-contract',
 		'community-analytics-csv-linkage',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
+		'result_total_field',
+		'top_result_fields',
+		'sample_review_rule',
 		'router-path-safety-artifact-sync',
+		'adapter-platform-emulation',
 		'deploy-env-preflight-safety',
 		'hosted-php-smoke-proof',
 		"path: 'alpha-readiness/native-host-contract.json'",
+		"path: 'alpha-readiness/native-host-wrapper-smoke.json'",
+		'buildNativeHostWrapperProbe',
+		'realHostVerified',
+		'window.__SVELTEKIT_PHP_NATIVE_HOST__',
 		'data-window-drag',
 		"path: 'alpha-readiness/native-host-guide.md'",
 		'native host binding guide',
@@ -730,18 +971,35 @@ async function verifyRemoteSmokeCoverage() {
 		'community-analytics-freshness-contract',
 		'maxAgeHours',
 		'community-analytics-graphic-linkage-contract',
+		'no-live-community-api-runtime-boundary',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
+		'resultTotalField',
+		'topResultFields',
+		'sampleReviewRule',
 		'communityAnalyticsGraphicLinkageContract',
 		'community-source-map.svg',
 		'community-analytics.md',
 		'community-signals.csv',
 		'community-sources.csv',
+		'result_total_field',
+		'top_result_fields',
+		'sample_review_rule',
 		"path: 'alpha-readiness/readiness.csv'",
 		"path: 'alpha-readiness/community-signals.csv'",
 		"path: 'alpha-readiness/community-sources.csv'",
+		'result_total_field',
+		'top_result_fields',
+		'sample_review_rule',
 		'analytics-linked-keyword-graph',
 		'curated-signal-score',
 		'collected-demand-score',
 		'directional-community-signal',
+		'no-live-community-api-runtime-boundary',
+		'result-total-field-contract',
+		'top-result-field-contract',
+		'sample-review-rule',
 		'source_host',
 		'weighted_demand_score',
 		'source_to_keyword_edges',
@@ -824,6 +1082,7 @@ async function verifyDeployPrecheckContract() {
 		'DEPLOY_USER',
 		'DEPLOY_REMOTE',
 		'DEPLOY_LOCAL',
+		'DEPLOY_IDENTITY_FILE',
 		'ALPHA_SMOKE_BASE_URL',
 		'ALPHA_SMOKE_TIMEOUT_MS',
 		'ALPHA_SMOKE_REPORT_PATH',
@@ -836,7 +1095,8 @@ async function verifyDeployPrecheckContract() {
 		"profile: 'default'",
 		'a.host === true ? undefined',
 		'a.user === true ? undefined',
-		'a.remote === true ? undefined'
+		'a.remote === true ? undefined',
+		'a[\'identity-file\'] ?? env(\'DEPLOY_IDENTITY_FILE\')'
 	];
 	const joined = `${config}\n${precheck}\n${hostedGate}\n${deployBuild}`;
 	const missingMarkers = requiredMarkers.filter((marker) => !joined.includes(marker));
@@ -873,6 +1133,330 @@ async function verifyArtifactSyncContract() {
 	console.log('PASS artifact-sync-contract: Adapter bundle sync is checked from source via a temporary build.');
 }
 
+async function verifyRootRouterParityContract() {
+	const [
+		rootRouter,
+		parityVerifier,
+		packageJsonText,
+		checklist,
+		releasePlan,
+		alphaReleaseChecklist,
+		hostingContract
+	] = await Promise.all([
+		readFile(path.join(repoRoot, 'router.php'), 'utf8'),
+		readFile(path.join(repoRoot, 'scripts', 'verify-root-router-parity.mjs'), 'utf8'),
+		readFile(path.join(repoRoot, 'package.json'), 'utf8'),
+		readFile(path.join(repoRoot, 'checklist.md'), 'utf8'),
+		readFile(path.join(repoRoot, 'plan', 'process-alpha-to-1x-rc-1.md'), 'utf8'),
+		readFile(path.join(repoRoot, 'docs', 'ALPHA-RELEASE-CHECKLIST.md'), 'utf8'),
+		readFile(path.join(repoRoot, 'docs', 'HOSTING-CONTRACT.md'), 'utf8')
+	]);
+	const packageJson = JSON.parse(packageJsonText);
+	const requiredMarkers = [
+		"return require $router_real",
+		'createFixtures',
+		'encoded-traversal',
+		'double-encoded-traversal',
+		'encoded-backslash-traversal',
+		'negotiate-html',
+		'negotiate-json',
+		'base-mismatch',
+		'normalizeBodyForComparison',
+		'Root router parity failed'
+	];
+	const joined = `${rootRouter}\n${parityVerifier}`;
+	const missingMarkers = requiredMarkers.filter((marker) => !joined.includes(marker));
+
+	if (missingMarkers.length > 0) {
+		throw new Error(`Root router parity contract missing markers: ${missingMarkers.join(', ')}`);
+	}
+
+	if (!packageJson.scripts?.['verify:root-router-parity']?.includes('verify-root-router-parity.mjs')) {
+		throw new Error('package.json must expose verify:root-router-parity.');
+	}
+
+	if (!packageJson.scripts?.['v1:gate:local']?.includes('verify:root-router-parity')) {
+		throw new Error('v1:gate:local must include verify:root-router-parity.');
+	}
+	if (!packageJson.scripts?.['v1:gate:local']?.includes('alpha:latest-vite-major:smoke')) {
+		throw new Error('v1:gate:local must include alpha:latest-vite-major:smoke.');
+	}
+
+	if (
+		!checklist.includes('Root/generated router parity') ||
+		!checklist.includes('bun run verify:root-router-parity') ||
+		!releasePlan.includes('TASK-014') ||
+		!releasePlan.includes('verify-root-router-parity.mjs') ||
+		!alphaReleaseChecklist.includes('root-router-parity-contract') ||
+		!alphaReleaseChecklist.includes('bun run verify:root-router-parity') ||
+		!hostingContract.includes('Root compatibility router') ||
+		!hostingContract.includes('return require $router_real')
+	) {
+		throw new Error('Checklist, packaged docs, and release plan must document root/generated router parity proof.');
+	}
+
+	console.log(
+		'PASS root-router-parity-contract: Root router delegates generated router results and parity proof is gated.'
+	);
+}
+
+async function verifyPublicContractDocs() {
+	const [readme, hostingContract, alphaReadiness] = await Promise.all([
+		readFile(path.join(repoRoot, 'README.md'), 'utf8'),
+		readFile(path.join(repoRoot, 'docs', 'HOSTING-CONTRACT.md'), 'utf8'),
+		readFile(path.join(repoRoot, 'docs', 'ALPHA-READINESS.md'), 'utf8')
+	]);
+	const requiredHostingMarkers = [
+		'## Public adapter options',
+		'`mode`',
+		'`ssr`',
+		'`out`',
+		'`assets`',
+		'`precompress`',
+		'`fallback`',
+		'`strict`',
+		'`basePath`',
+		'`baseMode`',
+		'`buildIdentity`',
+		'## Package exports and packed files',
+		'`sveltekit-php/adapter`',
+		'docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md',
+		'## Base, deploy, and smoke environment names',
+		'SK_BASE_PATH',
+		'DEPLOY_BASE',
+		'DEPLOY_REMOTE',
+		'ALPHA_SMOKE_BASE_URL',
+		'Adapter-emitted diagnostic headers',
+		'X-SvelteKit-PHP-Page-Mode',
+		'X-SvelteKit-PHP-SSR'
+	];
+	const requiredReadmeMarkers = [
+		'Mode choice:',
+		'Choose `php-static`',
+		'Choose `js-ssr`',
+		'remote functions',
+		'docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md'
+	];
+	const requiredAlphaReadinessMarkers = [
+		'Stable 1.0.2 gate',
+		'## Support lanes for 1.0.2-alpha',
+		'`php-static`',
+		'`js-ssr`',
+		'Vite 8',
+		'`@sveltejs/vite-plugin-svelte` 7',
+		'remote functions',
+		'streaming-deferred parity',
+		'WordPress plugin mode',
+		'PHP-FPM package mode',
+		'adapter-owned auth/roles'
+	];
+	const missingHostingMarkers = requiredHostingMarkers.filter((marker) => !hostingContract.includes(marker));
+	const missingReadmeMarkers = requiredReadmeMarkers.filter((marker) => !readme.includes(marker));
+	const missingAlphaMarkers = requiredAlphaReadinessMarkers.filter((marker) => !alphaReadiness.includes(marker));
+
+	if (missingHostingMarkers.length > 0 || missingReadmeMarkers.length > 0 || missingAlphaMarkers.length > 0) {
+		throw new Error(
+			[
+				missingHostingMarkers.length > 0
+					? `HOSTING-CONTRACT missing: ${missingHostingMarkers.join(', ')}`
+					: null,
+				missingReadmeMarkers.length > 0
+					? `README missing: ${missingReadmeMarkers.join(', ')}`
+					: null,
+				missingAlphaMarkers.length > 0
+					? `ALPHA-READINESS missing: ${missingAlphaMarkers.join(', ')}`
+					: null
+			]
+				.filter(Boolean)
+				.join('; ')
+		);
+	}
+
+	console.log(
+		'PASS public-contract-docs: README and hosting/readiness docs freeze options, exports, env names, headers, modes, and unsupported remote functions.'
+	);
+}
+
+async function verifyAdapterPlatformEmulationContract() {
+	const adapterSource = await readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8');
+	const requiredMarkers = [
+		'async emulate()',
+		'async platform',
+		'php: {',
+		'adapterVersion',
+		'prerendering',
+		'documentSsr',
+		'phpStaticClientFallback',
+		'actionHandlers',
+		'endpointHandlers',
+		'nativeHostRuntime',
+		'remoteFunctions',
+		'generatedHttpEndpointSupport',
+		'buildIdentity: {'
+	];
+	const missingMarkers = requiredMarkers.filter((marker) => !adapterSource.includes(marker));
+
+	if (missingMarkers.length > 0) {
+		throw new Error(`Adapter platform emulation contract is missing required markers: ${missingMarkers.join(', ')}`);
+	}
+
+	console.log('PASS adapter-platform-emulation: Adapter exposes a non-secret event.platform.php contract for dev, build, and preview.');
+}
+
+async function verifyLatestSvelteKitCompatibilityAudit() {
+	const [
+		audit,
+		packageJsonText,
+		adapterSource,
+		releaseManifestSource,
+		latestVerifierSource,
+		sameMajorSmokeSource,
+		viteMajorSmokeSource
+	] =
+		await Promise.all([
+			readFile(path.join(repoRoot, 'docs', 'ALPHA-LATEST-SVELTEKIT-AUDIT.md'), 'utf8'),
+			readFile(path.join(repoRoot, 'package.json'), 'utf8'),
+			readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8'),
+			readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'), 'utf8'),
+			readFile(path.join(repoRoot, 'scripts', 'verify-latest-sveltekit-audit.mjs'), 'utf8'),
+			readFile(path.join(repoRoot, 'scripts', 'smoke-latest-same-major.mjs'), 'utf8'),
+			readFile(path.join(repoRoot, 'scripts', 'smoke-latest-vite-major.mjs'), 'utf8')
+		]);
+	const packageJson = JSON.parse(packageJsonText);
+	const requiredMarkers = [
+		'latest-sveltekit-compatibility-audit',
+		'https://svelte.dev/docs/kit/writing-adapters',
+		'https://svelte.dev/docs/kit/page-options',
+		'https://svelte.dev/docs/kit/remote-functions',
+		'Remote functions and newer Kit features',
+		'svelte` | `5.56.4',
+		'@sveltejs/kit` | `2.69.1',
+		'@sveltejs/vite-plugin-svelte` | `7.1.4',
+		'vite` | `8.1.3',
+		'Official adapter snapshot',
+		'@sveltejs/adapter-node` | `5.5.7',
+		'@sveltejs/adapter-static` | `3.0.10',
+		'@sveltejs/adapter-cloudflare` | `7.2.9',
+		'@sveltejs/adapter-netlify` | `6.0.4',
+		'@sveltejs/adapter-vercel` | `6.3.4',
+		'@sveltejs/adapter-auto` | `7.0.1',
+		'Live blog consumer evidence',
+		'blog.ryanspice.com',
+		'seo_audit_python',
+		'Latest package snapshot freshness',
+		'verify:latest-sveltekit-audit',
+		'verify-latest-sveltekit-audit.mjs',
+		'alpha:latest-same-major:smoke',
+		'smoke-latest-same-major.mjs',
+		'Latest same-major fixture smoke',
+		'latest-same-major-smoke',
+		'latest-vite-major-validation',
+		'alpha:latest-vite-major:smoke',
+		'smoke-latest-vite-major.mjs',
+		'latest-vite-major-smoke',
+		'Vite 8 and vite-plugin-svelte 7',
+		'async emulate()',
+		'supports:',
+		'latestSvelteKitCompatibilityAudit',
+		'Vite 8 isolated validation lane',
+		'npm view'
+	];
+	const joined = `${audit}\n${adapterSource}\n${releaseManifestSource}\n${latestVerifierSource}\n${sameMajorSmokeSource}\n${viteMajorSmokeSource}`;
+	const missingMarkers = requiredMarkers.filter((marker) => !joined.includes(marker));
+
+	if (missingMarkers.length > 0) {
+		throw new Error(
+			`Latest SvelteKit compatibility audit is missing required markers: ${missingMarkers.join(', ')}`
+		);
+	}
+
+	if (!packageJson.files?.includes('docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md')) {
+		throw new Error('package.json files must include docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md.');
+	}
+
+	if (!packageJson.scripts?.['verify:latest-sveltekit-audit']) {
+		throw new Error('package.json must expose verify:latest-sveltekit-audit.');
+	}
+
+	if (!packageJson.scripts?.['alpha:latest-same-major:smoke']) {
+		throw new Error('package.json must expose alpha:latest-same-major:smoke.');
+	}
+	if (!packageJson.scripts?.['alpha:latest-vite-major:smoke']) {
+		throw new Error('package.json must expose alpha:latest-vite-major:smoke.');
+	}
+
+	if (
+		!packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes(
+			'latest-sveltekit-compatibility-audit'
+		)
+	) {
+		throw new Error(
+			'package.json sveltekitPhpReleasePolicy.requiredEvidence must include latest-sveltekit-compatibility-audit.'
+		);
+	}
+
+	console.log(
+		'PASS latest-sveltekit-compatibility-audit: latest Svelte/SvelteKit docs, package bounds, npm snapshot freshness verification, same-major fixture smoke, remote-function risk, adapter API markers, and Vite/plugin validation lanes are source-controlled.'
+	);
+}
+
+async function verifyRemoteFunctionsAlphaPolicy() {
+	const [policyDoc, packageJsonText, adapterSource, verifierSource, releaseManifestSource] =
+		await Promise.all([
+			readFile(path.join(repoRoot, 'docs', 'REMOTE-FUNCTIONS-ALPHA-POLICY.md'), 'utf8'),
+			readFile(path.join(repoRoot, 'package.json'), 'utf8'),
+			readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8'),
+			readFile(path.join(repoRoot, 'scripts', 'verify-remote-functions-policy.mjs'), 'utf8'),
+			readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'), 'utf8')
+		]);
+	const packageJson = JSON.parse(packageJsonText);
+	const requiredMarkers = [
+		'remote-functions-alpha-policy',
+		'kit.experimental.remoteFunctions',
+		'.remote.js',
+		'.remote.ts',
+		'generated server HTTP endpoints',
+		'event.platform.php.remoteFunctions.supported',
+		'REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE',
+		'REMOTE_FUNCTION_FILE_RE',
+		'assertRemoteFunctionsUnsupported',
+		'generatedHttpEndpointSupport',
+		'remoteFunctionsAlphaPolicy',
+		'remoteFunctionsAlphaPolicyProof',
+		'verify:remote-functions'
+	];
+	const joined = `${policyDoc}\n${adapterSource}\n${verifierSource}\n${releaseManifestSource}`;
+	const missingMarkers = requiredMarkers.filter((marker) => !joined.includes(marker));
+
+	if (missingMarkers.length > 0) {
+		throw new Error(
+			`Remote functions alpha policy is missing required markers: ${missingMarkers.join(', ')}`
+		);
+	}
+
+	if (!packageJson.files?.includes('docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md')) {
+		throw new Error('package.json files must include docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md.');
+	}
+
+	if (!packageJson.scripts?.['verify:remote-functions']) {
+		throw new Error('package.json must expose verify:remote-functions.');
+	}
+
+	if (
+		!packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes(
+			'remote-functions-alpha-policy'
+		)
+	) {
+		throw new Error(
+			'package.json sveltekitPhpReleasePolicy.requiredEvidence must include remote-functions-alpha-policy.'
+		);
+	}
+
+	console.log(
+		'PASS remote-functions-alpha-policy: Remote functions remain explicitly unsupported until PHP generated-endpoint routing proof exists.'
+	);
+}
+
 async function main() {
 	const checks = [
 		verifyPackageMetadata,
@@ -886,7 +1470,12 @@ async function main() {
 		verifyLocalReportPipeline,
 		verifyAlphaGateArtifactSyncIsStrict,
 		verifyDeployPrecheckContract,
-		verifyArtifactSyncContract
+		verifyArtifactSyncContract,
+		verifyRootRouterParityContract,
+		verifyPublicContractDocs,
+		verifyAdapterPlatformEmulationContract,
+		verifyLatestSvelteKitCompatibilityAudit,
+		verifyRemoteFunctionsAlphaPolicy
 	];
 	const failures = [];
 
@@ -909,4 +1498,5 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
+
 

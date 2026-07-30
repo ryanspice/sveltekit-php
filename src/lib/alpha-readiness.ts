@@ -1,3 +1,4 @@
+import { buildAlphaHardProofBlockers, type AlphaHardProofBlocker } from './alpha-hard-proof-blockers';
 import { requiredAlphaEvidence } from './alpha-required-evidence';
 
 export type AlphaReadinessStatus = 'ready' | 'watch' | 'blocked';
@@ -32,11 +33,61 @@ export type AlphaAnalyticsRow = {
 	value: number;
 };
 
+export type AlphaLatestPackageSnapshotItem = {
+	packageName: string;
+	latest: string;
+	currentRange: string;
+	support: 'green' | 'yellow' | 'red';
+	stance: string;
+};
+
+export type AlphaOfficialAdapterSnapshotItem = {
+	packageName: string;
+	latest: string;
+	support: 'green' | 'yellow' | 'red';
+	parityUse: string;
+};
+
+export type AlphaLiveConsumerEvidence = {
+	marker: 'live-blog-consumer-evidence';
+	reviewed: string;
+	url: string;
+	status: 'consumer-proof-not-hosted-fixture';
+	staticNoHydration: {
+		homepageStatus: number;
+		robotsStatus: number;
+		sitemapStatus: number;
+		dataSiteRyan: boolean;
+		ryanMetadataPresent: boolean;
+		sveltekitStartMarkerPresent: boolean;
+		moduleScriptPresent: boolean;
+		sveltekitMarkerPresent: boolean;
+	};
+	seoAudit: {
+		tool: 'seo_audit_python';
+		reportId: string;
+		outputDirectory: string;
+		pagesScanned: number;
+		score: number;
+		grade: string;
+		findings: {
+			critical: number;
+			high: number;
+			medium: number;
+			low: number;
+			info: number;
+		};
+	};
+	planningNotes: string[];
+};
+
 export type AlphaReadinessReport = {
 	target: string;
 	issued: string;
 	releasePolicy: AlphaReleasePolicy;
 	proofLedger: AlphaProofLedgerItem[];
+	hardProofBlockerLedgerMarker: 'hard-proof-blocker-ledger';
+	hardProofBlockers: AlphaHardProofBlocker[];
 	overallScore: number;
 	summary: Record<AlphaReadinessStatus, number>;
 	bridgeSource: string;
@@ -44,6 +95,10 @@ export type AlphaReadinessReport = {
 	readinessAreas: AlphaReadinessArea[];
 	communitySignals: AlphaCommunitySignal[];
 	analyticsRows: AlphaAnalyticsRow[];
+	latestPackageSnapshotReviewed: string;
+	latestPackageSnapshot: AlphaLatestPackageSnapshotItem[];
+	officialAdapterSnapshot: AlphaOfficialAdapterSnapshotItem[];
+	liveConsumerEvidence: AlphaLiveConsumerEvidence;
 	limitations: string[];
 };
 
@@ -69,21 +124,132 @@ export type AlphaProofLedgerItem = {
 };
 
 export const alphaTarget = '1.0.2-alpha.0';
-export const reportIssued = '2026-06-01';
+export const reportIssued = '2026-07-06';
 export const bridgeSource = 'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge';
+export const latestPackageSnapshotReviewed = '2026-07-06';
+
+export const latestPackageSnapshot: AlphaLatestPackageSnapshotItem[] = [
+	{
+		packageName: 'svelte',
+		latest: '5.56.4',
+		currentRange: '^5.45.6',
+		support: 'green',
+		stance: 'Same-major alpha gate target; latest Svelte 5 is covered by the packed fixture smoke.'
+	},
+	{
+		packageName: '@sveltejs/kit',
+		latest: '2.69.1',
+		currentRange: '^2.49.1',
+		support: 'green',
+		stance: 'Same-major alpha gate target; latest SvelteKit 2 is covered by adapter shape and packed fixture smoke.'
+	},
+	{
+		packageName: '@sveltejs/vite-plugin-svelte',
+		latest: '7.1.4',
+		currentRange: '^6.2.1',
+		support: 'yellow',
+		stance: 'Latest major is covered by the isolated Vite 8/plugin 7 fixture smoke; do not raise the repo floor without a separate dependency-floor upgrade.'
+	},
+	{
+		packageName: 'vite',
+		latest: '8.1.3',
+		currentRange: '^7.2.6',
+		support: 'yellow',
+		stance: 'Latest major is covered by the isolated Vite 8/plugin 7 fixture smoke; keep the current Vite 7 floor until an intentional floor upgrade is scoped.'
+	}
+];
+
+export const officialAdapterSnapshot: AlphaOfficialAdapterSnapshotItem[] = [
+	{
+		packageName: '@sveltejs/adapter-node',
+		latest: '5.5.7',
+		support: 'yellow',
+		parityUse: 'Origin, proxy header, client address, body-size, and lifecycle guards remain the Node-style runtime parity backlog.'
+	},
+	{
+		packageName: '@sveltejs/adapter-static',
+		latest: '3.0.10',
+		support: 'green',
+		parityUse: 'Prerendered static output, strict/fallback posture, trailing slash, and no-hydration fixture expectations shape php-static.'
+	},
+	{
+		packageName: '@sveltejs/adapter-cloudflare',
+		latest: '7.2.9',
+		support: 'yellow',
+		parityUse: 'Platform context and static/header boundary ideas inform event.platform.php and host contract docs.'
+	},
+	{
+		packageName: '@sveltejs/adapter-netlify',
+		latest: '6.0.4',
+		support: 'yellow',
+		parityUse: 'Forms, serverless/edge split, and platform context stay comparison inputs, not PHP runtime claims.'
+	},
+	{
+		packageName: '@sveltejs/adapter-vercel',
+		latest: '6.3.4',
+		support: 'yellow',
+		parityUse: 'Deployment skew, per-route deployment policy, ISR, and image optimization remain deferred or documentation-only.'
+	},
+	{
+		packageName: '@sveltejs/adapter-auto',
+		latest: '7.0.1',
+		support: 'yellow',
+		parityUse: 'Zero-config platform detection is not a PHP shared-hosting goal; package metadata should make the explicit adapter choice easy.'
+	}
+];
+
+export const liveConsumerEvidence: AlphaLiveConsumerEvidence = {
+	marker: 'live-blog-consumer-evidence',
+	reviewed: '2026-07-06',
+	url: 'https://blog.ryanspice.com/',
+	status: 'consumer-proof-not-hosted-fixture',
+	staticNoHydration: {
+		homepageStatus: 200,
+		robotsStatus: 200,
+		sitemapStatus: 200,
+		dataSiteRyan: true,
+		ryanMetadataPresent: true,
+		sveltekitStartMarkerPresent: false,
+		moduleScriptPresent: false,
+		sveltekitMarkerPresent: false
+	},
+	seoAudit: {
+		tool: 'seo_audit_python',
+		reportId: 'blog.ryanspice.com-root-20260706T204200Z-v0_4_9',
+		outputDirectory:
+			'B:/Temp/@Browser/seo-audit-blog-20260706/blog.ryanspice.com-root-20260706T204200Z-v0_4_9',
+		pagesScanned: 32,
+		score: 91,
+		grade: 'A-',
+		findings: {
+			critical: 0,
+			high: 2,
+			medium: 5,
+			low: 13,
+			info: 1
+		}
+	},
+	planningNotes: [
+		'Homepage static HTML currently has no observed SvelteKit hydration markers and preserves Ryan metadata.',
+		'Robots and sitemap returned 200 and should remain part of consumer proof for php-static public sites.',
+		'Login route noindex/nofollow/thin-content/invalid-JSON-LD findings are private-route audit noise if login remains intentionally non-indexed; keep it excluded/annotated in audits or fix the JSON-LD if it becomes public.',
+		'Content-template quick wins remain duplicate PixelBoats titles, weak descriptions, repeated "open copy link share" phrase noise, SVG image dimensions, and unnecessary d3 references.',
+		'The blog proof is real consumer evidence for static/no-hydration behavior, but it does not replace a dedicated hosted PHP adapter fixture.'
+	]
+};
 
 export const alphaReleasePolicy: AlphaReleasePolicy = {
 	marker: 'alpha-over-rc-release-policy',
 	channel: 'alpha',
 	track: '1.0.2-alpha',
 	rank: 'above-rc',
-	requiredTargetPattern: '^1\\.0\\.0-alpha\\.\\d+$',
+	requiredTargetPattern: '^1\\.0\\.2-alpha\\.\\d+$',
 	requiredEvidence: requiredAlphaEvidence,
 	disallowedChannels: ['rc', 'stable', 'latest'],
 	releaseRule:
 		'1.0.2-alpha is the explicit release track for this corrective pass and must not be downgraded into an RC-shaped handoff.',
 	stablePromotionRule:
-		'Stable 1.0.0 remains blocked until the full alpha gate, hosted PHP smoke, artifact sync, packed consumer smoke, and clean deployment evidence pass.'
+		'Stable 1.0.2 remains blocked until the full alpha gate, hosted PHP smoke, artifact sync, packed consumer smoke, and clean deployment evidence pass.'
 };
 
 export const alphaProofLedger: AlphaProofLedgerItem[] = [
@@ -106,9 +272,11 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		id: 'ultragear-native-visual-provenance',
 		marker: 'native-visual-matrix',
 		status: 'alpha-ready',
-		proves: 'Windows Mica, macOS traffic-light rhythm, caption controls, and browser fallback styling are traceable to the UltraGear bridge source seams.',
+		proves: 'Windows Mica, macOS traffic-light rhythm, macOS host-material policy boundaries, caption controls, and browser fallback styling are traceable to the UltraGear bridge source seams without claiming unverified macOS vibrancy.',
 		evidence: [
 			'src/app.ts applyWindowChrome / Effect.Mica / syncWindowProgress',
+			'src-tauri/src/lib.rs MacosLauncher::LaunchAgent',
+			'src-tauri/src/lib.rs mica_supported: cfg!(target_os = "windows")',
 			'src/lib/bridge-ui/shell/BridgeShell.svelte',
 			'src/lib/bridge-ui/shell/BridgeTopbar.svelte',
 			'/alpha-readiness/native-host-contract.json nativeVisualMatrix',
@@ -116,6 +284,41 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		],
 		stableBlocker:
 			'Stable OS-native proof still requires a real host wrapper smoke path; PHP/browser evidence stays a browser-safe contract.'
+	},
+	{
+		id: 'native-host-compatibility-matrix',
+		marker: 'native-host-compatibility-matrix',
+		status: 'alpha-ready',
+		proves:
+			'Windows Mica effects, macOS desktop-host scaffolding, taskbar progress reporting, drag, and maximize behavior are mapped from observed UltraGear widget and Tauri shell feature-probe cues into browser-safe adapter host contracts.',
+		evidence: [
+			'packages/ultragear-widget-ui/src/app.ts features.micaSupported',
+			'src-tauri/Cargo.toml cfg(any(target_os = "macos", windows, target_os = "linux"))',
+			'src-tauri/src/lib.rs MacosLauncher::LaunchAgent',
+			'src-tauri/src/lib.rs ShellFeatureProbe.mica_supported',
+			'src-tauri/src/lib.rs current_shell_features()',
+			'src-tauri/src/lib.rs cfg!(target_os = "windows")',
+			'/alpha-readiness/native-host-contract.json nativeHostCompatibilityMatrix',
+			'/alpha-readiness/bridge-reuse.json nativeHostCompatibilityMatrix',
+			'/alpha-readiness/hosted-smoke-checklist.json native-host-compatibility-matrix'
+		],
+		stableBlocker:
+			'Stable OS-native claims still require a real Windows/macOS host smoke; this matrix only proves source-observed compatibility and browser-safe handoff coverage.'
+	},
+	{
+		id: 'no-hydration-prerender-proof',
+		marker: 'csr-disabled-prerender-contract',
+		status: 'alpha-ready',
+		proves:
+			'A prerendered csr=false fixture serves stable SSR HTML without client hydration scripts so blog-style themes do not get repainted after load.',
+		evidence: [
+			'src/routes/alpha-readiness/no-hydration/+page.ts exports prerender=true and csr=false',
+			'src/routes/alpha-readiness/no-hydration/+page.svelte data-contract=csr-disabled-prerender-contract',
+			'/alpha-readiness/no-hydration theme-stable-ssr-html',
+			'alpha remote smoke forbids <script, sveltekit:start, and data-sveltekit-hydrate on the fixture'
+		],
+		stableBlocker:
+			'Stable still requires hosted PHP smoke against the deployed output to prove the fixture and real blog-style pages keep the no-hydration contract after adapter conversion.'
 	},
 	{
 		id: 'community-keyword-analytics-linkage',
@@ -131,6 +334,57 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		],
 		stableBlocker:
 			'Community analytics remain directional public-source evidence and are not product telemetry or complete market proof.'
+	},
+	{
+		id: 'adapter-platform-emulation',
+		marker: 'adapter-platform-emulation',
+		status: 'alpha-ready',
+		proves: 'The adapter exposes a non-secret event.platform.php contract through SvelteKit emulate().platform for dev, build, and preview.',
+		evidence: [
+			'adapter/src/index.ts emulate().platform',
+			'adapter/index.js generated bundle',
+			'/alpha-readiness/package-contract.json adapterPlatformEmulationProof',
+			'bun run verify:release-prep adapter-platform-emulation'
+		],
+		stableBlocker:
+			'Stable still requires strict artifact sync, packed consumer proof, and hosted PHP smoke; platform emulation only proves the adapter capability surface.'
+	},
+	{
+		id: 'latest-sveltekit-compatibility',
+		marker: 'latest-sveltekit-compatibility-audit',
+		status: 'needs-local-gate-proof',
+		proves:
+			'The alpha goal has been audited against current official SvelteKit adapter, build, page-option, project-type, Svelte 5 migration, browser-support, and npm latest package guidance.',
+		evidence: [
+			'docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md',
+			'package.json devDependencies',
+			'adapter/src/index.ts supports/emulate/adapt',
+			'Official SvelteKit writing-adapters, building-your-app, page-options, and project-types docs',
+			'Official Svelte 5 migration and browser-support docs',
+			'npm latest snapshot: svelte 5.56.4, @sveltejs/kit 2.69.1, @sveltejs/vite-plugin-svelte 7.1.4, vite 8.1.3',
+			'official adapter snapshot: adapter-node 5.5.7, adapter-static 3.0.10, adapter-cloudflare 7.2.9, adapter-netlify 6.0.4, adapter-vercel 6.3.4, adapter-auto 7.0.1',
+			'bun run verify:latest-sveltekit-audit checks npm view latest snapshot freshness',
+			'bun run alpha:latest-same-major:smoke validates npm-latest Svelte 5 and SvelteKit 2 against a packed PHP/static fixture',
+			'bun run alpha:latest-vite-major:smoke validates npm-latest Vite 8 and @sveltejs/vite-plugin-svelte 7 in an isolated packed PHP/static fixture without changing dependency floors'
+		],
+		stableBlocker:
+			'Stable 1.0.2 remains blocked until npm publish/install proof exists, hosted PHP smoke passes for the release target, real native-host proof exists for OS-native claims, and newer Kit feature surfaces such as remote functions have explicit proof or an unsupported-feature policy.'
+	},
+	{
+		id: 'remote-functions-alpha-policy',
+		marker: 'remote-functions-alpha-policy',
+		status: 'needs-local-gate-proof',
+		proves:
+			'SvelteKit remote functions are explicitly blocked for PHP runtime alpha output until generated HTTP endpoint routing has PHP fixture and hosted smoke proof.',
+		evidence: [
+			'docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md',
+			'adapter/src/index.ts assertRemoteFunctionsUnsupported',
+			'scripts/verify-remote-functions-policy.mjs',
+			'event.platform.php.remoteFunctions.supported === false',
+			'Official SvelteKit remote-functions docs: generated server HTTP endpoints from .remote.* files'
+		],
+		stableBlocker:
+			'Stable 1.0.2 cannot claim remote-functions support until query, form, command, and prerender behavior are covered by PHP routing fixtures or a documented supported subset.'
 	},
 	{
 		id: 'php-runtime-release-gates',
@@ -160,6 +414,22 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		],
 		stableBlocker:
 			'Hosted pass evidence is missing until ALPHA_SMOKE_BASE_URL targets a real deployed PHP host and the hosted gate passes.'
+	},
+	{
+		id: 'live-blog-consumer-evidence',
+		marker: 'live-blog-consumer-evidence',
+		status: 'needs-hosted-proof',
+		proves:
+			'blog.ryanspice.com is a live consumer proof surface for static php-static behavior, robots/sitemap health, and currently observed no-hydration homepage HTML.',
+		evidence: [
+			'https://blog.ryanspice.com/ returned 200 with data-site="ryan" and Ryan metadata',
+			'robots.txt and sitemap.xml returned 200',
+			'homepage HTML had no sveltekit:start marker, no module script marker, and no __sveltekit marker during the audit',
+			'seo_audit_python report blog.ryanspice.com-root-20260706T204200Z-v0_4_9 scored 91 A- across 32 pages; high findings are confined to the intentionally private /login route',
+			'Live blog consumer proof does not replace the dedicated hosted PHP adapter fixture required by hosted-php-smoke-proof'
+		],
+		stableBlocker:
+			'Stable remains blocked until a dedicated hosted PHP adapter fixture and npm alpha publish proof are current; blog evidence is consumer corroboration only.'
 	}
 ];
 
@@ -195,6 +465,14 @@ export const bridgePatterns: AlphaBridgePattern[] = [
 		status: 'adopted'
 	},
 	{
+		label: 'macOS host material policy boundary',
+		source:
+			'lg-ultragear-bridge/src-tauri/Cargo.toml desktop plugin lane and src-tauri/src/lib.rs MacosLauncher::LaunchAgent with Windows-only mica_supported probe',
+		adopted:
+			'Alpha reports expose source-observed macOS host scaffolding and explicitly mark real macOS vibrancy as unverified until a macOS wrapper smoke run exists',
+		status: 'adopted'
+	},
+	{
 		label: 'Structured validation export',
 		source: 'lg-ultragear-bridge/src/lib/bridge-ui/pages/ValidationView.svelte report JSON download pattern',
 		adopted: 'Deterministic alpha readiness JSON report with gaps, signals, and next gates',
@@ -215,7 +493,12 @@ export const readinessAreas: AlphaReadinessArea[] = [
 			'form-basic GET and POST behavior has targeted coverage',
 			'Router parity checks now cover malicious path cases',
 			'php-static and js-ssr generated routers share safe-path and file-serving helpers',
-			'router-parity unit coverage protects the root-router delegate and generated router safety helpers'
+			'router-parity unit coverage protects the root-router delegate and generated router safety helpers',
+			'/alpha-readiness/no-hydration proves a prerendered csr=false fixture keeps theme-stable SSR HTML without hydration scripts',
+			'blog.ryanspice.com live homepage currently corroborates static/no-hydration consumer behavior with no observed SvelteKit hydration markers',
+			'emulate().platform exposes non-secret event.platform.php mode, output, base-path, and runtime capability flags',
+			'Latest Svelte/SvelteKit audit tracks official adapter API, page options, Svelte 5 migration posture, browser support, and current npm latest package boundaries',
+			'Remote-functions alpha policy blocks unsupported generated HTTP endpoints until the PHP runtime has fixture proof'
 		],
 		gap: 'Needs a clean external consumer fixture before this can justify a stable 1.0.0.'
 	},
@@ -238,7 +521,7 @@ export const readinessAreas: AlphaReadinessArea[] = [
 	{
 		id: 'native-shell-ux',
 		title: 'Native shell UX',
-		description: 'Windows 11 Mica and macOS-native visual language for reports and operator surfaces.',
+		description: 'Windows 11 Mica, macOS-style chrome rhythm, and source-observed host-material policy for reports and operator surfaces.',
 		score: 64,
 		status: 'watch',
 		evidence: [
@@ -246,6 +529,8 @@ export const readinessAreas: AlphaReadinessArea[] = [
 			'No Tauri runtime dependency is introduced into the PHP adapter demo',
 			'Report cards use desktop-window containment, inactive Mica fallback washes, and native caption affordances',
 			'The native host contract exposes theme, frame, titlebar, platform, drag, and window-control DOM markers',
+			'The native-host compatibility matrix maps UltraGear features.micaSupported, ShellFeatureProbe.mica_supported, current_shell_features(), taskbar progress, drag, and maximize cues to browser-safe host actions',
+			'The macOS material lane is marked source-observed host scaffolding and macos-native-vibrancy-unverified until a real macOS wrapper smoke run proves native material application',
 			'NativeTitlebar dispatches browser-safe native-window-action events for pointer-threshold drag and double-click maximize host binding',
 			'Progress/report handoff maps UltraGear syncWindowProgress and ValidationView report export cues to deterministic alpha report artifacts'
 		],
@@ -269,14 +554,17 @@ export const readinessAreas: AlphaReadinessArea[] = [
 		id: 'hosted-deployment',
 		title: 'Hosted deployment evidence',
 		description: 'Real PHP-host smoke evidence for the alpha candidate after deployment.',
-		score: 68,
+		score: 76,
 		status: 'watch',
 		evidence: [
 			'alpha:remote:smoke records hosted checks into report/alpha-remote-smoke.json',
 			'alpha:gate:hosted composes the full local alpha gate with the hosted smoke',
-			'Remote probes cover the alpha page, report JSON, report SVG, form route GET plus POST action, content types, traversal leak markers, live evidence gates, and evidence-index inventory'
+			'Remote probes cover the alpha page, report JSON, report SVG, form route GET plus POST action, content types, traversal leak markers, live evidence gates, and evidence-index inventory',
+			'Remote probes cover the alpha no-hydration fixture and forbid client script/hydration markers on csr=false prerendered output',
+			'When report/alpha-remote-smoke.json has status=passed, report/alpha-readiness.full.json and the release manifest carry alpha hosted proof for the checked PHP target',
+			'Live blog SEO evidence records blog.ryanspice.com root, robots.txt, sitemap.xml, and seo_audit_python A- crawl output as consumer proof, not hosted fixture replacement'
 		],
-		gap: 'Needs ALPHA_SMOKE_BASE_URL pointing at a real deployed PHP host to convert this from skipped/watch to passed evidence.'
+		gap: 'The canonical runtime report is deployment-agnostic; stable still needs a fresh hosted gate for the release deployment target plus local gate, artifact sync, consumer, and native-host proof.'
 	}
 ];
 
@@ -366,9 +654,13 @@ export const analyticsRows: AlphaAnalyticsRow[] = [
 export const alphaLimitations = [
 	'The alpha report scores are curated release-readiness indicators, not computed telemetry.',
 	'Community analytics are partial public-source evidence; Reddit can block unauthenticated requests, and Apache/Nginx remain manual research entrypoints.',
-	'Hosted deployment evidence remains skipped until ALPHA_SMOKE_BASE_URL points at a real PHP-host deployment.',
+	'Hosted deployment evidence is target-specific: report/alpha-readiness.full.json and the release manifest can embed a passed report/alpha-remote-smoke.json, while the canonical runtime report stays deployment-agnostic.',
+	'Latest npm package versions are audit targets, not implicit dependency upgrades; npm-latest Svelte 5 and SvelteKit 2 are covered by alpha:latest-same-major:smoke, while Vite 8 and @sveltejs/vite-plugin-svelte 7 are covered by alpha:latest-vite-major:smoke as isolated validation, not a dependency-floor upgrade.',
+	'Live blog evidence is consumer proof for static/no-hydration behavior and SEO health, not a substitute for the dedicated hosted PHP adapter fixture or npm alpha publish proof.',
+	'SvelteKit remote functions are intentionally unsupported in the PHP runtime alpha until generated HTTP endpoint routing has fixture and hosted proof.',
+	'WordPress plugin mode, PHP-FPM package mode, ISR, built-in image optimization, and adapter-owned auth/roles are not part of the 1.0.2 alpha support lane.',
 	'Native shell styling is a browser-safe emulation and host contract layer, not real Windows Mica or macOS vibrancy.',
-	'No publish, tag, or stable-version promotion should be applied until the alpha and hosted gates pass.'
+	'No publish, tag, or stable-version promotion should be applied until the current alpha gate, hosted gate for the release target, artifact sync, packed consumer smoke, and native-host proof expectations are current.'
 ];
 
 export function summarizeReadiness(
@@ -397,6 +689,8 @@ export function buildAlphaReadinessReport(): AlphaReadinessReport {
 		issued: reportIssued,
 		releasePolicy: alphaReleasePolicy,
 		proofLedger: alphaProofLedger,
+		hardProofBlockerLedgerMarker: 'hard-proof-blocker-ledger',
+		hardProofBlockers: buildAlphaHardProofBlockers(),
 		overallScore: calculateAlphaScore(),
 		summary: summarizeReadiness(),
 		bridgeSource,
@@ -404,7 +698,12 @@ export function buildAlphaReadinessReport(): AlphaReadinessReport {
 		readinessAreas,
 		communitySignals,
 		analyticsRows,
+		latestPackageSnapshotReviewed,
+		latestPackageSnapshot,
+		officialAdapterSnapshot,
+		liveConsumerEvidence,
 		limitations: alphaLimitations
 	};
 }
+
 

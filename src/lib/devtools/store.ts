@@ -37,8 +37,8 @@ export class DevToolsStore {
 			if (stored) {
 				return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
 			}
-		} catch (e) {
-			console.error('Failed to load devtools settings', e);
+		} catch {
+			// Ignore corrupt local devtool settings and fall back to defaults.
 		}
 		return { ...DEFAULT_SETTINGS };
 	}
@@ -47,8 +47,8 @@ export class DevToolsStore {
 		if (!browser) return;
 		try {
 			localStorage.setItem(STORAGE_KEY, JSON.stringify(this.settings));
-		} catch (e) {
-			console.error('Failed to save devtools settings', e);
+		} catch {
+			// Ignore storage quota/private-mode failures for the optional devtool panel.
 		}
 	}
 

@@ -32,6 +32,7 @@ import { assertPackageExportShape } from '../../scripts/smoke-alpha-consumer.mjs
 import { describeCommunitySource } from '../../src/lib/alpha-community-sources';
 import { renderAlphaCommunitySourceMapSvg } from '../../src/lib/alpha-community-source-map-svg';
 import { buildAlphaNativeHostContract } from '../../src/lib/alpha-native-host-contract';
+import { buildAlphaNativeHostWrapperSmoke } from '../../src/lib/alpha-native-host-wrapper-smoke';
 import { renderAlphaNativeHostGuideMarkdown } from '../../src/lib/alpha-native-host-guide';
 import { buildAlphaPackageContract } from '../../src/lib/alpha-package-contract';
 import {
@@ -113,6 +114,9 @@ function buildCompleteGeneratedEvidence() {
 	};
 	const remoteSmoke = { status: 'skipped' };
 	const manifest = buildReleaseManifest(report, communityAnalytics, remoteSmoke);
+	const hostedAlphaSmokeArtifact = manifest.artifacts.find(
+		(artifact) => artifact.path === 'report/alpha-remote-smoke.json'
+	);
 
 	return {
 		report,
@@ -120,7 +124,13 @@ function buildCompleteGeneratedEvidence() {
 		gitignore: readRepoText('.gitignore'),
 		generated: {
 			analytics: communityAnalytics,
-			fullReport: { ...report, collectedCommunityAnalytics: communityAnalytics, hostedAlphaSmoke: remoteSmoke },
+			fullReport: {
+				...report,
+				collectedCommunityAnalytics: communityAnalytics,
+				hostedAlphaSmoke: remoteSmoke,
+				hostedAlphaSmokeProof: manifest.hostedProofInterpretation,
+				hostedAlphaSmokeArtifact
+			},
 			manifest,
 			communityResearchPack: buildCommunityResearchPack(report),
 			bridgeReuse: buildBridgeReuseInventory(report),
@@ -129,6 +139,7 @@ function buildCompleteGeneratedEvidence() {
 			packageContract: buildAlphaPackageContract(report),
 			nativeHostContract: buildAlphaNativeHostContract(report),
 			nativeHostGuide: renderAlphaNativeHostGuideMarkdown(report),
+			nativeHostWrapperSmoke: buildAlphaNativeHostWrapperSmoke(report),
 			hostedSmokeChecklist: buildHostedSmokeChecklist(report),
 			html: renderAlphaReadinessHtml(report, communityAnalytics, remoteSmoke, {
 				readinessGraphicHref: 'alpha-readiness.svg',
@@ -145,6 +156,15 @@ function buildCompleteGeneratedEvidence() {
 			readinessCsv: renderReadinessCsv(report),
 			communitySignalsCsv: renderCommunitySignalsCsv(report, communityAnalytics),
 			communitySourcesCsv: renderCommunitySourcesCsv(report),
+			latestSvelteKitAudit: readRepoText('docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md'),
+			latestSvelteKitAuditVerifier: readRepoText('scripts/verify-latest-sveltekit-audit.mjs'),
+			latestSameMajorSmoke: readRepoText('scripts/smoke-latest-same-major.mjs'),
+			latestViteMajorSmoke: readRepoText('scripts/smoke-latest-vite-major.mjs'),
+			remoteFunctionsPolicy: readRepoText('docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md'),
+			remoteFunctionsVerifier: readRepoText('scripts/verify-remote-functions-policy.mjs'),
+			adapterSource: readRepoText('adapter/src/index.ts'),
+			noHydrationConfigSource: readRepoText('src/routes/alpha-readiness/no-hydration/+page.ts'),
+			noHydrationPageSource: readRepoText('src/routes/alpha-readiness/no-hydration/+page.svelte'),
 			alphaPage: readRepoText('src/routes/alpha-readiness/+page.svelte'),
 			nativeWindowShellSource: readRepoText('src/lib/components/native-shell/NativeWindowShell.svelte'),
 			nativeTitlebarSource: readRepoText('src/lib/components/native-shell/NativeTitlebar.svelte'),
@@ -191,7 +211,7 @@ describe('alpha readiness report', () => {
 		const csv = renderCommunitySourcesCsv(buildAlphaReadinessReport());
 
 		expect(csv).toContain(
-			'"signal_id","keyword","source_label","source_host","provider","mode","evidence_kind","collection_risk","collection_priority","collection_method","freshness_max_age_hours","evidence_weight","trust_boundary","analytics_linkage_marker","source_to_keyword_edge","manual_review_required","endpoint","href","proof_use","reviewer_action","collector_note"'
+			'"signal_id","keyword","source_label","source_host","provider","mode","evidence_kind","collection_risk","collection_priority","action_lane","confidence_tier","collection_method","freshness_max_age_hours","evidence_weight","trust_boundary","source_health","analytics_linkage_marker","alpha_evidence_checklist_marker","alpha_evidence_checklist","source_to_keyword_edge","manual_review_required","endpoint","href","proof_use","release_use","release_claim_use","reviewer_action","collector_note","blocked_outcome_policy","result_total_field","top_result_fields","sample_review_rule"'
 		);
 		expect(csv).toContain('api.github.com/search');
 		expect(csv).toContain('analytics-linked-keyword-graph');

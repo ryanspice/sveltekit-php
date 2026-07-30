@@ -1,5 +1,5 @@
-<script>
-	export let data;
+<script lang="ts">
+	let { data }: { data: { message: string; time: string } } = $props();
 </script>
 
 <h1>Dynamic SSR</h1>

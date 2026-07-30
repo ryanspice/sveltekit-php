@@ -125,6 +125,18 @@ function averageWeightedDemandScore(sources) {
 	return Math.round(weightedTotal / totalWeight);
 }
 
+function isBlockedSource(source) {
+	const error = String(source.error ?? '').toLowerCase();
+	return (
+		source.status === 'error' &&
+		(source.provider === 'reddit' ||
+			error.includes('403') ||
+			error.includes('blocked') ||
+			error.includes('rate limit') ||
+			error.includes('throttle'))
+	);
+}
+
 async function fetchJson(url, provider, timeoutMs) {
 	const headers = {
 		Accept: 'application/json',
@@ -202,6 +214,8 @@ export async function collectCommunityAnalytics({
 		}
 
 		const okSources = sources.filter((source) => source.status === 'ok');
+		const blockedSources = sources.filter(isBlockedSource);
+		const manualReviewRequiredSources = sources.filter((source) => source.manualReviewRequired);
 		const totalMentions = okSources.reduce((total, source) => total + Number(source.total ?? 0), 0);
 		const demandScore =
 			okSources.length === 0
@@ -218,7 +232,9 @@ export async function collectCommunityAnalytics({
 			aggregate: {
 				successfulSources: okSources.length,
 				failedSources: sources.filter((source) => source.status === 'error').length,
+				blockedSources: blockedSources.length,
 				skippedSources: sources.filter((source) => source.status === 'skipped').length,
+				manualReviewRequiredSources: manualReviewRequiredSources.length,
 				totalMentions,
 				demandScore,
 				weightedDemandScore
@@ -232,7 +248,12 @@ export async function collectCommunityAnalytics({
 		0
 	);
 	const failedSources = queries.reduce((total, query) => total + query.aggregate.failedSources, 0);
+	const blockedSources = queries.reduce((total, query) => total + query.aggregate.blockedSources, 0);
 	const skippedSources = queries.reduce((total, query) => total + query.aggregate.skippedSources, 0);
+	const manualReviewRequiredSources = queries.reduce(
+		(total, query) => total + query.aggregate.manualReviewRequiredSources,
+		0
+	);
 	const averageDemandScore =
 		queries.length === 0
 			? 0
@@ -266,7 +287,10 @@ export async function collectCommunityAnalytics({
 				'freshnessMaxAgeHours',
 				'evidenceWeight',
 				'trustBoundary',
-				'manualReviewRequired'
+				'manualReviewRequired',
+				'resultTotalField',
+				'topResultFields',
+				'sampleReviewRule'
 			],
 			reviewerRule:
 				'Refresh public-source analytics within seven days before alpha release review and treat counts as directional evidence only.'
@@ -277,7 +301,9 @@ export async function collectCommunityAnalytics({
 			signals: queries.length,
 			successfulSources,
 			failedSources,
+			blockedSources,
 			skippedSources,
+			manualReviewRequiredSources,
 			averageDemandScore,
 			weightedAverageDemandScore,
 			providerCoverage: countSourcesBy(sourceDescriptors, 'provider'),
@@ -311,7 +337,7 @@ async function main() {
 	console.log(`- ${path.relative(repoRoot, jsonPath)}`);
 	console.log(`- ${path.relative(repoRoot, mdPath)}`);
 	console.log(
-		`Sources: ${analytics.summary.successfulSources} ok, ${analytics.summary.failedSources} failed, ${analytics.summary.skippedSources} skipped`
+		`Sources: ${analytics.summary.successfulSources} ok, ${analytics.summary.failedSources} failed, ${analytics.summary.blockedSources} blocked, ${analytics.summary.skippedSources} skipped, ${analytics.summary.manualReviewRequiredSources} manual-review-required`
 	);
 	for (const query of analytics.queries) {
 		for (const source of query.sources) {

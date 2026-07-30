@@ -1,7 +1,9 @@
 import type { AlphaReadinessReport } from './alpha-readiness';
 import { buildBridgeReuseInventory } from './alpha-bridge-reuse';
 import { buildCommunityResearchPack } from './alpha-community-research-pack';
+import { buildAlphaHardProofBlockers } from './alpha-hard-proof-blockers';
 import { buildAlphaNativeHostContract } from './alpha-native-host-contract';
+import { buildAlphaNativeHostWrapperSmoke } from './alpha-native-host-wrapper-smoke';
 import { requiredAlphaEvidence } from './alpha-required-evidence';
 
 type CommunityAnalyticsArtifact = {
@@ -33,6 +35,10 @@ type RemoteSmokeArtifact = {
 	checks?: unknown[];
 } | null;
 
+function formatCoverage(values: { value: string; count: number }[] = []) {
+	return values.map((item) => `${item.value}: ${item.count}`).join(', ');
+}
+
 export function renderAlphaReadinessMarkdown(
 	report: AlphaReadinessReport,
 	communityAnalytics: CommunityAnalyticsArtifact = null,
@@ -40,12 +46,15 @@ export function renderAlphaReadinessMarkdown(
 ) {
 	const bridgeReuseInventory = buildBridgeReuseInventory(report);
 	const nativeHostContract = buildAlphaNativeHostContract(report);
+	const nativeHostWrapperSmoke = buildAlphaNativeHostWrapperSmoke(report);
 	const communityResearchPack = buildCommunityResearchPack(report);
 	const keywordSearchGraph = communityResearchPack.keywordSearchGraph;
 	const progressReportHandoff = bridgeReuseInventory.progressReportHandoff;
 	const nativeVisualMatrix = bridgeReuseInventory.nativeVisualMatrix;
+	const nativeHostCompatibilityMatrix = bridgeReuseInventory.nativeHostCompatibilityMatrix;
 	const nativePlatformProvenance = bridgeReuseInventory.nativePlatformProvenance;
 	const desktopShellUiBinding = nativeHostContract.desktopShellUiBinding;
+	const hardProofBlockers = buildAlphaHardProofBlockers();
 	const lines = [
 		`# SvelteKit PHP ${report.target} readiness report`,
 		'',
@@ -90,10 +99,67 @@ export function renderAlphaReadinessMarkdown(
 	}
 
 	lines.push(
+		'## No-hydration prerender proof',
+		'',
+		'- Runtime fixture: `/alpha-readiness/no-hydration`.',
+		'- Required evidence marker: `csr-disabled-prerender-contract`.',
+		'- Stable SSR marker: `theme-stable-ssr-html`.',
+		'- Route contract: `prerender=true` and `csr=false`.',
+		'- Hosted smoke must reject `<script`, `sveltekit:start`, and `data-sveltekit-hydrate` in the fixture HTML.',
+		'- Release use: proves blog/static-theme pages can avoid client hydration repaint when the route is intended to be fully prerendered.',
+		'',
+		'## Current Svelte 5/SvelteKit 2 adapter parity snapshot',
+		'',
+		`- Last reviewed: ${report.latestPackageSnapshotReviewed}.`,
+		'- Marker: `latest-sveltekit-compatibility-audit`.',
+		'- Same-major support: Svelte 5 and SvelteKit 2 stay green through the packed latest-same-major fixture smoke.',
+		'- Validation lane: Vite 8 and `@sveltejs/vite-plugin-svelte` 7 have isolated fixture proof through `alpha:latest-vite-major:smoke`; dependency floors stay unchanged.',
+		'',
+		...report.latestPackageSnapshot.map(
+			(item) =>
+				`- ${item.packageName}: latest ${item.latest}; repo range ${item.currentRange}; support ${item.support}; ${item.stance}`
+		),
+		'',
+		'### Official adapter snapshot',
+		'',
+		...report.officialAdapterSnapshot.map(
+			(item) =>
+				`- ${item.packageName}: latest ${item.latest}; support ${item.support}; parity use: ${item.parityUse}`
+		),
+		'',
+		'## Live blog consumer evidence',
+		'',
+		`- Marker: \`${report.liveConsumerEvidence.marker}\`.`,
+		`- URL: ${report.liveConsumerEvidence.url}.`,
+		`- Status: \`${report.liveConsumerEvidence.status}\`.`,
+		`- Root/robots/sitemap: ${report.liveConsumerEvidence.staticNoHydration.homepageStatus}/${report.liveConsumerEvidence.staticNoHydration.robotsStatus}/${report.liveConsumerEvidence.staticNoHydration.sitemapStatus}.`,
+		`- Static/no-hydration observed: data-site Ryan ${report.liveConsumerEvidence.staticNoHydration.dataSiteRyan}; Ryan metadata ${report.liveConsumerEvidence.staticNoHydration.ryanMetadataPresent}; sveltekit:start marker ${report.liveConsumerEvidence.staticNoHydration.sveltekitStartMarkerPresent}; module script marker ${report.liveConsumerEvidence.staticNoHydration.moduleScriptPresent}; __sveltekit marker ${report.liveConsumerEvidence.staticNoHydration.sveltekitMarkerPresent}.`,
+		`- SEO audit: ${report.liveConsumerEvidence.seoAudit.tool} ${report.liveConsumerEvidence.seoAudit.reportId}; ${report.liveConsumerEvidence.seoAudit.pagesScanned} pages; score ${report.liveConsumerEvidence.seoAudit.score}; grade ${report.liveConsumerEvidence.seoAudit.grade}; findings ${report.liveConsumerEvidence.seoAudit.findings.high} high, ${report.liveConsumerEvidence.seoAudit.findings.medium} medium, ${report.liveConsumerEvidence.seoAudit.findings.low} low, ${report.liveConsumerEvidence.seoAudit.findings.info} info.`,
+		'- Boundary: blog.ryanspice.com is consumer proof for real static/no-hydration behavior; it does not replace the dedicated hosted PHP adapter fixture.',
+		'- Follow-up notes:',
+		...report.liveConsumerEvidence.planningNotes.map((note) => `  - ${note}`),
+		'',
+		'## Hard proof blockers',
+		'',
+		'The `hard-proof-blocker-ledger` keeps stable-promotion blockers synchronized across manifest, gate matrix, package contract, release notes, reviewer index, and generated reports.',
+		'',
+		...hardProofBlockers.flatMap((blocker) => [
+			`### ${blocker.id}`,
+			'',
+			`- Marker: \`${blocker.marker}\``,
+			`- Status: \`${blocker.status}\``,
+			`- Scope: \`${blocker.scope}\``,
+			`- Required command: \`${blocker.requiredCommand}\``,
+			`- Required artifacts: ${blocker.requiredArtifacts.map((artifact) => `\`${artifact}\``).join(', ')}`,
+			`- Blocks: \`${blocker.blocks}\``,
+			`- Reviewer action: ${blocker.reviewerAction}`,
+			''
+		]),
 		'## Evidence trust model',
 		'',
 		'- `deterministic-local-artifact`: generated reports, graphics, CSVs, manifests, and contracts from source-controlled alpha modules.',
 		'- `directional-community-signal`: public-source community analytics collected by `bun run alpha:analytics`; counts are not telemetry.',
+		'- `no-live-community-api-runtime-boundary`: runtime community analytics endpoints serve deterministic report handoffs; public-source collection stays in explicit local/CI commands.',
 		'- `deterministic-runtime-evidence`: runtime endpoints serve deterministic report data and do not call live community APIs.',
 		'- `requires-alpha-smoke-base-url-for-pass-evidence`: hosted smoke only proves deployment after `ALPHA_SMOKE_BASE_URL` targets a real PHP host.',
 		'',
@@ -105,7 +171,25 @@ export function renderAlphaReadinessMarkdown(
 		'- Optional host controller: `window.__SVELTEKIT_PHP_NATIVE_HOST__` with `startDragging`, `toggleMaximize`, `setWindowEffect`, `setProgress`, `clearProgress`, and `reportReady` handlers.',
 		'- Handoff actions: `set-window-effect`, `set-progress`, `clear-progress`, and `report-ready` are emitted as browser-safe `native-window-action` events.',
 		'- Browser fallback history: `window.__SVELTEKIT_PHP_NATIVE_HOST_HISTORY__` records `browser-fallback`, `native-host`, and `unsupported` results.',
-		'- Boundary: Windows Mica and macOS chrome commands remain host-owned; the PHP/browser runtime stays deployable.',
+		'- Boundary: Windows Mica and macOS chrome commands remain host-owned; `macos-material-host-policy`, `source-observed-macos-host-scaffold`, and `macos-native-vibrancy-unverified` keep macOS material support source-observed until real macOS host smoke exists.',
+		'',
+		'## Native host wrapper smoke handoff',
+		'',
+		`- Marker: \`${nativeHostWrapperSmoke.marker}\`.`,
+		`- Status: \`${nativeHostWrapperSmoke.status}\`.`,
+		`- Command: \`${nativeHostWrapperSmoke.command}\`.`,
+		`- Runtime endpoint: \`${nativeHostWrapperSmoke.runtimeEndpoint}\`.`,
+		`- Generated artifact: \`${nativeHostWrapperSmoke.artifact}\`.`,
+		`- Trust level: \`${nativeHostWrapperSmoke.trustLevel}\`.`,
+		`- realHostVerified: \`${nativeHostWrapperSmoke.realHostVerified}\` (the deterministic report does not claim a Windows/macOS wrapper run).`,
+		`- Required actions: ${nativeHostWrapperSmoke.summary.requiredActions.map((action) => `\`${action}\``).join(', ')}.`,
+		`- Required helpers: ${nativeHostWrapperSmoke.summary.requiredHelpers.map((helper) => `\`${helper}\``).join(', ')}.`,
+		`- Event replay contract: \`${nativeHostWrapperSmoke.eventReplayContract.marker}\` over \`${nativeHostWrapperSmoke.eventReplayContract.eventName}\`, expecting \`${nativeHostWrapperSmoke.eventReplayContract.expectedMode}\` history and \`noFallbackAllowedForRealHost\`.`,
+		`- Event replay transcript: ${nativeHostWrapperSmoke.summary.eventReplayExpectationCount} \`native-host-wrapper-event-replay-step\` entries with \`expectedHistoryResult\` and \`expectedDesktopShellUiHelper\` fields.`,
+		'- Progress-state contract: `TaskbarProgressState` expectations are generated from `toDesktopShellUiTaskbarProgressState` and checked before a wrapper calls `syncTaskbarProgress`.',
+		`- Probe steps: ${nativeHostWrapperSmoke.summary.probeStepCount}; progress expectations: ${nativeHostWrapperSmoke.summary.progressExpectationCount}; missing actions: ${nativeHostWrapperSmoke.summary.missingActions.length}; missing mappings: ${nativeHostWrapperSmoke.summary.missingMappings.length}; failed progress expectations: ${nativeHostWrapperSmoke.summary.failedProgressExpectations.length}.`,
+		`- Boundary: ${nativeHostWrapperSmoke.noNativeApiBoundary.reason}`,
+		`- Stable blocker: ${nativeHostWrapperSmoke.stableBlocker}`,
 		'',
 		'## UltraGear source parity',
 		'',
@@ -154,10 +238,11 @@ export function renderAlphaReadinessMarkdown(
 		`- Source files: ${nativePlatformProvenance.sourceFiles.map((file) => `\`${file}\``).join(', ')}.`,
 		`- Windows Mica cues: ${nativePlatformProvenance.windowsMicaCues.map((cue) => `\`${cue}\``).join(', ')}.`,
 		`- macOS chrome cues: ${nativePlatformProvenance.macosChromeCues.map((cue) => `\`${cue}\``).join(', ')}.`,
+		'- macOS host-material boundary markers: `macos-material-host-policy`, `source-observed-macos-host-scaffold`, `macos-native-vibrancy-unverified`.',
 		`- Window-action cues: ${nativePlatformProvenance.windowActionCues.map((cue) => `\`${cue}\``).join(', ')}.`,
 		`- Progress/report cues: ${nativePlatformProvenance.progressReportCues.map((cue) => `\`${cue}\``).join(', ')}.`,
 		`- Adapter evidence: ${nativePlatformProvenance.adapterEvidence.map((item) => `\`${item}\``).join(', ')}.`,
-		'- Proof use: keeps Windows 11 Mica, macOS-native chrome, host-owned window actions, and structured report/progress handoff tied to concrete LG UltraGear source files.',
+		'- Proof use: keeps Windows 11 Mica, source-observed macOS host-material policy, unverified native macOS vibrancy, host-owned window actions, and structured report/progress handoff tied to concrete LG UltraGear source files.',
 		'',
 		'## Native visual matrix',
 		'',
@@ -167,6 +252,19 @@ export function renderAlphaReadinessMarkdown(
 		`- UltraGear cues: ${nativeVisualMatrix.sourceCues.map((cue) => `\`${cue}\``).join(', ')}.`,
 		`- Proof use: ${nativeVisualMatrix.proofUse}`,
 		'',
+		'## Native host compatibility matrix',
+		'',
+		'- Required evidence marker: `native-host-compatibility-matrix`.',
+		`- Contract marker: \`${nativeHostCompatibilityMatrix.marker}\`.`,
+		`- Trust level: \`${nativeHostCompatibilityMatrix.trustLevel}\`.`,
+		'- Proof stage: `source-observed-host-compatibility-contract`.',
+		'- Boundary: maps observed UltraGear Windows/native host cues to browser-safe adapter host actions without claiming real OS-native smoke proof.',
+		...nativeHostCompatibilityMatrix.rows.flatMap((row) => [
+			`### ${row.id}`,
+			'',
+			`- Evidence row: \`${JSON.stringify(row)}\`.`,
+			''
+		]),
 		'## UltraGear progress and report handoff',
 		'',
 		'- Live page marker: `data-progress-report-handoff`.',
@@ -185,7 +283,8 @@ export function renderAlphaReadinessMarkdown(
 		`- Analytics freshness contract: \`${communityResearchPack.analyticsFreshnessContract.marker}\`; refresh within ${communityResearchPack.analyticsFreshnessContract.maxAgeHours} hours before alpha release review.`,
 		`- Supported-api-lanes: ${communityResearchPack.summary.supportedSourceCount}.`,
 		`- Manual-research-lanes: ${communityResearchPack.summary.manualSourceCount}.`,
-		'- Analytics linkage: `analytics-linked-keyword-graph` ties `curated-signal-score` to `collected-demand-score` fields under the `directional-community-signal` trust model.',
+		'- Source checklist marker: `alpha-community-source-evidence-checklist` keeps release-use, source-health, and blocked-source handling attached to every source descriptor.',
+		'- Analytics linkage: `analytics-linked-keyword-graph` ties `curated-signal-score` to `collected-demand-score` fields under the `directional-community-signal` trust model, while `no-live-community-api-runtime-boundary` keeps runtime endpoints deterministic.',
 		''
 	);
 
@@ -199,9 +298,11 @@ export function renderAlphaReadinessMarkdown(
 		'',
 		'## Community evidence coverage ledger',
 		'',
-		`- Providers (${communityResearchPack.summary.providerCoverage.length}): ${communityResearchPack.summary.providerCoverage.join(', ')}`,
-		`- Evidence kinds (${communityResearchPack.summary.evidenceKindCoverage.length}): ${communityResearchPack.summary.evidenceKindCoverage.join(', ')}`,
-		`- Collection risk (${communityResearchPack.summary.collectionRiskCoverage.length}): ${communityResearchPack.summary.collectionRiskCoverage.join(', ')}`,
+		`- Providers (${communityResearchPack.summary.providerCoverage.length}): ${formatCoverage(communityResearchPack.summary.providerCoverage)}`,
+		`- Evidence kinds (${communityResearchPack.summary.evidenceKindCoverage.length}): ${formatCoverage(communityResearchPack.summary.evidenceKindCoverage)}`,
+		`- Collection risk (${communityResearchPack.summary.collectionRiskCoverage.length}): ${formatCoverage(communityResearchPack.summary.collectionRiskCoverage)}`,
+		`- Source health (${communityResearchPack.summary.sourceHealthCoverage.length}): ${formatCoverage(communityResearchPack.summary.sourceHealthCoverage)}`,
+		`- Result total fields (${communityResearchPack.summary.resultTotalFieldCoverageByField.length}): ${formatCoverage(communityResearchPack.summary.resultTotalFieldCoverageByField)}`,
 		'',
 		'## Open-source analytics sources reviewers can audit first',
 		''
@@ -209,7 +310,7 @@ export function renderAlphaReadinessMarkdown(
 
 	for (const source of communityResearchPack.collectionPlan.slice(0, 6)) {
 		lines.push(
-			`- ${source.provider} (${source.sourceHost}): ${source.mode}, ${source.evidenceKind}, ${source.collectionRisk}. Proof use: ${source.proofUse}`
+			`- ${source.provider} (${source.sourceHost}): ${source.mode}, ${source.evidenceKind}, ${source.collectionRisk}, ${source.sourceHealth}. Result field: ${source.resultTotalField}. Top fields: ${source.topResultFields.join(', ')}. Sample rule: ${source.sampleReviewRule} Proof use: ${source.proofUse} Release use: ${source.releaseUse} Checklist: ${source.alphaEvidenceChecklist.join(', ')}. Blocked policy: ${source.blockedOutcomePolicy}`
 		);
 	}
 
@@ -255,7 +356,7 @@ export function renderAlphaReadinessMarkdown(
 	lines.push('- Readiness release card: `/alpha-readiness/report.svg`');
 	lines.push('- Community source map: `/alpha-readiness/community-source-map.svg`');
 	lines.push(
-		'- Generated artifact: `report/alpha-community-source-map.svg` maps supported-json-api and manual-research-link lanes for the keyword research sources.',
+		'- Generated artifact: `report/alpha-community-source-map.svg` maps supported-json-api and manual-research-link lanes for the keyword research sources and carries `no-live-community-api-runtime-boundary` metadata.',
 		''
 	);
 
@@ -309,3 +410,4 @@ export function renderAlphaReadinessMarkdown(
 	lines.push('');
 	return lines.join('\n');
 }
+

@@ -9,10 +9,10 @@
 		data?: Record<string, unknown>;
 	};
 
-	export let form: NamedActionResult | null = null;
+	let { form = null }: { form?: NamedActionResult | null } = $props();
 
-	let activeAction = 'process';
-	let loading = false;
+	let activeAction = $state('process');
+	let loading = $state(false);
 
 	function handleSubmit() {
 		loading = true;
@@ -23,8 +23,23 @@
 			const { result } = opts;
 			loading = false;
 			// Handle the result
-			console.log('Action result:', result);
 		};
+	}
+
+	function setActiveAction(action: string) {
+		activeAction = action;
+	}
+
+	function selectProcess() {
+		setActiveAction('process');
+	}
+
+	function selectValidate() {
+		setActiveAction('validate');
+	}
+
+	function selectSave() {
+		setActiveAction('save');
 	}
 </script>
 
@@ -42,21 +57,21 @@
 
 		<div class="action-buttons">
 			<button
-				on:click={() => (activeAction = 'process')}
+				onclick={selectProcess}
 				class:active={activeAction === 'process'}
 				formaction="?/process"
 			>
 				Process Data
 			</button>
 			<button
-				on:click={() => (activeAction = 'validate')}
+				onclick={selectValidate}
 				class:active={activeAction === 'validate'}
 				formaction="?/validate"
 			>
 				Validate Only
 			</button>
 			<button
-				on:click={() => (activeAction = 'save')}
+				onclick={selectSave}
 				class:active={activeAction === 'save'}
 				formaction="?/save"
 			>
@@ -149,7 +164,10 @@
 		background: white;
 		border-radius: 0.5rem;
 		cursor: pointer;
-		transition: all 0.2s;
+		transition:
+			border-color 0.2s,
+			color 0.2s,
+			background-color 0.2s;
 		font-size: 1rem;
 	}
 

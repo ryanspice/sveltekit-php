@@ -23,12 +23,12 @@ export async function getPhpData(fetch: typeof globalThis.fetch, path: string): 
 	const url = `http://127.0.0.1:8080/${cleanPath}/__data.json`;
 
 	try {
-		console.log(`[PHP-Dev] Fetching ${url}`);
+		emitPhpDevWarning(`[PHP-Dev] Fetching ${url}`);
 		const res = await fetch(url);
 
 		const contentType = res.headers.get('content-type');
 		if (!contentType || !contentType.includes('application/json')) {
-			console.warn(
+			emitPhpDevWarning(
 				`[PHP-Dev] Warning: Expected JSON from ${url}, got ${contentType}. This usually means the PHP route is missing or falling back to HTML.`
 			);
 			// If we got HTML (e.g. 404 page or fallback index), return empty to avoid crash
@@ -36,7 +36,7 @@ export async function getPhpData(fetch: typeof globalThis.fetch, path: string): 
 		}
 
 		if (!res.ok) {
-			console.error(`[PHP-Dev] Failed to fetch ${url}: ${res.status}`);
+			emitPhpDevWarning(`[PHP-Dev] Failed to fetch ${url}: ${res.status}`);
 			return [];
 		}
 
@@ -56,7 +56,7 @@ export async function getPhpData(fetch: typeof globalThis.fetch, path: string): 
 					} catch (e) {
 						// If devalue parsing fails, it might be a raw value?
 						// Or maybe the data structure is slightly different.
-						console.error(`[PHP-Dev] Failed to parse node data:`, e);
+						emitPhpDevWarning('[PHP-Dev] Failed to parse node data', e);
 						return {};
 					}
 				}
@@ -66,7 +66,13 @@ export async function getPhpData(fetch: typeof globalThis.fetch, path: string): 
 
 		return [];
 	} catch (e) {
-		console.error(`[PHP-Dev] Error fetching PHP data:`, e);
+		emitPhpDevWarning('[PHP-Dev] Error fetching PHP data', e);
 		return [];
+	}
+}
+
+function emitPhpDevWarning(message: string, details?: unknown): void {
+	if (typeof process !== 'undefined' && typeof process.emitWarning === 'function') {
+		process.emitWarning(details === undefined ? message : `${message}: ${String(details)}`);
 	}
 }

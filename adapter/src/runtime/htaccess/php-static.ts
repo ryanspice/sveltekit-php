@@ -69,6 +69,12 @@ export function getHtaccessPhpStatic(
 
 	${precompress ? 'Header append Vary "Accept-Encoding"\n' : ''}
 </IfModule>
+<IfModule mod_mime.c>
+	AddType text/markdown       .md
+	AddType text/csv            .csv
+	AddType image/svg+xml       .svg
+	AddType application/json    .json
+</IfModule>
 ${
 	precompress
 		? `<IfModule mod_mime.c>

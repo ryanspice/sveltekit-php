@@ -6,7 +6,7 @@
 		return `${base}${path}`;
 	};
 
-	export let data: { title?: string; description?: string; app_name?: string };
+	let { data }: { data: { title?: string; description?: string; app_name?: string } } = $props();
 </script>
 
 <svelte:head>
@@ -34,8 +34,8 @@
 			<li><a href={href('api/ping')} target="_blank">API Ping (JSON)</a></li>
 			<li><a href={href('redirect-me')}>Redirect Test</a></li>
 			<li><a href={href('status?code=404')}>404 Page</a></li>
-			<a href={href('matrix/ssr-off')}>Matrix SSR off</a>
-			<a href={href('matrix/ssr-on')}>Matrix SSR on</a>
+			<li><a href={href('matrix/ssr-off')}>Matrix SSR off</a></li>
+			<li><a href={href('matrix/ssr-on')}>Matrix SSR on</a></li>
 			<li><a href={href('matrix/dynamic-ssr')}>Matrix: Dynamic SSR</a></li>
 			<li><a href={href('negotiate')}>Negotiation</a></li>
 		</ul>

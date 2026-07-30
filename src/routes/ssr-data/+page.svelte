@@ -2,9 +2,7 @@
 	import { browser } from '$app/environment';
 	import { base } from '$app/paths';
 
-	export let data: { message?: string } | undefined;
-
-	$: console.log('PAGE DATA:', JSON.stringify(data));
+	let { data }: { data?: { message?: string } } = $props();
 </script>
 
 <div class="container">
@@ -17,7 +15,7 @@
 	{/if}
 
 	{#if browser}
-		<div style="border: 1px solid red; padding: 1em; margin-top: 1em; background: #fff;">
+		<div class="debug-info">
 			<h3>Debug Info</h3>
 			<p>Data Type: {typeof data}</p>
 			<p>Is Array: {Array.isArray(data)}</p>
@@ -34,5 +32,12 @@
 	.container {
 		font-family: sans-serif;
 		padding: 2rem;
+	}
+
+	.debug-info {
+		margin-top: 1em;
+		border: 1px solid red;
+		padding: 1em;
+		background: #fff;
 	}
 </style>

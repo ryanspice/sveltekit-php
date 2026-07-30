@@ -2,6 +2,32 @@ import type { AlphaReadinessReport } from './alpha-readiness';
 import { describeCommunitySource } from './alpha-community-sources';
 import { requiredAlphaEvidence } from './alpha-required-evidence';
 
+type CommunityAnalyticsArtifact = {
+	collectedAt?: string;
+	summary?: {
+		successfulSources?: number;
+		failedSources?: number;
+		blockedSources?: number;
+		skippedSources?: number;
+		manualReviewRequiredSources?: number;
+		averageDemandScore?: number;
+	};
+	queries?: {
+		signalId?: string;
+		keyword: string;
+		aggregate?: {
+			demandScore?: number;
+			totalMentions?: number;
+			successfulSources?: number;
+			failedSources?: number;
+			blockedSources?: number;
+			skippedSources?: number;
+			manualReviewRequiredSources?: number;
+		};
+	}[];
+} | null;
+type CommunityAnalyticsQuery = NonNullable<NonNullable<CommunityAnalyticsArtifact>['queries']>[number];
+
 function escapeSvg(value: unknown) {
 	return String(value)
 		.replaceAll('&', '&amp;')
@@ -11,7 +37,10 @@ function escapeSvg(value: unknown) {
 		.replaceAll("'", '&#39;');
 }
 
-export function renderAlphaCommunitySourceMapSvg(report: AlphaReadinessReport) {
+export function renderAlphaCommunitySourceMapSvg(
+	report: AlphaReadinessReport,
+	analytics: CommunityAnalyticsArtifact = null
+) {
 	const width = 1400;
 	const height = 880;
 	const requiredEvidenceMarkers = requiredAlphaEvidence.join(' | ');
@@ -40,6 +69,32 @@ export function renderAlphaCommunitySourceMapSvg(report: AlphaReadinessReport) {
 	const trustBoundaries = Array.from(new Set(sources.map((source) => source.trustBoundary))).join(
 		' | '
 	);
+	const sourceHealth = Array.from(new Set(sources.map((source) => source.sourceHealth))).join(
+		' | '
+	);
+	const actionLanes = Array.from(new Set(sources.map((source) => source.actionLane))).join(' | ');
+	const confidenceTiers = Array.from(new Set(sources.map((source) => source.confidenceTier))).join(
+		' | '
+	);
+	const resultTotalFields = Array.from(new Set(sources.map((source) => source.resultTotalField))).join(
+		' | '
+	);
+	const topResultFieldCount = Array.from(
+		new Set(sources.flatMap((source) => source.topResultFields))
+	).length;
+	const analyticsSummary = analytics?.summary ?? null;
+	const analyticsQueries = new Map<string, CommunityAnalyticsQuery>();
+	for (const query of analytics?.queries ?? []) {
+		analyticsQueries.set(query.signalId ?? query.keyword, query);
+		analyticsQueries.set(query.keyword, query);
+	}
+	const collectedAt = analytics?.collectedAt ?? 'not-collected';
+	const averageDemandScore = analyticsSummary?.averageDemandScore ?? 'not-collected';
+	const successfulSources = analyticsSummary?.successfulSources ?? 0;
+	const failedSources = analyticsSummary?.failedSources ?? 0;
+	const blockedSources = analyticsSummary?.blockedSources ?? 0;
+	const skippedSources = analyticsSummary?.skippedSources ?? 0;
+	const manualReviewRequiredSources = analyticsSummary?.manualReviewRequiredSources ?? 0;
 	const hostLabels = hosts
 		.slice(0, 8)
 		.map((host, index) => {
@@ -55,6 +110,12 @@ export function renderAlphaCommunitySourceMapSvg(report: AlphaReadinessReport) {
 	const signalRows = report.communitySignals
 		.map((signal, signalIndex) => {
 			const y = 204 + signalIndex * 124;
+			const collected = analyticsQueries.get(signal.id) ?? analyticsQueries.get(signal.keyword);
+			const collectedDemandScore = collected?.aggregate?.demandScore ?? 'not-collected';
+			const collectedMentions = collected?.aggregate?.totalMentions ?? 'not-collected';
+			const collectedSourceStatus = collected?.aggregate
+				? `${collected.aggregate.successfulSources ?? 0} ok / ${collected.aggregate.failedSources ?? 0} failed / ${collected.aggregate.blockedSources ?? 0} blocked`
+				: 'not-collected';
 			const sourceNodes = signal.communities
 				.map((community, sourceIndex) => {
 					const source = describeCommunitySource(community, signal.keyword);
@@ -68,33 +129,35 @@ export function renderAlphaCommunitySourceMapSvg(report: AlphaReadinessReport) {
 					return `
 						<g>
 							<path d="M414 ${y + 16} C436 ${y + 16}, 446 ${y + 16}, ${x - 16} ${y + 16}" class="connector" />
-							<rect x="${x}" y="${y - 18}" width="236" height="118" rx="20" class="${nodeClass}" />
+							<rect x="${x}" y="${y - 18}" width="236" height="130" rx="20" class="${nodeClass}" />
 							<text x="${x + 18}" y="${y + 7}" class="source-title">${escapeSvg(source.label)}</text>
 							<text x="${x + 18}" y="${y + 29}" class="tiny">${escapeSvg(source.sourceHost)} / ${escapeSvg(source.provider)}</text>
 							<text x="${x + 18}" y="${y + 50}" class="tiny">${escapeSvg(source.evidenceKind)} / ${escapeSvg(source.collectionRisk)} risk</text>
 							<text x="${x + 18}" y="${y + 68}" class="tiny">${escapeSvg(source.collectionMethod)} / weight ${escapeSvg(source.evidenceWeight)}</text>
-							<text x="${x + 18}" y="${y + 84}" class="micro">${escapeSvg(source.mode)} / ${escapeSvg(source.sourceToKeywordEdge)}</text>
-							<text x="${x + 18}" y="${y + 96}" class="micro">${escapeSvg(endpointText)}</text>
+							<text x="${x + 18}" y="${y + 84}" class="micro">${escapeSvg(source.actionLane)} / ${escapeSvg(source.confidenceTier)}</text>
+							<text x="${x + 18}" y="${y + 98}" class="micro">${escapeSvg(source.sourceHealth)} / ${escapeSvg(source.mode)} / total ${escapeSvg(source.resultTotalField)}</text>
+							<text x="${x + 18}" y="${y + 112}" class="micro">${escapeSvg(endpointText)}</text>
 						</g>`;
 				})
 				.join('');
 
 			return `
 				<g>
-					<rect x="76" y="${y - 24}" width="336" height="98" rx="24" class="keyword-card" />
+					<rect x="76" y="${y - 24}" width="336" height="112" rx="24" class="keyword-card" />
 					<text x="102" y="${y + 1}" class="keyword">${escapeSvg(signal.id)}</text>
 					<text x="102" y="${y + 25}" class="tiny">${escapeSvg(signal.keyword)}</text>
 					<text x="102" y="${y + 48}" class="tiny">${escapeSvg(signal.metric)}/100 curated-signal-score</text>
-					<text x="102" y="${y + 68}" class="micro">analytics-linked-keyword-graph: collected-demand-score</text>
+					<text x="102" y="${y + 68}" class="micro">collected-demand-score ${escapeSvg(collectedDemandScore)} / mentions ${escapeSvg(collectedMentions)}</text>
+					<text x="102" y="${y + 82}" class="micro">source status: ${escapeSvg(collectedSourceStatus)}</text>
 					${sourceNodes}
 				</g>`;
 		})
 		.join('');
 
-	return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc" data-required-alpha-evidence="requiredEvidence">
+	return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title desc" data-required-alpha-evidence="requiredEvidence" data-no-live-community-api-runtime-boundary="true">
 	<title id="title">SvelteKit PHP ${escapeSvg(report.target)} community source map</title>
-	<desc id="desc">Open-source community analytics-linked-keyword-graph showing keyword-search-graph sourceToKeywordEdge links, supported-api-lanes, manual-research-lanes, curated-signal-score, collected-demand-score, weightedDemandScore, freshnessMaxAgeHours, trustBoundary, manualReviewRequired, community-analytics-freshness-contract, directional-community-signal metadata, requiredEvidence, required-alpha-evidence, alpha-readiness-report-graphics, community-keyword-search-graph, including api.github.com/search and google.com research lanes.</desc>
-	<metadata>requiredEvidence required-alpha-evidence ${escapeSvg(requiredEvidenceMarkers)} community-analytics-freshness-contract analyticsLinkageMarker=${escapeSvg(analyticsLinkageMarkers)} sourceModes=${escapeSvg(sourceModes)} sourceToKeywordEdge=${escapeSvg(sourceToKeywordEdges)} weightedDemandScore=${escapeSvg(weightedDemandScore)} freshnessMaxAgeHours=${escapeSvg(freshnessWindows)} trustBoundary=${escapeSvg(trustBoundaries)} manualReviewRequired=${escapeSvg(sources.some((source) => source.manualReviewRequired))} maxAgeHours=168 bun run alpha:analytics report/alpha-community-analytics.json report/alpha-community-analytics.md</metadata>
+	<desc id="desc">Open-source community analytics-linked-keyword-graph showing keyword-search-graph sourceToKeywordEdge links, supported-api-lanes, manual-research-lanes, curated-signal-score, collected-demand-score, collectedAt, totalMentions, collected-source-status, weightedDemandScore, freshnessMaxAgeHours, trustBoundary, sourceHealth, actionLane, confidenceTier, releaseClaimUse, alpha-community-source-evidence-checklist, manualReviewRequired, community-analytics-freshness-contract, directional-community-signal no-live-community-api-runtime-boundary metadata, requiredEvidence, required-alpha-evidence, alpha-readiness-report-graphics, community-keyword-search-graph, including api.github.com/search and google.com research lanes.</desc>
+	<metadata>requiredEvidence required-alpha-evidence ${escapeSvg(requiredEvidenceMarkers)} community-analytics-freshness-contract no-live-community-api-runtime-boundary data-no-live-community-api-runtime-boundary alpha-community-source-evidence-checklist source-health-classification action-lane-classification confidence-tier-classification release-claim-use-guidance result-total-field-contract top-result-field-contract sample-review-rule analyticsLinkageMarker=${escapeSvg(analyticsLinkageMarkers)} sourceModes=${escapeSvg(sourceModes)} sourceHealth=${escapeSvg(sourceHealth)} actionLane=${escapeSvg(actionLanes)} confidenceTier=${escapeSvg(confidenceTiers)} resultTotalField=${escapeSvg(resultTotalFields)} topResultFields=${escapeSvg(topResultFieldCount)} sampleReviewRule=provider-scoped-review-guidance topResultFieldCount=${escapeSvg(topResultFieldCount)} releaseClaimUse=provider-scoped-review-guidance sourceToKeywordEdge=${escapeSvg(sourceToKeywordEdges)} weightedDemandScore=${escapeSvg(weightedDemandScore)} collectedAnalytics collectedAt=${escapeSvg(collectedAt)} averageDemandScore=${escapeSvg(averageDemandScore)} successfulSources=${escapeSvg(successfulSources)} failedSources=${escapeSvg(failedSources)} blockedSources=${escapeSvg(blockedSources)} skippedSources=${escapeSvg(skippedSources)} manualReviewRequiredSources=${escapeSvg(manualReviewRequiredSources)} freshnessMaxAgeHours=${escapeSvg(freshnessWindows)} trustBoundary=${escapeSvg(trustBoundaries)} manualReviewRequired=${escapeSvg(sources.some((source) => source.manualReviewRequired))} maxAgeHours=168 bun run alpha:analytics report/alpha-community-analytics.json report/alpha-community-analytics.md</metadata>
 	<defs>
 		<linearGradient id="micaMap" x1="0" y1="0" x2="1" y2="1">
 			<stop offset="0" stop-color="#eef8ff" />
@@ -159,10 +222,11 @@ export function renderAlphaCommunitySourceMapSvg(report: AlphaReadinessReport) {
 	</g>
 	<text x="742" y="708" class="subtitle">Collector endpoints are explicit, not invented telemetry.</text>
 	<text x="742" y="738" class="tiny">Primary API lane: api.github.com/search, registry.npmjs.org, packagist.org, api.stackexchange.com, reddit.com/search.json</text>
-	<text x="742" y="762" class="tiny">Each source-to-keyword-edge includes evidence kind and collection risk so reviewers can separate counts from manual proof.</text>
+	<text x="742" y="762" class="tiny">Each source-to-keyword-edge includes evidence kind, collection risk, and source-health so reviewers can separate counts from manual proof.</text>
 	<text x="742" y="786" class="tiny">analyticsLinkageMarker: ${escapeSvg(analyticsLinkageMarkers)} / weightedDemandScore ${escapeSvg(weightedDemandScore)}</text>
-	<text x="742" y="810" class="tiny">freshnessMaxAgeHours ${escapeSvg(freshnessWindows)} / trustBoundary ${escapeSvg(trustBoundaries)}</text>
-	<text x="742" y="834" class="tiny">requiredEvidence: alpha-readiness-report-graphics / community-keyword-search-graph / community-analytics-freshness-contract</text>
+	<text x="742" y="810" class="tiny">freshnessMaxAgeHours ${escapeSvg(freshnessWindows)} / trustBoundary ${escapeSvg(trustBoundaries)} / sourceHealth ${escapeSvg(sourceHealth)}</text>
+	<text x="742" y="834" class="tiny">actionLane ${escapeSvg(actionLanes)} / confidenceTier ${escapeSvg(confidenceTiers)}</text>
+	<text x="742" y="854" class="tiny">resultTotalField ${escapeSvg(resultTotalFields)} / topResultFieldCount ${escapeSvg(topResultFieldCount)} / sources ${escapeSvg(successfulSources)} ok ${escapeSvg(failedSources)} failed ${escapeSvg(blockedSources)} blocked ${escapeSvg(skippedSources)} skipped</text>
 	<text x="76" y="868" class="tiny">Target ${escapeSvg(report.target)} / ${escapeSvg(report.issued)} / ${escapeSvg(report.bridgeSource)}</text>
 </svg>
 `;

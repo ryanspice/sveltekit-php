@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	export let data: { timestamp?: string; heavy_data?: unknown[] };
+
+	let { data }: { data: { timestamp?: string; heavy_data?: unknown[] } } = $props();
 </script>
 
 <div class="container">

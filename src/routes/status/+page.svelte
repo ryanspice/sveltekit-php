@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { base } from '$app/paths';
-	export let data: { status?: number };
+
+	let { data }: { data: { status?: number } } = $props();
 </script>
 
 <h1>Status Test</h1>

@@ -1,11 +1,14 @@
 <script>
-	import { onMount } from 'svelte';
 	import { base } from '$app/paths';
 
-	let loaded = false;
-	let time = '';
+	let loaded = $state(false);
+	let time = $state('');
+	let mounted = false;
 
-	onMount(() => {
+	$effect(() => {
+		if (mounted) return;
+		mounted = true;
+
 		// This only runs on client
 		loaded = true;
 		time = new Date().toLocaleTimeString();

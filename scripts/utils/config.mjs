@@ -140,7 +140,7 @@ export function isConcreteEnvValue(value) {
  */
 export function assertDeployEnv(label = 'Deploy environment', env = process.env) {
 	assertRequiredEnv(['DEPLOY_HOST', 'DEPLOY_USER', 'DEPLOY_REMOTE', 'DEPLOY_LOCAL'], label, env);
-	assertOptionalEnvIsConcrete(['DEPLOY_PROFILE', 'ALPHA_SMOKE_BASE_URL'], label, env);
+	assertOptionalEnvIsConcrete(['DEPLOY_PROFILE', 'DEPLOY_IDENTITY_FILE', 'ALPHA_SMOKE_BASE_URL'], label, env);
 
 	const port = env.DEPLOY_PORT;
 	if (isConcreteEnvValue(port)) {
@@ -150,7 +150,7 @@ export function assertDeployEnv(label = 'Deploy environment', env = process.env)
 		}
 	}
 
-	for (const key of ['DEPLOY_LOCAL']) {
+	for (const key of ['DEPLOY_LOCAL', 'DEPLOY_IDENTITY_FILE']) {
 		const value = env[key];
 		if (isConcreteEnvValue(value) && String(value).includes('..')) {
 			throw new Error(`${label} requires ${key} to avoid parent-relative paths.`);

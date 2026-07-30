@@ -42,11 +42,11 @@
 
 	<div class="status">
 		{#if serverData?.parent && serverData?.nested}
-			<span style="color: green">✔ Inherited Grandparent & Own Data</span>
+			<span class="success-text">✔ Inherited Grandparent & Own Data</span>
 		{:else}
-			<span style="color: red">✘ Data Missing (Expected during build)</span>
+			<span class="error-text">✘ Data Missing (Expected during build)</span>
 			{#if browser}
-				<p style="font-size: 0.8em; color: #666;">Waiting for data hydration...</p>
+				<p class="hydration-note">Waiting for data hydration...</p>
 			{/if}
 		{/if}
 	</div>
@@ -61,5 +61,18 @@
 		padding: 2rem;
 		border: 2px dashed #666;
 		margin: 1rem;
+	}
+
+	.success-text {
+		color: green;
+	}
+
+	.error-text {
+		color: red;
+	}
+
+	.hydration-note {
+		color: #666;
+		font-size: 0.8em;
 	}
 </style>

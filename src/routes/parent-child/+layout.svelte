@@ -1,11 +1,13 @@
 <script lang="ts">
-	export let data: { layout_level_1?: string };
+	import type { Snippet } from 'svelte';
+
+	let { data, children }: { data: { layout_level_1?: string }; children: Snippet } = $props();
 </script>
 
 <div class="layout-1">
 	<h2>Level 1 Layout</h2>
 	<p>Layout Data: {data?.layout_level_1}</p>
-	<slot />
+	{@render children()}
 </div>
 
 <style>

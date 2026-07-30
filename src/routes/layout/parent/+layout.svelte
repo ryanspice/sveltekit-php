@@ -1,5 +1,7 @@
 <script>
 	import { base } from '$app/paths';
+
+	let { children } = $props();
 </script>
 
 <svelte:head>
@@ -11,7 +13,7 @@
 	<h1>Parent Layout</h1>
 	<p>This is the parent level of a nested layout hierarchy.</p>
 
-	<slot />
+	{@render children()}
 </main>
 
 <nav>

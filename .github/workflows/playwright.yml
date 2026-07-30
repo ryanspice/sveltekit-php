@@ -28,6 +28,10 @@ jobs:
         run: bun run build:adapter
       - name: Verify generated artifacts
         run: bun run verify:artifacts -- --strict
+      - name: Verify latest SvelteKit audit freshness
+        run: bun run verify:latest-sveltekit-audit
+      - name: Smoke latest same-major SvelteKit build
+        run: bun run alpha:latest-same-major:smoke
       - name: Verify alpha release prep
         run: bun run verify:release-prep
       - name: Build E2E artifacts

@@ -32,10 +32,10 @@ const rawAssets = process.env.ADAPTER_ASSETS
 	: undefined;
 const assets = rawAssets && /^https?:\/\//.test(rawAssets) ? rawAssets : undefined;
 if (debugEnabled) {
-	console.log('[svelte.config.js] ENV ADAPTER_OUT:', process.env.ADAPTER_OUT);
-	console.log('[svelte.config.js] ENV ADAPTER_ASSETS:', process.env.ADAPTER_ASSETS);
-	console.log('[svelte.config.js] ENV ADAPTER_FALLBACK:', process.env.ADAPTER_FALLBACK);
-	console.log('[svelte.config.js] Resolved BASE:', base);
+	process.stdout.write(`[svelte.config.js] ENV ADAPTER_OUT: ${process.env.ADAPTER_OUT ?? ''}\n`);
+	process.stdout.write(`[svelte.config.js] ENV ADAPTER_ASSETS: ${process.env.ADAPTER_ASSETS ?? ''}\n`);
+	process.stdout.write(`[svelte.config.js] ENV ADAPTER_FALLBACK: ${process.env.ADAPTER_FALLBACK ?? ''}\n`);
+	process.stdout.write(`[svelte.config.js] Resolved BASE: ${base}\n`);
 }
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -82,6 +82,7 @@ const config = {
 				'/alpha-readiness/evidence-index.json',
 				'/alpha-readiness/package-contract.json',
 				'/alpha-readiness/native-host-contract.json',
+				'/alpha-readiness/native-host-wrapper-smoke.json',
 				'/alpha-readiness/hosted-smoke-checklist.json',
 				'/alpha-readiness/bridge-reuse.json',
 				'/alpha-readiness/review-index.md',
@@ -93,8 +94,9 @@ const config = {
 				'/alpha-readiness/community-sources.csv',
 				'/blog/hello-world',
 				'/blog/sveltekit-php',
-				'/files/docs/readme.md',
-				'/files/assets/image.png',
+				'/path-viewer',
+				'/path-viewer/docs/readme.md',
+				'/path-viewer/assets/image.png',
 				'/optional/test-id',
 				'/layout/parent/child/grandchild',
 				'/ssg/simple',

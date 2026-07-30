@@ -44,11 +44,88 @@ const RESERVED_ROUTE_FILES = new Set([
 	'route-manifest',
 	'compat'
 ]);
+const REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER = 'remote-functions-alpha-policy';
+const REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE =
+	'sveltekit-php: SvelteKit remote functions are not supported by the PHP runtime in 1.0.2-alpha. Remote functions generate server HTTP endpoints that are not yet mapped through the PHP router. Disable kit.experimental.remoteFunctions and remove .remote.* files, or use a Node/edge adapter until remote-functions-alpha-policy has fixture proof.';
+const REMOTE_FUNCTION_FILE_RE = /\.remote\.(?:js|ts|mjs|mts|cjs|cts)$/i;
 
 type ResolvedBuildIdentityContract = Required<
 	Pick<BuildIdentityContract, 'required' | 'forbidden' | 'extensions'>
 > &
 	Pick<BuildIdentityContract, 'name'>;
+
+async function collectRemoteFunctionFiles(root: string): Promise<string[]> {
+	const files: string[] = [];
+	const visit = async (dir: string) => {
+		let entries: Array<{ name: string; isDirectory(): boolean; isFile(): boolean }>;
+		try {
+			entries = await readdir(dir, { withFileTypes: true });
+		} catch {
+			return;
+		}
+
+		for (const entry of entries) {
+			const abs = path.join(dir, entry.name);
+			if (entry.isDirectory()) {
+				if (
+					entry.name === 'node_modules' ||
+					entry.name === '.git' ||
+					entry.name === '.svelte-kit' ||
+					entry.name === 'build'
+				) {
+					continue;
+				}
+				await visit(abs);
+			} else if (entry.isFile() && REMOTE_FUNCTION_FILE_RE.test(entry.name)) {
+				files.push(abs);
+			}
+		}
+	};
+
+	await visit(root);
+	return files;
+}
+
+async function assertRemoteFunctionsUnsupported(builder: Builder) {
+	const kit = builder.config.kit as unknown as {
+		experimental?: { remoteFunctions?: unknown };
+		files?: { routes?: string; lib?: string };
+	};
+	const remoteFunctionsEnabled = kit.experimental?.remoteFunctions === true;
+	const cwd = path.resolve(process.cwd());
+	const roots = Array.from(
+		new Set(
+			[
+				path.join(cwd, 'src'),
+				kit.files?.routes ? path.resolve(kit.files.routes) : '',
+				kit.files?.lib ? path.resolve(kit.files.lib) : ''
+			].filter(Boolean)
+		)
+	);
+	const remoteFiles = (
+		await Promise.all(roots.map((root) => collectRemoteFunctionFiles(root)))
+	)
+		.flat()
+		.map((file) => path.relative(cwd, file).replaceAll(path.sep, '/'))
+		.sort();
+	const uniqueRemoteFiles = Array.from(new Set(remoteFiles));
+
+	if (!remoteFunctionsEnabled && uniqueRemoteFiles.length === 0) return;
+
+	const reasons = [
+		remoteFunctionsEnabled ? '- kit.experimental.remoteFunctions is enabled' : '',
+		...uniqueRemoteFiles.map((file) => `- ${file}`)
+	].filter(Boolean);
+
+	throw new Error(
+		[
+			REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE,
+			`Policy marker: ${REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER}`,
+			'Detected unsupported remote-functions surface:',
+			...reasons
+		].join('\n')
+	);
+}
 
 function normalizeMarkerList(value: unknown): string[] {
 	if (value == null) return [];
@@ -74,6 +151,31 @@ function normalizeMarkerList(value: unknown): string[] {
 		.split(/\r?\n|;;/)
 		.map((item) => item.trim())
 		.filter(Boolean);
+}
+
+function normalizeSafeExternalRoots(value: string | undefined): string[] {
+	if (!value) return [];
+	const trimmed = value.trim();
+	if (!trimmed) return [];
+
+	try {
+		const parsed = JSON.parse(trimmed);
+		if (Array.isArray(parsed)) {
+			return parsed
+				.filter((item): item is string => typeof item === 'string')
+				.map((item) => item.trim())
+				.filter(Boolean)
+				.map((item) => path.resolve(item));
+		}
+	} catch {
+		// Treat non-JSON values as semicolon-separated Windows path lists.
+	}
+
+	return trimmed
+		.split(';')
+		.map((item) => item.trim())
+		.filter(Boolean)
+		.map((item) => path.resolve(item));
 }
 
 function resolveBuildIdentityContract(
@@ -186,6 +288,10 @@ function normalizeRouteIdSegments(routeId: string): string[] {
 		.filter((segment) => !(segment.startsWith('(') && segment.endsWith(')')));
 }
 
+function isRouteParamSegment(segment: string): boolean {
+	return segment.startsWith('[') && segment.endsWith(']');
+}
+
 function validateReservedRouteIds(routes: Builder['routes'], strict: boolean, builder: Builder) {
 	const conflicts = routes
 		.map((route) => route.id)
@@ -200,7 +306,7 @@ function validateReservedRouteIds(routes: Builder['routes'], strict: boolean, bu
 			return (
 				RESERVED_ROUTE_SEGMENTS.has(firstSegment) ||
 				RESERVED_ROUTE_FILES.has(lastBase) ||
-				segments.some((segment) => segment.includes('..'))
+				segments.some((segment) => !isRouteParamSegment(segment) && segment.includes('..'))
 			);
 		});
 
@@ -250,9 +356,54 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				);
 			}
 		},
+		async emulate() {
+			return {
+				async platform({ prerender }: { config?: unknown; prerender?: unknown } = {}) {
+					return {
+						php: {
+							adapter: '@ryanspice/sveltekit-adapter-php',
+							adapterVersion: ADAPTER_VERSION,
+							mode,
+							ssr,
+							prerendering: Boolean(prerender),
+							output: {
+								out,
+								assets,
+								fallback:
+									fallback === false ? false : typeof fallback === 'string' ? fallback : '200.html',
+								precompress,
+								strict,
+								baseMode
+							},
+							paths: {
+								base: options.basePath ?? ''
+							},
+							runtime: {
+								documentSsr: mode === 'js-ssr',
+								phpStaticClientFallback: mode === 'php-static',
+								phpHandlers: true,
+								actionHandlers: true,
+								endpointHandlers: true,
+								javascriptSidecar: mode === 'js-ssr',
+								nativeHostRuntime: false
+							},
+							remoteFunctions: {
+								supported: false,
+								policy: 'unsupported-alpha',
+								marker: REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER,
+								generatedHttpEndpointSupport: false
+							},
+							buildIdentity: {
+								configured: Boolean(buildIdentity)
+							}
+						}
+					};
+				}
+			};
+		},
 		async adapt(builder: Builder) {
 			const debug = (...args: unknown[]) => {
-				if (debugEnabled) console.log(...args);
+				if (debugEnabled) process.stdout.write(`${args.map(String).join(' ')}\n`);
 			};
 			const debugMinor = (message: string) => {
 				if (debugEnabled) builder.log.minor(message);
@@ -309,12 +460,15 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 			builder.log.minor(`Adapting for mode: ${mode}`);
 			builder.log.minor('Cleaning output/temp');
+			await assertRemoteFunctionsUnsupported(builder);
 			validateReservedRouteIds(builder.routes, strict, builder);
 
 			const isInside = (parent: string, child: string) => {
 				const rel = path.relative(parent, child);
 				return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
 			};
+			const isInsideOrSame = (parent: string, child: string) =>
+				path.resolve(parent) === path.resolve(child) || isInside(parent, child);
 			const assertSafeBuildTarget = (target: string, label: string) => {
 				const resolved = path.resolve(target);
 				const cwd = path.resolve(process.cwd());
@@ -329,6 +483,9 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					path.join(cwd, 'tests'),
 					routesRoot
 				];
+				const safeExternalRoots = normalizeSafeExternalRoots(
+					process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS
+				);
 
 				if (resolved === root || resolved === cwd || resolved === home) {
 					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
@@ -336,7 +493,23 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				if (sourceRoots.some((source) => resolved === source || isInside(source, resolved))) {
 					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
 				}
-				if (!isInside(cwd, resolved) && !isInside(temp, resolved)) {
+
+				for (const safeRoot of safeExternalRoots) {
+					const safeRootFsRoot = path.parse(safeRoot).root;
+					if (
+						safeRoot === safeRootFsRoot ||
+						safeRoot === cwd ||
+						safeRoot === home ||
+						sourceRoots.some((source) => safeRoot === source || isInside(source, safeRoot))
+					) {
+						throw new Error(`Unsafe configured external build root for ${label}: ${safeRoot}`);
+					}
+				}
+
+				const isConfiguredExternalTarget = safeExternalRoots.some((safeRoot) =>
+					isInsideOrSame(safeRoot, resolved)
+				);
+				if (!isInside(cwd, resolved) && !isInside(temp, resolved) && !isConfiguredExternalTarget) {
 					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
 				}
 			};

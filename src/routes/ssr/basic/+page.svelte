@@ -1,12 +1,14 @@
 <script>
-	import { onMount } from 'svelte';
+	let { data } = $props();
 
-	export let data;
+	let clientTime = $state('');
+	let isClient = $state(false);
+	let mounted = false;
 
-	let clientTime = '';
-	let isClient = false;
+	$effect(() => {
+		if (mounted) return;
+		mounted = true;
 
-	onMount(() => {
 		isClient = true;
 		updateTime();
 		const interval = setInterval(updateTime, 1000);

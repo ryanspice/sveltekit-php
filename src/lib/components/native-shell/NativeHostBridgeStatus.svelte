@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import {
 		getNativeHostWindowController,
 		type NativeHostCommandResult,
@@ -27,7 +26,10 @@
 		detail?: Partial<Omit<NativeWindowActionDetail, 'action' | 'source'>>;
 	};
 
-	const handoffCommands: HandoffCommand[] = $derived.by(() => [
+	const handoffCommands: HandoffCommand[] = $derived(buildHandoffCommands(bridgeReuseHref));
+
+	function buildHandoffCommands(reportHref: string): HandoffCommand[] {
+		return [
 		{
 			id: 'set-window-effect-mica',
 			action: 'set-window-effect',
@@ -71,12 +73,13 @@
 			label: 'Send report-ready',
 			description: 'Emit the structured report handoff cue with a review bundle link.',
 			detail: {
-				reportHref: bridgeReuseHref,
+				reportHref,
 				reportKind: 'bundle',
 				reportLabel: 'Alpha native evidence bundle'
 			}
 		}
-	]);
+		];
+	}
 
 	const refreshStatus = () => {
 		nativeHostAvailable = Boolean(getNativeHostWindowController());
@@ -101,7 +104,7 @@
 		window.setTimeout(refreshStatus, 0);
 	};
 
-	onMount(() => {
+	$effect(() => {
 		mounted = true;
 		refreshStatus();
 

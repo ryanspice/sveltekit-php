@@ -10,6 +10,7 @@ import { buildAlphaGateMatrix } from '../src/lib/alpha-gate-matrix.ts';
 import { buildHostedSmokeChecklist } from '../src/lib/alpha-hosted-smoke-checklist.ts';
 import { renderAlphaNativeHostGuideMarkdown } from '../src/lib/alpha-native-host-guide.ts';
 import { buildAlphaNativeHostContract } from '../src/lib/alpha-native-host-contract.ts';
+import { buildAlphaNativeHostWrapperSmoke } from '../src/lib/alpha-native-host-wrapper-smoke.ts';
 import { buildAlphaPackageContract } from '../src/lib/alpha-package-contract.ts';
 import { buildAlphaReadinessReport } from '../src/lib/alpha-readiness.ts';
 import {
@@ -86,14 +87,28 @@ async function main() {
 	const packageContractPath = path.join(outputDir, 'alpha-package-contract.json');
 	const nativeHostContractPath = path.join(outputDir, 'alpha-native-host-contract.json');
 	const nativeHostGuidePath = path.join(outputDir, 'alpha-native-host-guide.md');
+	const nativeHostWrapperSmokePath = path.join(outputDir, 'alpha-native-host-wrapper-smoke.json');
 	const hostedSmokeChecklistPath = path.join(outputDir, 'alpha-hosted-smoke-checklist.json');
 	const manifest = buildReleaseManifest(report, communityAnalytics, remoteSmoke);
+	const hostedAlphaSmokeArtifact = manifest.artifacts.find(
+		(artifact) => artifact.path === 'report/alpha-remote-smoke.json'
+	);
 
 	await Promise.all([
 		writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8'),
 		writeFile(
 			fullJsonPath,
-			`${JSON.stringify({ ...report, collectedCommunityAnalytics: communityAnalytics, hostedAlphaSmoke: remoteSmoke }, null, 2)}\n`,
+			`${JSON.stringify(
+				{
+					...report,
+					collectedCommunityAnalytics: communityAnalytics,
+					hostedAlphaSmoke: remoteSmoke,
+					hostedAlphaSmokeProof: manifest.hostedProofInterpretation,
+					hostedAlphaSmokeArtifact
+				},
+				null,
+				2
+			)}\n`,
 			'utf8'
 		),
 		writeFile(mdPath, renderAlphaReadinessMarkdown(report, communityAnalytics, remoteSmoke), 'utf8'),
@@ -107,7 +122,7 @@ async function main() {
 			'utf8'
 		),
 		writeFile(svgPath, renderSvg(report, communityAnalytics, remoteSmoke), 'utf8'),
-		writeFile(communitySourceMapSvgPath, renderAlphaCommunitySourceMapSvg(report), 'utf8'),
+		writeFile(communitySourceMapSvgPath, renderAlphaCommunitySourceMapSvg(report, communityAnalytics), 'utf8'),
 		writeFile(readinessCsvPath, renderReadinessCsv(report), 'utf8'),
 		writeFile(communitySignalsCsvPath, renderCommunitySignalsCsv(report, communityAnalytics), 'utf8'),
 		writeFile(communitySourcesCsvPath, renderCommunitySourcesCsv(report), 'utf8'),
@@ -118,7 +133,7 @@ async function main() {
 		),
 		writeFile(
 			communityResearchPackPath,
-			`${JSON.stringify(buildCommunityResearchPack(report), null, 2)}\n`,
+			`${JSON.stringify(buildCommunityResearchPack(report, communityAnalytics), null, 2)}\n`,
 			'utf8'
 		),
 		writeFile(bridgeReusePath, `${JSON.stringify(buildBridgeReuseInventory(report), null, 2)}\n`, 'utf8'),
@@ -134,6 +149,11 @@ async function main() {
 			'utf8'
 		),
 		writeFile(nativeHostGuidePath, renderAlphaNativeHostGuideMarkdown(report), 'utf8'),
+		writeFile(
+			nativeHostWrapperSmokePath,
+			`${JSON.stringify(buildAlphaNativeHostWrapperSmoke(report), null, 2)}\n`,
+			'utf8'
+		),
 		writeFile(
 			hostedSmokeChecklistPath,
 			`${JSON.stringify(buildHostedSmokeChecklist(report), null, 2)}\n`,
@@ -167,6 +187,7 @@ async function main() {
 	console.log(`- ${path.relative(repoRoot, packageContractPath)}`);
 	console.log(`- ${path.relative(repoRoot, nativeHostContractPath)}`);
 	console.log(`- ${path.relative(repoRoot, nativeHostGuidePath)}`);
+	console.log(`- ${path.relative(repoRoot, nativeHostWrapperSmokePath)}`);
 	console.log(`- ${path.relative(repoRoot, hostedSmokeChecklistPath)}`);
 	console.log(`- ${path.relative(repoRoot, manifestPath)}`);
 	if (!communityAnalytics) {

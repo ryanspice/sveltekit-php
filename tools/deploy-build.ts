@@ -30,6 +30,7 @@ type Options = {
 	port: number;
 	remote: string;
 	local: string;
+	identityFile?: string;
 
 	mode: Mode; // fast default
 	progress: boolean;
@@ -386,6 +387,10 @@ function sshTarget(o: Options): string {
 	return `${o.user}@${o.host}`;
 }
 
+function sshIdentityArgs(o: Options): string[] {
+	return o.identityFile ? ['-i', o.identityFile, '-o', 'IdentitiesOnly=yes'] : [];
+}
+
 function remoteFileFor(o: Options, relPosix: string): string {
 	const base = o.remote.replace(/\/+$/, '');
 	const r = relPosix ? `${base}/${relPosix}` : base;
@@ -407,7 +412,7 @@ async function ensureRemoteDirs(o: Options, relPaths: string[]): Promise<void> {
 	for (let i = 0; i < list.length; i += chunkSize) {
 		const chunk = list.slice(i, i + chunkSize);
 		const cmd = `mkdir -p ${chunk.map((d) => `"${d.replace(/"/g, '\\"')}"`).join(' ')}`;
-		const code = await run('ssh', ['-p', String(o.port), sshTarget(o), cmd]);
+		const code = await run('ssh', [...sshIdentityArgs(o), '-p', String(o.port), sshTarget(o), cmd]);
 		if (code !== 0) process.exit(code);
 	}
 }
@@ -418,7 +423,14 @@ async function sftpBatch(o: Options, lines: string[]): Promise<void> {
 	const batchPath = path.join(cacheDir, `sftp-${Date.now()}.batch`);
 	await fs.writeFile(batchPath, lines.join('\n') + '\n', 'utf8');
 
-	const code = await run('sftp', ['-P', String(o.port), '-b', batchPath, sshTarget(o)]);
+	const code = await run('sftp', [
+		...sshIdentityArgs(o),
+		'-P',
+		String(o.port),
+		'-b',
+		batchPath,
+		sshTarget(o)
+	]);
 	await fs.rm(batchPath, { force: true });
 
 	if (code !== 0) process.exit(code);
@@ -431,6 +443,7 @@ async function patchUpload(o: Options, relChanged: string[], relRemoved: string[
 	}
 
 	await run('ssh', [
+		...sshIdentityArgs(o),
 		'-p',
 		String(o.port),
 		sshTarget(o),
@@ -471,7 +484,7 @@ async function wipeRemote(o: Options): Promise<void> {
 	const cmd =
 		`mkdir -p "${r}" && ` + `rm -rf "${r}"/* "${r}"/.[!.]* "${r}"/..?* 2>/dev/null || true`;
 
-	const code = await run('ssh', ['-p', String(o.port), sshTarget(o), cmd]);
+	const code = await run('ssh', [...sshIdentityArgs(o), '-p', String(o.port), sshTarget(o), cmd]);
 	if (code !== 0) process.exit(code);
 }
 
@@ -612,16 +625,35 @@ echo "[runner] end $(ts)" >> "$LOG"
 	let code = await run('tar', ['-czf', archiveLocal, '-C', localAbs, '.'], tarEnv);
 	if (code !== 0) process.exit(code);
 
-	code = await run('ssh', ['-p', String(o.port), sshTarget(o), `mkdir -p "${remoteBaseQ}"`]);
-	if (code !== 0) process.exit(code);
-
-	code = await run('scp', ['-P', String(o.port), archiveLocal, `${sshTarget(o)}:${remoteTgzRaw}`]);
-	if (code !== 0) process.exit(code);
-
-	code = await run('scp', ['-P', String(o.port), keepLocal, `${sshTarget(o)}:${remoteKeepRaw}`]);
+	code = await run('ssh', [
+		...sshIdentityArgs(o),
+		'-p',
+		String(o.port),
+		sshTarget(o),
+		`mkdir -p "${remoteBaseQ}"`
+	]);
 	if (code !== 0) process.exit(code);
 
 	code = await run('scp', [
+		...sshIdentityArgs(o),
+		'-P',
+		String(o.port),
+		archiveLocal,
+		`${sshTarget(o)}:${remoteTgzRaw}`
+	]);
+	if (code !== 0) process.exit(code);
+
+	code = await run('scp', [
+		...sshIdentityArgs(o),
+		'-P',
+		String(o.port),
+		keepLocal,
+		`${sshTarget(o)}:${remoteKeepRaw}`
+	]);
+	if (code !== 0) process.exit(code);
+
+	code = await run('scp', [
+		...sshIdentityArgs(o),
 		'-P',
 		String(o.port),
 		cleanupLocal,
@@ -630,6 +662,7 @@ echo "[runner] end $(ts)" >> "$LOG"
 	if (code !== 0) process.exit(code);
 
 	code = await run('scp', [
+		...sshIdentityArgs(o),
 		'-P',
 		String(o.port),
 		runnerLocal,
@@ -644,7 +677,13 @@ echo "[runner] end $(ts)" >> "$LOG"
 		: `echo "Cleanup disabled."`;
 
 	const extractCmd = `tar -xzf "${remoteTgzQ}" -C "${remoteBaseQ}" && rm -f "${remoteTgzQ}" && ${runCleanup}`;
-	code = await run('ssh', ['-p', String(o.port), sshTarget(o), extractCmd]);
+	code = await run('ssh', [
+		...sshIdentityArgs(o),
+		'-p',
+		String(o.port),
+		sshTarget(o),
+		extractCmd
+	]);
 	if (code !== 0) process.exit(code);
 
 	await fs.rm(archiveLocal, { force: true });
@@ -655,6 +694,7 @@ echo "[runner] end $(ts)" >> "$LOG"
 
 async function fullUpload(o: Options, curr: Manifest): Promise<void> {
 	await run('ssh', [
+		...sshIdentityArgs(o),
 		'-p',
 		String(o.port),
 		sshTarget(o),
@@ -671,8 +711,17 @@ async function fullUpload(o: Options, curr: Manifest): Promise<void> {
 	const source = path.join(localAbs, '.');
 	const dest = `${sshTarget(o)}:${o.remote.replace(/\/+$/, '')}/`;
 
-	const code = await run('scp', ['-P', String(o.port), '-r', source, dest]);
+	const code = await run('scp', [...sshIdentityArgs(o), '-P', String(o.port), '-r', source, dest]);
 	if (code !== 0) process.exit(code);
+}
+
+function expandHome(rawPath: string): string {
+	if (rawPath === '~') return process.env.USERPROFILE || process.env.HOME || rawPath;
+	if (rawPath.startsWith('~/') || rawPath.startsWith('~\\')) {
+		const home = process.env.USERPROFILE || process.env.HOME;
+		if (home) return path.join(home, rawPath.slice(2));
+	}
+	return rawPath;
 }
 
 function buildPlanLines(
@@ -738,6 +787,10 @@ async function main() {
 
 	const port = parseNum(a.port ?? env('DEPLOY_PORT'), DEFAULTS.port);
 	const local = String(a.local ?? env('DEPLOY_LOCAL') ?? DEFAULTS.local);
+	const identityFileRaw = String(
+		a['identity-file'] ?? env('DEPLOY_IDENTITY_FILE') ?? ''
+	).trim();
+	const identityFile = identityFileRaw ? path.resolve(expandHome(identityFileRaw)) : undefined;
 
 	const thresholdFiles = parseNum(
 		a['threshold-files'] ?? env('DEPLOY_THRESHOLD_FILES'),
@@ -785,6 +838,7 @@ async function main() {
 		port,
 		remote,
 		local,
+		identityFile,
 
 		mode,
 		progress,
@@ -815,10 +869,16 @@ async function main() {
 		process.exit(2);
 	}
 
+	if (o.identityFile && !fssync.existsSync(o.identityFile)) {
+		console.error(`Identity file not found: ${o.identityFile}`);
+		process.exit(2);
+	}
+
 	const cachePath = path.resolve('.deploy-cache', o.profile, 'manifest.json');
 
 	console.log(`Local:  ${localAbs}`);
 	console.log(`Remote: ${o.user}@${o.host}:${o.remote} (port ${o.port})`);
+	if (o.identityFile) console.log(`Identity: ${o.identityFile}`);
 	console.log(`Cache:  ${cachePath}`);
 	console.log(
 		`Mode:   ${o.mode}${o.mode === 'fast' ? ' (mtime+size, no hashing)' : ' (sha256 hashing)'}`

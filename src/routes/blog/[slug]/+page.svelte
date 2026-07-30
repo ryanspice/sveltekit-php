@@ -1,5 +1,16 @@
-<script>
-	export let data;
+<script lang="ts">
+	import SafeHtml from '$lib/components/SafeHtml.svelte';
+
+	type Props = {
+		data: {
+			title: string;
+			description: string;
+			date: string;
+			content: string;
+		};
+	};
+
+	let { data }: Props = $props();
 </script>
 
 <svelte:head>
@@ -12,8 +23,7 @@
 		<h1>{data.title}</h1>
 		<p class="meta">Published: {data.date}</p>
 		<div class="content">
-			<!-- eslint-disable-next-line svelte/no-at-html-tags -->
-			{@html data.content}
+			<SafeHtml html={data.content} />
 		</div>
 	</article>
 </main>

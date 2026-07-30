@@ -87,6 +87,10 @@ function createBuilder(tempRoot: string) {
 	return { builder, outDir, assetsDir };
 }
 
+function createExternalTempRoot() {
+	return fs.mkdtempSync(path.join(path.dirname(process.cwd()), '.sk-php-external-'));
+}
+
 let tempRoot = '';
 
 beforeEach(() => {
@@ -142,6 +146,62 @@ describe('assets output in js-ssr', () => {
 		await expect(instance.adapt(builder as AdapterBuilder)).rejects.toThrow(
 			/Unsafe build target for out/
 		);
+	});
+
+	it('rejects unconfigured external build roots before cleanup', async () => {
+		const externalRoot = createExternalTempRoot();
+		const previousSafeRoots = process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS;
+		delete process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS;
+
+		try {
+			const { builder, assetsDir } = createBuilder(tempRoot);
+			const instance = adapter({
+				mode: 'js-ssr',
+				out: path.join(externalRoot, 'sites', 'ryanspice.com', 'build'),
+				assets: assetsDir,
+				strict: false
+			});
+
+			await expect(instance.adapt(builder as AdapterBuilder)).rejects.toThrow(
+				/Unsafe build target for out/
+			);
+		} finally {
+			if (previousSafeRoots === undefined) {
+				delete process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS;
+			} else {
+				process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS = previousSafeRoots;
+			}
+			fs.rmSync(externalRoot, { recursive: true, force: true });
+		}
+	});
+
+	it('allows configured external build roots', async () => {
+		const externalRoot = createExternalTempRoot();
+		const runtimeRoot = path.join(externalRoot, '.runtime');
+		const previousSafeRoots = process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS;
+		process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS = runtimeRoot;
+
+		try {
+			const { builder } = createBuilder(tempRoot);
+			const outDir = path.join(runtimeRoot, 'sites', 'ryanspice.com', 'build');
+			const instance = adapter({
+				mode: 'js-ssr',
+				out: outDir,
+				assets: outDir,
+				precompress: false,
+				strict: false
+			});
+
+			await instance.adapt(builder as AdapterBuilder);
+			expect(fs.existsSync(path.join(outDir, '_app', 'immutable', 'entry', 'app.js'))).toBe(true);
+		} finally {
+			if (previousSafeRoots === undefined) {
+				delete process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS;
+			} else {
+				process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS = previousSafeRoots;
+			}
+			fs.rmSync(externalRoot, { recursive: true, force: true });
+		}
 	});
 
 	it('treats URL assets as non-filesystem targets', async () => {
@@ -240,5 +300,36 @@ describe('runtime hardening templates', () => {
 		expect(templates).toContain("'rawBody' => sk_action_raw_body()");
 		expect(templates).toContain('Possible cyclic or too-deep JSON value');
 		expect(templates).toContain('Cannot serialize cyclic object graph');
+	});
+
+	it('keeps generated PHP exception details out of client responses', () => {
+		const phpTemplates = fs.readFileSync(path.resolve('adapter/src/runtime/php-templates.ts'), 'utf8');
+		const jsSsrTemplates = fs.readFileSync(path.resolve('adapter/src/runtime/js-ssr-templates.ts'), 'utf8');
+
+		expect(phpTemplates).toContain(
+			"error_log('[sveltekit-php] action error: ' . $e->getMessage());"
+		);
+		expect(phpTemplates).toContain(
+			"error_log('[sveltekit-php] endpoint error: ' . $e->getMessage());"
+		);
+		expect(phpTemplates).toContain("['message' => 'Internal Server Error']");
+		expect(phpTemplates).toContain("echo 'Internal Server Error';");
+		expect(phpTemplates).not.toContain('Internal Server Error:');
+		expect(phpTemplates).not.toContain('$e -> getMessage()');
+
+		expect(jsSsrTemplates).toContain(
+			"error_log('[sveltekit-php] endpoint error: ' . $e->getMessage());"
+		);
+		expect(jsSsrTemplates).toContain("echo 'Internal Server Error';");
+		expect(jsSsrTemplates).not.toContain('Internal Server Error:');
+	});
+
+	it('does not treat Svelte rest params as literal traversal in reserved route checks', () => {
+		const adapterSource = fs.readFileSync(path.resolve('adapter/src/index.ts'), 'utf8');
+
+		expect(adapterSource).toContain('function isRouteParamSegment');
+		expect(adapterSource).toContain(
+			"segments.some((segment) => !isRouteParamSegment(segment) && segment.includes('..'))"
+		);
 	});
 });

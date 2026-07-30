@@ -1,7 +1,7 @@
 <script>
 	import { enhance } from '$app/forms';
 
-	export let form;
+	let { form } = $props();
 </script>
 
 <svelte:head>

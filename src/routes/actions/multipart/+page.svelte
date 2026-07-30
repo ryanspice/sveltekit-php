@@ -29,10 +29,10 @@
 		description?: string;
 	};
 
-	export let form: MultipartActionResult | null = null;
-	let loading = false;
-	let selectedFile: File | null = null;
-	let previewUrl: string | null = null;
+	let { form = null }: { form?: MultipartActionResult | null } = $props();
+	let loading = $state(false);
+	let selectedFile: File | null = $state(null);
+	let previewUrl: string | null = $state(null);
 
 	function handleFileSelect(event: Event) {
 		const input = event.currentTarget as HTMLInputElement | null;
@@ -108,7 +108,7 @@
 				id="file"
 				name="file"
 				accept="image/*,.pdf,.txt"
-				on:change={handleFileSelect}
+				onchange={handleFileSelect}
 				required
 			/>
 

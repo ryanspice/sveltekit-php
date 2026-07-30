@@ -16,6 +16,16 @@ const steps = [
 		args: ['run', 'verify:alpha']
 	},
 	{
+		name: 'Verify latest SvelteKit audit freshness',
+		command: 'bun',
+		args: ['run', 'verify:latest-sveltekit-audit']
+	},
+	{
+		name: 'Smoke latest same-major Svelte/SvelteKit consumer build',
+		command: 'bun',
+		args: ['run', 'alpha:latest-same-major:smoke']
+	},
+	{
 		name: 'Verify release-prep safety',
 		command: 'bun',
 		args: ['run', 'verify:release-prep']
@@ -85,6 +95,11 @@ const steps = [
 		name: 'Smoke external consumer adapter import',
 		command: 'bun',
 		args: ['run', 'alpha:consumer:smoke']
+	},
+	{
+		name: 'Smoke native host wrapper handoff',
+		command: 'bun',
+		args: ['run', 'alpha:native:smoke']
 	}
 ];
 

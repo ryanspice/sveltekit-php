@@ -1,7 +1,13 @@
-<script>
+<script lang="ts">
 	import { enhance } from '$app/forms';
 	import { base } from '$app/paths';
-	export let form;
+
+	type UploadForm = {
+		filename?: string;
+		size?: number;
+	};
+
+	let { form }: { form?: UploadForm | null } = $props();
 </script>
 
 <div class="container">

@@ -46,6 +46,7 @@ export type NativeHostCommandResult = {
 	desktopShellUiHelper?: DesktopShellUiHelperName;
 	desktopShellUiSource?: string;
 	desktopShellUiEvidence?: string;
+	requiredHostPermission?: string;
 };
 
 export type DesktopShellUiCommandMapping = {
@@ -54,7 +55,20 @@ export type DesktopShellUiCommandMapping = {
 	helper: DesktopShellUiHelperName;
 	upstreamCall: string;
 	evidence: string;
+	requiredHostPermission: string;
 	detailFields: Array<keyof NativeWindowActionDetail>;
+};
+
+export type NativeHostWrapperProbeStep = {
+	action: NativeWindowAction;
+	detail: NativeWindowActionDetail;
+	expectedHandler: keyof NativeHostWindowController;
+	desktopShellUiHelper: DesktopShellUiHelperName;
+	upstreamCall: string;
+	evidence: string;
+	requiredHostPermission: string;
+	expectedTaskbarState?: DesktopShellUiTaskbarProgressState;
+	proves: string;
 };
 
 export type NativeHostWindowController = {
@@ -99,6 +113,7 @@ export const desktopShellUiBinding = {
 			helper: 'win.startDragging',
 			upstreamCall: 'win.startDragging()',
 			evidence: 'ultragear-widget-ui app.ts routes start-dragging to win.startDragging()',
+			requiredHostPermission: 'core:window:allow-start-dragging',
 			detailFields: ['dragStartThresholdPx', 'source']
 		},
 		{
@@ -107,6 +122,8 @@ export const desktopShellUiBinding = {
 			helper: 'toggleWindowMaximize',
 			upstreamCall: 'toggleWindowMaximize(win)',
 			evidence: 'desktop-shell-ui exports toggleWindowMaximize and widget app uses it for maximize',
+			requiredHostPermission:
+				'core:window:allow-is-maximized + core:window:allow-maximize + core:window:allow-unmaximize + core:window:allow-toggle-maximize',
 			detailFields: ['source']
 		},
 		{
@@ -115,6 +132,7 @@ export const desktopShellUiBinding = {
 			helper: 'enableMicaWindowChrome',
 			upstreamCall: 'enableMicaWindowChrome(win)',
 			evidence: 'desktop-shell-ui enableMicaWindowChrome calls win.setEffects({ effects: [Effect.Mica] })',
+			requiredHostPermission: 'core:window:allow-set-effects',
 			detailFields: ['windowEffect', 'source']
 		},
 		{
@@ -124,6 +142,7 @@ export const desktopShellUiBinding = {
 			upstreamCall: 'syncTaskbarProgress(win, toDesktopShellUiTaskbarProgressState(detail))',
 			evidence:
 				'desktop-shell-ui syncTaskbarProgress receives TaskbarProgressState { saveInFlight, refreshInFlight, hasQueuedSave } and maps it to ProgressBarStatus',
+			requiredHostPermission: 'core:window:allow-set-progress-bar',
 			detailFields: ['progress', 'progressStatus', 'source']
 		},
 		{
@@ -134,6 +153,7 @@ export const desktopShellUiBinding = {
 				'syncTaskbarProgress(win, { saveInFlight: false, refreshInFlight: false, hasQueuedSave: false })',
 			evidence:
 				'desktop-shell-ui syncTaskbarProgress clears taskbar state when TaskbarProgressState has no in-flight or queued work, mapping to ProgressBarStatus.None',
+			requiredHostPermission: 'core:window:allow-set-progress-bar',
 			detailFields: ['progressStatus', 'source']
 		},
 		{
@@ -142,6 +162,8 @@ export const desktopShellUiBinding = {
 			helper: 'host.reportReady',
 			upstreamCall: 'host.reportReady({ reportHref, reportKind, reportLabel })',
 			evidence: 'SvelteKit PHP host-owned report handoff keeps generated alpha evidence links native-safe',
+			requiredHostPermission:
+				'host-owned report reveal only; no native permission is required by the PHP adapter runtime',
 			detailFields: ['reportHref', 'reportKind', 'reportLabel', 'source']
 		}
 	] satisfies DesktopShellUiCommandMapping[]
@@ -154,6 +176,75 @@ export const toDesktopShellUiTaskbarProgressState = (
 	refreshInFlight: false,
 	hasQueuedSave: detail.progressStatus === 'normal'
 });
+
+export const nativeHostWrapperProbeDetails: NativeWindowActionDetail[] = [
+	{
+		action: 'set-window-effect',
+		source: 'native-host-wrapper-probe',
+		windowEffect: 'mica'
+	},
+	{
+		action: 'start-dragging',
+		source: 'native-host-wrapper-probe',
+		dragStartThresholdPx: 4
+	},
+	{
+		action: 'toggle-maximize',
+		source: 'native-host-wrapper-probe'
+	},
+	{
+		action: 'set-progress',
+		source: 'native-host-wrapper-probe',
+		progressStatus: 'indeterminate',
+		progress: 18
+	},
+	{
+		action: 'set-progress',
+		source: 'native-host-wrapper-probe',
+		progressStatus: 'normal',
+		progress: 100
+	},
+	{
+		action: 'clear-progress',
+		source: 'native-host-wrapper-probe',
+		progressStatus: 'none',
+		progress: 0
+	},
+	{
+		action: 'report-ready',
+		source: 'native-host-wrapper-probe',
+		reportHref: '/alpha-readiness/report.json',
+		reportKind: 'json',
+		reportLabel: 'Alpha readiness report JSON'
+	}
+];
+
+export const buildNativeHostWrapperProbe = (): NativeHostWrapperProbeStep[] =>
+	nativeHostWrapperProbeDetails.flatMap((detail) => {
+		const mapping = getDesktopShellUiCommandMapping(detail.action);
+
+		if (!mapping) {
+			return [];
+		}
+
+		return [
+			{
+				action: detail.action,
+				detail,
+				expectedHandler: mapping.handler,
+				desktopShellUiHelper: mapping.helper,
+				upstreamCall: mapping.upstreamCall,
+				evidence: mapping.evidence,
+				requiredHostPermission: mapping.requiredHostPermission,
+				expectedTaskbarState:
+					detail.action === 'set-progress' || detail.action === 'clear-progress'
+						? toDesktopShellUiTaskbarProgressState(detail)
+						: undefined,
+				proves:
+					'Optional desktop wrappers can dispatch this native-window-action detail and confirm the mapped @scriptgpt/desktop-shell-ui helper path without importing native APIs into the PHP adapter runtime.'
+			}
+		];
+	});
 
 declare global {
 	interface Window {
@@ -309,7 +400,8 @@ const getDesktopShellUiResultFields = (action: NativeWindowAction) => {
 	return {
 		desktopShellUiHelper: mapping.helper,
 		desktopShellUiSource: desktopShellUiBinding.sourcePackage,
-		desktopShellUiEvidence: mapping.evidence
+		desktopShellUiEvidence: mapping.evidence,
+		requiredHostPermission: mapping.requiredHostPermission
 	};
 };
 

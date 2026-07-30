@@ -1,14 +1,21 @@
 import { buildBridgeReuseInventory } from './alpha-bridge-reuse';
 import { buildAlphaNativeHostContract } from './alpha-native-host-contract';
+import { buildAlphaNativeHostWrapperSmoke } from './alpha-native-host-wrapper-smoke';
 import type { AlphaReadinessReport } from './alpha-readiness';
 
 export function renderAlphaNativeHostGuideMarkdown(report: AlphaReadinessReport) {
 	const contract = buildAlphaNativeHostContract(report);
 	const bridgeReuse = buildBridgeReuseInventory(report);
+	const wrapperSmoke = buildAlphaNativeHostWrapperSmoke(report);
 	const runtimeBridge = contract.hostRuntimeBridge;
 	const eventActions = contract.hostEvents.flatMap((event) => event.actions);
+	const realHostPermissionChecklist = contract.realHostPermissionChecklist;
 	const nativePlatformProvenance = bridgeReuse.nativePlatformProvenance;
 	const progressReportHandoff = bridgeReuse.progressReportHandoff;
+	const nativeHostWrapperProbe = contract.nativeHostWrapperProbe;
+	const macosMaterialPolicy = contract.macosMaterialPolicy;
+	const eventReplayContract = wrapperSmoke.eventReplayContract;
+	const eventReplayTranscript = wrapperSmoke.eventReplayTranscript;
 	const lines = [
 		`# SvelteKit PHP ${report.target} native host binding guide`,
 		'',
@@ -33,6 +40,31 @@ export function renderAlphaNativeHostGuideMarkdown(report: AlphaReadinessReport)
 		'## Supported `native-window-action` actions',
 		'',
 		...eventActions.map((action) => `- \`${action}\``),
+		'',
+		'## Real host permission checklist',
+		'',
+		`- Marker: \`${realHostPermissionChecklist.marker}\``,
+		`- Source: \`${realHostPermissionChecklist.sourceRoot}/${realHostPermissionChecklist.sourceFile}\``,
+		`- Trust level: \`${realHostPermissionChecklist.trustLevel}\``,
+		`- Boundary: ${realHostPermissionChecklist.adapterBoundary}`,
+		`- Reviewer rule: ${realHostPermissionChecklist.reviewerRule}`,
+		'',
+		...realHostPermissionChecklist.requiredPermissions.map(
+			(item) =>
+				`- \`${item.permission}\` -> actions ${item.adapterActions.map((action) => `\`${action}\``).join(', ')} -> helpers ${item.desktopShellUiHelpers.map((helper) => `\`${helper}\``).join(', ')}. ${item.proves}`
+		),
+		'',
+		`Stable blocker: ${realHostPermissionChecklist.stableBlocker}`,
+		'',
+		'## macOS material policy',
+		'',
+		`- Marker: \`${macosMaterialPolicy.marker}\``,
+		`- Trust level: \`${macosMaterialPolicy.trustLevel}\``,
+		`- Host permission: \`${macosMaterialPolicy.hostPermission}\``,
+		`- Source cue: ${macosMaterialPolicy.sourceCue}`,
+		`- Adapter markers: ${macosMaterialPolicy.adapterMarkers.map((marker) => `\`${marker}\``).join(', ')}`,
+		`- Boundary: ${macosMaterialPolicy.rendererBoundary}`,
+		`- Stable blocker: ${macosMaterialPolicy.stableBlocker}`,
 		'',
 		'## Event detail shape',
 		'',
@@ -82,15 +114,19 @@ export function renderAlphaNativeHostGuideMarkdown(report: AlphaReadinessReport)
 		'- Package name: `@scriptgpt/desktop-shell-ui`.',
 		'- Reused helpers: `enableMicaWindowChrome`, `syncTaskbarProgress`, `toggleWindowMaximize`, `bindColorSchemeWatcher`, `prefersDarkMode`, and `TaskbarProgressState`.',
 		'- Native cue mapping: `Effect.Mica`, `ProgressBarStatus.Indeterminate`, `ProgressBarStatus.Normal`, `ProgressBarStatus.None`, and `progress: 18`.',
+		'- System appearance mapping: `prefersDarkMode` and `bindColorSchemeWatcher` wrap `window.matchMedia("(prefers-color-scheme: dark)")` for browser-safe OS theme changes.',
 		'- Adapter marker: `desktopShellUiBinding` / `installSvelteKitPhpNativeHost` / `getDesktopShellUiCommandMapping` / `toDesktopShellUiTaskbarProgressState`.',
 		'- Progress translation: adapter `progressStatus` maps to `TaskbarProgressState` fields `saveInFlight`, `refreshInFlight`, and `hasQueuedSave` before calling `syncTaskbarProgress`.',
 		'',
 		'```ts',
 		"import { getCurrentWindow } from '@tauri-apps/api/window';",
-		"import { enableMicaWindowChrome, syncTaskbarProgress, toggleWindowMaximize } from '@scriptgpt/desktop-shell-ui';",
+		"import { bindColorSchemeWatcher, enableMicaWindowChrome, prefersDarkMode, syncTaskbarProgress, toggleWindowMaximize } from '@scriptgpt/desktop-shell-ui';",
 		'',
 		'export function installSvelteKitPhpNativeHost() {',
 		'  const win = getCurrentWindow();',
+		'  const disposeColorSchemeWatcher = bindColorSchemeWatcher(() => {',
+		'    globalThis.console.info("SvelteKit PHP native shell color scheme", prefersDarkMode() ? "dark" : "light");',
+		'  });',
 		'',
 		'  window.__SVELTEKIT_PHP_NATIVE_HOST__ = {',
 		'    startDragging() {',
@@ -101,6 +137,7 @@ export function renderAlphaNativeHostGuideMarkdown(report: AlphaReadinessReport)
 		'    },',
 		'    setWindowEffect(detail) {',
 		'      if (detail.windowEffect === "mica") void enableMicaWindowChrome(win);',
+		'      // macOS wrappers keep native vibrancy/material policy host-owned; the PHP adapter only emits browser-safe material intent.',
 		'    },',
 		'    setProgress(detail) {',
 		'      void syncTaskbarProgress(win, {',
@@ -113,13 +150,58 @@ export function renderAlphaNativeHostGuideMarkdown(report: AlphaReadinessReport)
 		'      void syncTaskbarProgress(win, { saveInFlight: false, refreshInFlight: false, hasQueuedSave: false });',
 		'    },',
 		'    reportReady(detail) {',
-		'      console.info("SvelteKit PHP alpha report ready", detail.reportHref);',
+		'      globalThis.console.info("SvelteKit PHP alpha report ready", detail.reportHref);',
 		'    }',
 		'  };',
+		'',
+		'  return disposeColorSchemeWatcher;',
 		'}',
 		'```',
 		'',
 		'The package import above belongs only in an optional Tauri/native wrapper. Do not add `@tauri-apps/api` or the UltraGear helper package to the PHP adapter runtime bundle.',
+		'',
+		'## Deterministic wrapper probe',
+		'',
+		`- Probe marker: \`${nativeHostWrapperProbe.marker}\``,
+		`- Probe source: \`${nativeHostWrapperProbe.source}\``,
+		`- Trust level: \`${nativeHostWrapperProbe.trustLevel}\``,
+		`- Required actions: ${nativeHostWrapperProbe.requiredActions.map((action) => `\`${action}\``).join(', ')}`,
+		`- Required helpers: ${nativeHostWrapperProbe.requiredHelpers.map((helper) => `\`${helper}\``).join(', ')}`,
+		'',
+		'Wrapper smoke steps:',
+		'',
+		...nativeHostWrapperProbe.steps.map(
+			(step) =>
+				`- \`${step.action}\` -> \`${step.expectedHandler}\` -> \`${step.desktopShellUiHelper}\`; requires \`${step.requiredHostPermission}\`; upstream \`${step.upstreamCall}\`.`
+		),
+		'',
+		'Taskbar progress expectations:',
+		'',
+		...nativeHostWrapperProbe.steps
+			.filter((step) => step.expectedTaskbarState)
+			.map(
+				(step) =>
+					`- \`${step.action}\` with \`progressStatus=${step.detail.progressStatus}\`: \`saveInFlight=${step.expectedTaskbarState?.saveInFlight}\`, \`refreshInFlight=${step.expectedTaskbarState?.refreshInFlight}\`, \`hasQueuedSave=${step.expectedTaskbarState?.hasQueuedSave}\`.`
+			),
+		'',
+		'## Deterministic event replay contract',
+		'',
+		`- Replay marker: \`${eventReplayContract.marker}\``,
+		`- Event name: \`${eventReplayContract.eventName}\``,
+		`- Controller global: \`${eventReplayContract.controllerGlobal}\``,
+		`- History global: \`${eventReplayContract.historyGlobal}\``,
+		`- Expected result: \`handled=${eventReplayContract.expectedHandled}\`, \`mode=${eventReplayContract.expectedMode}\``,
+		`- No fallback allowed for real host: \`${eventReplayContract.noFallbackAllowedForRealHost}\``,
+		`- Required result fields: ${eventReplayContract.requiredResultFields.map((field) => `\`${field}\``).join(', ')}`,
+		'- Replay source: `/alpha-readiness/native-host-wrapper-smoke.json` -> `eventReplayTranscript[]`.',
+		'- Acceptance rule: replay every `eventReplayTranscript[]` row, then assert every `expectedHistoryResult` records `handled=true`, `mode=native-host`, and the expected desktop-shell helper. A real wrapper must fail the smoke if history records `browser-fallback` while `noFallbackAllowedForRealHost=true`.',
+		'',
+		'Event replay transcript:',
+		'',
+		...eventReplayTranscript.map(
+			(entry) =>
+				`- ${entry.order}. \`${entry.marker}\`: \`${entry.action}\` -> \`${entry.expectedHandler}\` -> \`${entry.expectedDesktopShellUiHelper}\`; requires \`${entry.requiredHostPermission}\`; assert \`expectedHistoryResult.handled=${entry.expectedHistoryResult.handled}\` and \`expectedHistoryResult.mode=${entry.expectedHistoryResult.mode}\`.`
+		),
 		'',
 		'## Live alpha proof surface',
 		'',
@@ -135,6 +217,7 @@ export function renderAlphaNativeHostGuideMarkdown(report: AlphaReadinessReport)
 		`- Source root: \`${nativePlatformProvenance.sourceRoot}\``,
 		`- Windows Mica cues: ${nativePlatformProvenance.windowsMicaCues.map((cue) => `\`${cue}\``).join(', ')}`,
 		`- macOS chrome cues: ${nativePlatformProvenance.macosChromeCues.map((cue) => `\`${cue}\``).join(', ')}`,
+		`- macOS material policy: \`${macosMaterialPolicy.marker}\` remains host-owned until a real macOS wrapper proves native material application.`,
 		`- Window action cues: ${nativePlatformProvenance.windowActionCues.map((cue) => `\`${cue}\``).join(', ')}`,
 		`- Progress/report cues: ${nativePlatformProvenance.progressReportCues.map((cue) => `\`${cue}\``).join(', ')}`,
 		'',
@@ -147,8 +230,9 @@ export function renderAlphaNativeHostGuideMarkdown(report: AlphaReadinessReport)
 		'## Adapter boundary checklist',
 		'',
 		'- Do not import Tauri or native host packages into the PHP adapter runtime.',
-		'- Keep real Windows 11 Mica, macOS titlebar behavior, taskbar progress, and report reveal behavior in the optional host wrapper.',
+		'- Keep real Windows 11 Mica, macOS titlebar/vibrancy behavior, taskbar progress, and report reveal behavior in the optional host wrapper.',
 		'- Keep browser fallback history visible through `window.__SVELTEKIT_PHP_NATIVE_HOST_HISTORY__` for hosted smoke and screenshots.',
+		'- Keep `native-host-wrapper-event-replay`, `native-host-wrapper-event-replay-step`, `expectedHistoryResult`, `expectedDesktopShellUiHelper`, and `noFallbackAllowedForRealHost` synchronized between this guide and `/alpha-readiness/native-host-wrapper-smoke.json`.',
 		'- Keep `set-window-effect`, `set-progress`, `clear-progress`, and `report-ready` synchronized across the live page, reports, manifest, evidence index, hosted smoke checklist, and verifier.',
 		''
 	];

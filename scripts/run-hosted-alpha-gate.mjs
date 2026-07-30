@@ -10,11 +10,15 @@ loadEnv({ quiet: true });
 
 assertHostedSmokeEnv('Hosted alpha gate');
 
+const args = new Set(process.argv.slice(2));
+const skipLocal = args.has('--skip-local');
+
 const steps = [
 	{
 		name: 'Run local alpha release gate',
 		command: 'bun',
-		args: ['run', 'alpha:gate']
+		args: ['run', 'alpha:gate'],
+		local: true
 	},
 	{
 		name: 'Run hosted alpha remote smoke',
@@ -31,7 +35,7 @@ const steps = [
 		command: 'bun',
 		args: ['run', 'verify:alpha']
 	}
-];
+].filter((step) => !(skipLocal && step.local));
 
 function runStep(step) {
 	return new Promise((resolve, reject) => {
@@ -64,6 +68,9 @@ function fail(message) {
 async function main() {
 	if (!process.env.ALPHA_SMOKE_BASE_URL) {
 		fail('Set ALPHA_SMOKE_BASE_URL before running the hosted alpha gate.');
+	}
+	if (skipLocal) {
+		console.log('Skipping local alpha release gate because --skip-local was provided.');
 	}
 
 	const started = Date.now();

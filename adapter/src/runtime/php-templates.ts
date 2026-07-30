@@ -857,8 +857,10 @@ try {
 	return;
 } catch (Throwable $e) {
 	http_response_code(500);
+	error_log('[sveltekit-php] action error: ' . $e->getMessage());
 	header('Content-Type: application/json; charset=utf-8');
-    echo sk_json_encode(['type' => 'error', 'error' => ['message' => $e -> getMessage()]]);
+	echo sk_json_encode(['type' => 'error', 'error' => ['message' => 'Internal Server Error'], 'status' => 500]);
+	exit;
 }
 `;
 }
@@ -943,7 +945,7 @@ if (!empty($sk_deferreds)) {
 		// For now, we use simple JSON encoding to avoid the need for unflattening on the client.
 		$serialized = sk_json_encode($data);
 
-		echo '<script>if(typeof ${appId} !== "undefined") { ${appId}.resolve('.$id. ', () => ['.$serialized.', null]); } else { console.error("App ID undefined: ${appId}"); }</script>';
+		echo '<script>if(typeof ${appId} !== "undefined") { ${appId}.resolve('.$id. ', () => ['.$serialized.', null]); } else { globalThis.console.error("App ID undefined: ${appId}"); }</script>';
 		flush();
 	}
 }
@@ -1169,9 +1171,9 @@ try {
 	exit;
 } catch (Throwable $e) {
 	http_response_code(500);
-	// In dev, show error. In prod, maybe generic?
-	// For now, simple text output
-	echo "Internal Server Error: ".$e -> getMessage();
+	error_log('[sveltekit-php] endpoint error: ' . $e->getMessage());
+	header('Content-Type: text/plain; charset=utf-8');
+	echo 'Internal Server Error';
 	exit;
 }
 

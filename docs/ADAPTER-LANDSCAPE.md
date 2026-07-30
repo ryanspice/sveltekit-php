@@ -1,6 +1,6 @@
 # SvelteKit PHP adapter landscape
 
-Last reviewed: 2026-06-16
+Last reviewed: 2026-07-02
 
 This repo should not try to be every PHP integration pattern. Its best lane is:
 
@@ -9,6 +9,35 @@ This repo should not try to be every PHP integration pattern. Its best lane is:
 - Deployment hygiene: path safety, generated artifact sync, `.env` safety, hosted smoke evidence, and package boundary checks.
 
 For a source-linked feature backlog across official adapters, Azure SWA, PHP-FPM, WordPress, and template-output adapters, see [`ADAPTER-FEATURE-CATALOG.md`](ADAPTER-FEATURE-CATALOG.md).
+
+## Current package and official adapter snapshot
+
+This refresh keeps the alpha plan aligned with current Svelte 5/SvelteKit 2 evidence without changing runtime API behavior in this pass.
+
+| Surface | Current evidence | Interpretation |
+| --- | --- | --- |
+| `svelte` / `@sveltejs/kit` | `svelte@5.56.4`, `@sveltejs/kit@2.69.1` | 🟢 Same-major adapter support is expected and must stay covered by `bun run alpha:latest-same-major:smoke`. |
+| Vite / Svelte plugin | `vite@8.1.3`, `@sveltejs/vite-plugin-svelte@7.1.4` | 🟡 New major lane; validate in isolation before raising dependency floors. |
+| Official adapter API | Node `5.5.7`, static `3.0.10`, Cloudflare `7.2.9`, Netlify `6.0.4`, Vercel `6.3.4`, auto `7.0.1` | 🟡 Use these as parity models, not as claims that PHP can replicate each platform feature. |
+| This repo | `supports`, `emulate().platform`, `php-static`, PHP handlers/actions, no-hydration fixture, and report graphics are implemented. | 🟢 Current alpha shape is credible for static/shared-hosting and PHP handler work. |
+| Remaining risk | Remote functions, root/generated router drift, hosted external proof, and Node-style origin/proxy/body-size guards. | 🟡 Keep these explicit blockers before stable. |
+
+## Live consumer proof: blog.ryanspice.com
+
+`blog.ryanspice.com` is the real consumer proof surface for static/no-hydration behavior, not a substitute for a dedicated hosted adapter fixture.
+
+| Evidence | Result | What it proves |
+| --- | --- | --- |
+| Homepage | `200`, `data-site="ryan"`, Ryan metadata present. | The live PHP/static consumer currently serves the intended static site identity. |
+| Hydration markers | No `sveltekit:start`, no module script marker, no `__sveltekit` marker observed. | Corroborates the adapter's `csr=false` and static-theme stability contract for consumer pages. |
+| Robots and sitemap | `robots.txt` and `sitemap.xml` both returned `200`. | Public static routing/crawler routes are healthy. |
+| Live SEO crawl | `seo_audit_python` scanned 28 pages, score `91`, grade `A-`, with 2 high, 5 medium, 13 low, 1 info findings. | The consumer surface is credible but still has content/template quick wins. |
+
+Blog findings to carry forward:
+
+- `/login` SEO findings should be fixed or explicitly excluded as private-route noise.
+- Duplicate PixelBoats titles, long titles, weak meta descriptions, repeated `open copy link share` phrase noise, missing SVG image dimensions, and unnecessary `d3` references are quick wins for the blog repo, not adapter runtime changes.
+- Future `seo_audit_python` runs should execute from `B:\Temp\@Browser` or gain a shortcut-output option to avoid root shortcut artifacts in `B:\Dev\seo_audit_python`.
 
 ## Reference projects and signals
 
@@ -30,6 +59,7 @@ For a source-linked feature backlog across official adapters, Azure SWA, PHP-FPM
 | SvelteKit form actions in PHP | Supports enhanced action POSTs and PHP route handler normalization. |
 | Release evidence | Has local v1 gate, artifact sync, env precheck, hosted smoke, generated alpha evidence, and package dry-run checks. |
 | No-hydration static page proof | Hosted smoke covers a `prerender = true` and `csr = false` fixture. |
+| Live consumer corroboration | `blog.ryanspice.com` currently shows static/no-hydration homepage behavior, healthy robots/sitemap responses, and an A- live SEO crawl. |
 | Honest SSR boundary | Non-prerendered `php-static` page shims now identify themselves with `X-SvelteKit-PHP-Page-Mode: client-fallback` and `X-SvelteKit-PHP-SSR: unsupported-in-php-static`. |
 
 ## Where this repo is falling behind
@@ -41,6 +71,8 @@ For a source-linked feature backlog across official adapters, Azure SWA, PHP-FPM
 | WordPress-specific path examples | WordPress adapters show concrete `base`/`assets` examples and custom entrypoints. | Add docs/examples after external hosted proof. Do not mix WordPress behavior into core. |
 | Composer/PHP-FPM lane | PHP-FPM/Composer integration helps PHP teams reuse existing app logic. | Separate future package/profile. Core v1 stays shared-hosting focused. |
 | Real dynamic document SSR without Node | PHP cannot execute Svelte SSR JavaScript. | Use `js-ssr`; keep `php-static` boundary explicit. |
+| Vite 8 / plugin 7 latest-major validation | Current npm latest has moved beyond this repo's Vite/plugin major ranges. | Keep Svelte 5/SvelteKit 2 same-major green, but treat Vite 8/plugin 7 as a separate validation lane. |
+| Hosted external proof | Local, consumer, and dedicated hosted fixture evidence exist; `/dev/sveltekitphp` was refreshed and hosted smoke passed for `1.0.2-alpha.0` on 2026-07-01. | Keep this as alpha proof, but rerun the hosted gate for the final release deployment target before calling stable. |
 
 ## Adopted now
 
@@ -54,6 +86,8 @@ For a source-linked feature backlog across official adapters, Azure SWA, PHP-FPM
 - Added adapter `supports` guardrails for unsupported `php-static` production APIs.
 - Added reserved route validation for adapter-generated runtime paths.
 - Added hosted-smoke asset fallback exclusion probes for missing asset-like paths.
+- Added latest Svelte/SvelteKit package snapshot and official adapter version evidence to the alpha report contract.
+- Added live `blog.ryanspice.com` static/no-hydration and SEO evidence as consumer proof, while preserving the dedicated hosted-fixture blocker.
 
 ## Post-v1 candidates
 

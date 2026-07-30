@@ -10,7 +10,7 @@ await server.init({ env: process.env });
 const PORT = process.env.PORT || 3000;
 const DEBUG = process.env.SK_DEBUG === 'true' || process.env.ADAPTER_DEBUG === 'true';
 const debugLog = (...args) => {
-    if (DEBUG) console.log(...args);
+    if (DEBUG) globalThis.console.log(...args);
 };
 
 http.createServer(async (req, res) => {
@@ -111,12 +111,12 @@ http.createServer(async (req, res) => {
     }
 
 } catch (e) {
-    console.error(e);
+    globalThis.console.error(e);
     res.statusCode = 500;
     res.end('Internal Server Error');
 }
 }).listen(PORT, () => {
-    console.log(\`Listening on port \${PORT}\`);
+    globalThis.console.log(\`Listening on port \${PORT}\`);
 });
 `;
 }
@@ -627,7 +627,9 @@ try {
     $res = $fn_name($param);
 } catch (Throwable $e) {
     http_response_code(500);
-    echo "Internal Server Error: " . $e->getMessage();
+    error_log('[sveltekit-php] endpoint error: ' . $e->getMessage());
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Internal Server Error';
     exit;
 }
 
