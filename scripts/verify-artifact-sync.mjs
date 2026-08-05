@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { PACKAGE_VERSION } from './utils/release-snapshot.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const strict = process.env.CI === 'true' || process.argv.includes('--strict');
@@ -22,7 +23,7 @@ const generatedArtifacts = [
 			'router_safe_path(__DIR__',
 			'Build identity contract',
 			'buildIdentity',
-			'1.0.2-alpha.0'
+			PACKAGE_VERSION
 		]
 	}
 ];

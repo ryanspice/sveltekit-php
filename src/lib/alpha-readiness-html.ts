@@ -803,4 +803,3 @@ export function renderAlphaReadinessHtml(
 </html>
 `;
 }
-

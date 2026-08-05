@@ -2,11 +2,12 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { PACKAGE_VERSION } from './utils/release-snapshot.mjs';
 
 const args = new Set(process.argv.slice(2));
 const allowMissing = args.has('--allow-missing');
 const forceSkip = args.has('--skip');
-const expectedVersion = process.env.ALPHA_SMOKE_EXPECTED_VERSION || '1.0.2-alpha.0';
+const expectedVersion = process.env.ALPHA_SMOKE_EXPECTED_VERSION || PACKAGE_VERSION;
 const timeoutMs = Number(process.env.ALPHA_SMOKE_TIMEOUT_MS || 15000);
 const baseUrlInput = process.env.ALPHA_SMOKE_BASE_URL;
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');

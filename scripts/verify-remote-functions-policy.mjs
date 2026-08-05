@@ -45,16 +45,18 @@ function requireMarkers(label, text, markers) {
 }
 
 async function main() {
-	const [packageJsonText, svelteConfig, adapterSource, policyDoc, latestAudit, releasePrep] =
+	const [packageJsonText, svelteConfig, adapterIndexSource, guardsSource, policyDoc, latestAudit, releasePrep] =
 		await Promise.all([
 			readFile(path.join(repoRoot, 'package.json'), 'utf8'),
 			readFile(path.join(repoRoot, 'svelte.config.js'), 'utf8'),
 			readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8'),
+			readFile(path.join(repoRoot, 'adapter', 'src', 'utils', 'guards.ts'), 'utf8'),
 			readFile(path.join(repoRoot, 'docs', 'REMOTE-FUNCTIONS-ALPHA-POLICY.md'), 'utf8'),
 			readFile(path.join(repoRoot, 'docs', 'ALPHA-LATEST-SVELTEKIT-AUDIT.md'), 'utf8'),
 			readFile(path.join(repoRoot, 'scripts', 'verify-alpha-release-prep.mjs'), 'utf8')
 		]);
 	const packageJson = JSON.parse(packageJsonText);
+	const adapterSource = `${adapterIndexSource}\n${guardsSource}`;
 	const remoteFiles = await collectRemoteFunctionFiles(path.join(repoRoot, 'src'));
 
 	if (/remoteFunctions\s*:\s*true/.test(svelteConfig)) {

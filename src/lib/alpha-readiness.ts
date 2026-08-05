@@ -1,5 +1,6 @@
 import { buildAlphaHardProofBlockers, type AlphaHardProofBlocker } from './alpha-hard-proof-blockers';
 import { requiredAlphaEvidence } from './alpha-required-evidence';
+import npmLatestSnapshot from '../../scripts/snapshots/npm-latest.json';
 
 export type AlphaReadinessStatus = 'ready' | 'watch' | 'blocked';
 
@@ -131,28 +132,28 @@ export const latestPackageSnapshotReviewed = '2026-07-06';
 export const latestPackageSnapshot: AlphaLatestPackageSnapshotItem[] = [
 	{
 		packageName: 'svelte',
-		latest: '5.56.4',
+		latest: npmLatestSnapshot.packages.svelte.latest,
 		currentRange: '^5.45.6',
 		support: 'green',
 		stance: 'Same-major alpha gate target; latest Svelte 5 is covered by the packed fixture smoke.'
 	},
 	{
 		packageName: '@sveltejs/kit',
-		latest: '2.69.1',
+		latest: npmLatestSnapshot.packages['@sveltejs/kit'].latest,
 		currentRange: '^2.49.1',
 		support: 'green',
 		stance: 'Same-major alpha gate target; latest SvelteKit 2 is covered by adapter shape and packed fixture smoke.'
 	},
 	{
 		packageName: '@sveltejs/vite-plugin-svelte',
-		latest: '7.1.4',
+		latest: npmLatestSnapshot.packages['@sveltejs/vite-plugin-svelte'].latest,
 		currentRange: '^6.2.1',
 		support: 'yellow',
 		stance: 'Latest major is covered by the isolated Vite 8/plugin 7 fixture smoke; do not raise the repo floor without a separate dependency-floor upgrade.'
 	},
 	{
 		packageName: 'vite',
-		latest: '8.1.3',
+		latest: npmLatestSnapshot.packages.vite.latest,
 		currentRange: '^7.2.6',
 		support: 'yellow',
 		stance: 'Latest major is covered by the isolated Vite 8/plugin 7 fixture smoke; keep the current Vite 7 floor until an intentional floor upgrade is scoped.'
@@ -378,7 +379,7 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 			'SvelteKit remote functions are explicitly blocked for PHP runtime alpha output until generated HTTP endpoint routing has PHP fixture and hosted smoke proof.',
 		evidence: [
 			'docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md',
-			'adapter/src/index.ts assertRemoteFunctionsUnsupported',
+			'adapter/src/utils/guards.ts assertRemoteFunctionsUnsupported',
 			'scripts/verify-remote-functions-policy.mjs',
 			'event.platform.php.remoteFunctions.supported === false',
 			'Official SvelteKit remote-functions docs: generated server HTTP endpoints from .remote.* files'
@@ -705,5 +706,4 @@ export function buildAlphaReadinessReport(): AlphaReadinessReport {
 		limitations: alphaLimitations
 	};
 }
-
 

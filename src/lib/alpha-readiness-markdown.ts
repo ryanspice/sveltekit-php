@@ -410,4 +410,3 @@ export function renderAlphaReadinessMarkdown(
 	lines.push('');
 	return lines.join('\n');
 }
-

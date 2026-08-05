@@ -56,7 +56,9 @@ export async function handle({ event, resolve }) {
 			status: 307,
 			headers: {
 				Location: `${origin}/`,
-				'Set-Cookie': `redirected_from=${event.url.pathname}; Path=/; Max-Age=10; SameSite=Lax`
+				'Set-Cookie': `redirected_from=${event.url.pathname}; Path=/; Max-Age=10; SameSite=Lax; HttpOnly${
+					event.url.protocol === 'https:' ? '; Secure' : ''
+				}`
 			}
 		});
 	}

@@ -3,8 +3,11 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { requiredAlphaEvidence } from '../src/lib/alpha-required-evidence.ts';
+import { PACKAGE_VERSION } from './utils/release-snapshot.mjs';
+import npmLatest from './snapshots/npm-latest.json' with { type: 'json' };
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const releaseTrack = PACKAGE_VERSION.replace(/\.\d+$/, '');
 
 const requiredEnvKeys = [
 	'SK_BASE_PATH',
@@ -229,13 +232,16 @@ async function verifyEnvFiles() {
 
 async function verifyPackageMetadata() {
 	const packageJson = JSON.parse(await readFile(path.join(repoRoot, 'package.json'), 'utf8'));
+	const releasePolicy = packageJson.sveltekitPhpReleasePolicy;
 
 	if (packageJson.name !== 'sveltekit-php') {
 		throw new Error(`Unexpected package name: ${packageJson.name}`);
 	}
 
-	if (!/^1\.0\.2-alpha\.\d+$/.test(packageJson.version)) {
-		throw new Error(`Package version must stay on the 1.0.2-alpha track, received ${packageJson.version}.`);
+	if (!packageJson.version.startsWith(`${releasePolicy?.track ?? 'missing-track'}.`)) {
+		throw new Error(
+			`Package version ${packageJson.version} must stay on the ${releasePolicy?.track ?? 'missing'} track.`
+		);
 	}
 
 	if (packageJson.private !== false) {
@@ -250,11 +256,25 @@ async function verifyPackageMetadata() {
 		throw new Error('package.json publishConfig.tag must stay alpha; do not publish alpha evidence as latest, rc, or stable.');
 	}
 
-	const releasePolicy = packageJson.sveltekitPhpReleasePolicy;
+	if (
+		!packageJson.scripts?.prepack?.includes('verify:artifacts') ||
+		!packageJson.scripts.prepack.includes('--strict')
+	) {
+		throw new Error('package.json prepack must run verify:artifacts --strict before pack/publish.');
+	}
+
+	if (packageJson.peerDependencies?.['@sveltejs/kit'] !== '^2.0.0') {
+		throw new Error('package.json peerDependencies must declare @sveltejs/kit ^2.0.0.');
+	}
+
+	if (packageJson.exports?.['./package.json'] !== './package.json') {
+		throw new Error('package.json exports must expose ./package.json for metadata consumers.');
+	}
+
 	if (
 		releasePolicy?.marker !== 'alpha-over-rc-release-policy' ||
 		releasePolicy?.channel !== 'alpha' ||
-		releasePolicy?.track !== '1.0.2-alpha' ||
+		releasePolicy?.track !== releaseTrack ||
 		releasePolicy?.rank !== 'above-rc' ||
 		!(releasePolicy?.disallowedDistTags ?? []).includes('latest') ||
 		!(releasePolicy?.disallowedDistTags ?? []).includes('rc') ||
@@ -1329,10 +1349,7 @@ async function verifyLatestSvelteKitCompatibilityAudit() {
 		'https://svelte.dev/docs/kit/page-options',
 		'https://svelte.dev/docs/kit/remote-functions',
 		'Remote functions and newer Kit features',
-		'svelte` | `5.56.4',
-		'@sveltejs/kit` | `2.69.1',
-		'@sveltejs/vite-plugin-svelte` | `7.1.4',
-		'vite` | `8.1.3',
+		...Object.entries(npmLatest.packages).map(([name, info]) => `${name}\` | \`${info.latest}`),
 		'Official adapter snapshot',
 		'@sveltejs/adapter-node` | `5.5.7',
 		'@sveltejs/adapter-static` | `3.0.10',
@@ -1401,11 +1418,12 @@ async function verifyLatestSvelteKitCompatibilityAudit() {
 }
 
 async function verifyRemoteFunctionsAlphaPolicy() {
-	const [policyDoc, packageJsonText, adapterSource, verifierSource, releaseManifestSource] =
+	const [policyDoc, packageJsonText, adapterSource, guardsSource, verifierSource, releaseManifestSource] =
 		await Promise.all([
 			readFile(path.join(repoRoot, 'docs', 'REMOTE-FUNCTIONS-ALPHA-POLICY.md'), 'utf8'),
 			readFile(path.join(repoRoot, 'package.json'), 'utf8'),
 			readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8'),
+			readFile(path.join(repoRoot, 'adapter', 'src', 'utils', 'guards.ts'), 'utf8'),
 			readFile(path.join(repoRoot, 'scripts', 'verify-remote-functions-policy.mjs'), 'utf8'),
 			readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'), 'utf8')
 		]);
@@ -1425,7 +1443,7 @@ async function verifyRemoteFunctionsAlphaPolicy() {
 		'remoteFunctionsAlphaPolicyProof',
 		'verify:remote-functions'
 	];
-	const joined = `${policyDoc}\n${adapterSource}\n${verifierSource}\n${releaseManifestSource}`;
+	const joined = `${policyDoc}\n${adapterSource}\n${guardsSource}\n${verifierSource}\n${releaseManifestSource}`;
 	const missingMarkers = requiredMarkers.filter((marker) => !joined.includes(marker));
 
 	if (missingMarkers.length > 0) {
@@ -1457,6 +1475,58 @@ async function verifyRemoteFunctionsAlphaPolicy() {
 	);
 }
 
+async function verifyNpmSnapshotConsistency() {
+	const auditText = await readFile(
+		path.join(repoRoot, 'docs', 'ALPHA-LATEST-SVELTEKIT-AUDIT.md'),
+		'utf8'
+	);
+	const alphaReadinessText = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-readiness.ts'),
+		'utf8'
+	);
+	const drift = [];
+
+	if (!alphaReadinessText.includes(`alphaTarget = '${PACKAGE_VERSION}'`)) {
+		drift.push(`alphaTarget != ${PACKAGE_VERSION}`);
+	}
+
+	for (const [name, info] of Object.entries(npmLatest.packages)) {
+		const marker = `${name}\` | \`${info.latest}`;
+		if (!auditText.includes(marker)) drift.push(`${name}@${info.latest} missing from audit doc`);
+		const accessor = name.includes('/')
+			? `npmLatestSnapshot.packages['${name}'].latest`
+			: `npmLatestSnapshot.packages.${name}.latest`;
+		if (!alphaReadinessText.includes(accessor)) drift.push(`${name} accessor missing from alpha-readiness.ts`);
+	}
+
+	if (drift.length > 0) {
+		throw new Error(`npm-latest snapshot drift: ${drift.join('; ')}`);
+	}
+
+	console.log('PASS npm-snapshot-consistency: snapshot matches audit doc and alpha-readiness source.');
+}
+
+async function verifyVersionDrift() {
+	const scriptsDir = path.join(repoRoot, 'scripts');
+	const files = (await readdir(scriptsDir, { recursive: true })).filter((file) =>
+		file.endsWith('.mjs')
+	);
+	const offenders = [];
+
+	for (const file of files) {
+		const text = await readFile(path.join(scriptsDir, file), 'utf8');
+		if (/1\.\d+\.\d+-alpha\.\d+/.test(text) && !text.includes('release-snapshot')) {
+			offenders.push(file);
+		}
+	}
+
+	if (offenders.length > 0) {
+		throw new Error(`Hardcoded alpha version literals in scripts: ${offenders.join(', ')}`);
+	}
+
+	console.log('PASS version-snapshot: scripts reference PACKAGE_VERSION; no hardcoded alpha version literals.');
+}
+
 async function main() {
 	const checks = [
 		verifyPackageMetadata,
@@ -1475,7 +1545,9 @@ async function main() {
 		verifyPublicContractDocs,
 		verifyAdapterPlatformEmulationContract,
 		verifyLatestSvelteKitCompatibilityAudit,
-		verifyRemoteFunctionsAlphaPolicy
+		verifyRemoteFunctionsAlphaPolicy,
+		verifyNpmSnapshotConsistency,
+		verifyVersionDrift
 	];
 	const failures = [];
 
@@ -1498,5 +1570,4 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
-
 
