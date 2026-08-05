@@ -227,4 +227,3 @@ This pass rechecked the catalogue against current official docs and community ad
 - Keep host-specific features behind recipes or profiles until real deployments need them.
 - If a feature can break routing, path safety, or generated artifact sync, it must ship with a fixture and a verification gate.
 - If a feature mostly helps WordPress, Azure, or PHP-FPM users, avoid making it required for basic shared hosting.
-

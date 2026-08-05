@@ -112,4 +112,3 @@ The alpha goal now requires:
 - Add explicit remote-functions compatibility proof before changing `event.platform.php.remoteFunctions.supported` from `false`.
 - Keep action/form fixtures and root/generated router parity in the required gate.
 - Keep hosted PHP smoke proof required before any stable 1.0.2 claim.
-
