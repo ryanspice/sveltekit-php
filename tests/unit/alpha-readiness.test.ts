@@ -162,7 +162,9 @@ function buildCompleteGeneratedEvidence() {
 			latestViteMajorSmoke: readRepoText('scripts/smoke-latest-vite-major.mjs'),
 			remoteFunctionsPolicy: readRepoText('docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md'),
 			remoteFunctionsVerifier: readRepoText('scripts/verify-remote-functions-policy.mjs'),
-			adapterSource: readRepoText('adapter/src/index.ts'),
+			adapterSource: `${readRepoText('adapter/src/index.ts')}\n${readRepoText(
+				'adapter/src/utils/guards.ts'
+			)}`,
 			noHydrationConfigSource: readRepoText('src/routes/alpha-readiness/no-hydration/+page.ts'),
 			noHydrationPageSource: readRepoText('src/routes/alpha-readiness/no-hydration/+page.svelte'),
 			alphaPage: readRepoText('src/routes/alpha-readiness/+page.svelte'),
