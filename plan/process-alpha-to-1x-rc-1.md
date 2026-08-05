@@ -230,4 +230,3 @@ This plan defines the path from the current `sveltekit-php@1.0.2-alpha.0` eviden
 - `docs/ADAPTER-LANDSCAPE.md`
 - `docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`
 - `README.md`
-

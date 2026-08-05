@@ -326,9 +326,11 @@ describe('runtime hardening templates', () => {
 
 	it('does not treat Svelte rest params as literal traversal in reserved route checks', () => {
 		const adapterSource = fs.readFileSync(path.resolve('adapter/src/index.ts'), 'utf8');
+		const guardsSource = fs.readFileSync(path.resolve('adapter/src/utils/guards.ts'), 'utf8');
+		const combined = `${adapterSource}\n${guardsSource}`;
 
-		expect(adapterSource).toContain('function isRouteParamSegment');
-		expect(adapterSource).toContain(
+		expect(combined).toContain('function isRouteParamSegment');
+		expect(combined).toContain(
 			"segments.some((segment) => !isRouteParamSegment(segment) && segment.includes('..'))"
 		);
 	});

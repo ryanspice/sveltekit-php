@@ -1,0 +1,21 @@
+{
+  "updated": "2026-08-05",
+  "packages": {
+    "svelte": {
+      "latest": "5.56.4",
+      "stance": "same-major"
+    },
+    "@sveltejs/kit": {
+      "latest": "2.69.1",
+      "stance": "same-major"
+    },
+    "@sveltejs/vite-plugin-svelte": {
+      "latest": "7.1.4",
+      "stance": "latest-major-validation"
+    },
+    "vite": {
+      "latest": "8.1.3",
+      "stance": "latest-major-validation"
+    }
+  }
+}

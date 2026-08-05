@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { spawn } from 'child_process';
+import { existsSync } from 'node:fs';
 import { resolve } from 'path';
 import { config } from 'dotenv';
 import { assertOptionalEnvIsConcrete } from './utils/config.mjs';
@@ -31,10 +32,18 @@ adapterProcess.on('close', (code) => {
 		console.log('PHP build completed successfully');
 		console.log('Files generated in:', BUILD_DIR);
 		console.log('');
+		const generatedRouter = resolve(BUILD_DIR, 'router.php');
+		const rootRouter = resolve('router.php');
+		if (existsSync(generatedRouter)) {
+			console.log('  php -S localhost:8000 -t build router.php');
+		} else if (existsSync(rootRouter)) {
+			console.log('  php -S localhost:8000 -t build <repo-root>/router.php');
+		} else {
+			console.warn('  Warning: no router.php found in build/ or the repo root; use .htaccess on Apache.');
+		}
 		const base = process.env.DEPLOY_BASE || '';
 		const url = `http://localhost:8000${base}`;
 		console.log('To test locally:');
-		console.log('  php -S localhost:8000 -t build router.php');
 		console.log(`  Then visit: ${url}`);
 		console.log('');
 		console.log('To deploy to Apache:');

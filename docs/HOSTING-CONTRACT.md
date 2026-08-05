@@ -4,6 +4,10 @@ Last updated: 2026-06-17
 
 This document defines the production hosting assumptions for `sveltekit-php`. It borrows the useful parts of `adapter-node`, `adapter-static`, and Azure Static Web Apps configuration without pretending PHP shared hosting has the same platform features.
 
+## PHP version floor
+
+PHP **8.1+ is required** for the adapter's runtime compat layer (`php-compat.php` hard-exits with `This app requires PHP 8.1+.` below `SK_PHP_MIN_VERSION=80100`). The generator and this contract both target PHP 8.1+; older polyfill stubs are not shipped.
+
 ## Support levels
 
 | Level | Meaning |
@@ -31,7 +35,7 @@ These option names are the 1.x public adapter surface. New options can be added 
 | `out` | `string` | Output directory for generated PHP/static build files. |
 | `assets` | `string` | Asset output path when separate from `out`. |
 | `precompress` | `boolean` | Enables generated precompressed assets where the host can serve them. |
-| `fallback` | `boolean` | Enables app fallback behavior; asset-like paths must still be excluded from HTML fallback. |
+| `fallback` | `boolean` or `string` | Enables app fallback; a string value sets a custom fallback filename (e.g. `custom-fallback.html`). Asset-like paths must still be excluded from HTML fallback. |
 | `strict` | `boolean` | Keeps release and source-shape guards fail-fast. |
 | `basePath` | `string` | Explicit deployment base path for subdirectory hosting. |
 | `baseMode` | `'fixed'` or `'auto'` | Controls whether base behavior is fixed by config or inferred for supported flows. |
@@ -89,7 +93,7 @@ These environment names are part of the release-prep/deploy contract. Committed 
 | `ADAPTER_MODE` | Build/deploy scripts | Selects `php-static` or `js-ssr` for scripted builds. |
 | `ADAPTER_OUT` | Build/deploy scripts | Output directory override. |
 | `ADAPTER_ASSETS` | Build/deploy scripts | Asset output override. |
-| `SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS` | Build scripts | Semicolon-separated trusted parent roots for adapter output outside the project or OS temp directory. |
+| `SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS` | Build scripts | Semicolon-separated trusted parent roots for adapter output outside the project or OS temp directory. **WARNING:** these directories are passed to `fs.rmSync(..., { recursive: true })` during cleanup; a misconfigured value can delete unintended directory trees. Restrict this to adapter-output-specific paths and never point it at Documents/Desktop/Downloads/OneDrive/system roots. |
 | `ADAPTER_BASE_MODE` | Build/deploy scripts | `fixed` or `auto` base handling. |
 | `ADAPTER_FALLBACK` | Build/deploy scripts | Fallback behavior toggle. |
 | `PRECOMPRESS` | Build/deploy scripts | Precompression toggle. |

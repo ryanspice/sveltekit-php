@@ -202,4 +202,3 @@ This checklist consolidates the Fable 5 audit, the SvelteKit PHP adapter fix pla
 | Vite 8 / plugin 7 upgrade | Isolated validation lane | Not required | Not required if documented | Isolated Vite-major fixture proof is current; keep same-major Svelte 5/SvelteKit 2 support as stable claim unless dependency-floor upgrade is intentionally scoped. |
 | WordPress/PHP-FPM/remote functions/ISR/image optimization/auth roles | Unsupported for this stable line | Not required | Not required | Keep out of stable claims until each lane has fixtures and hosted proof. |
 | Live blog SEO cleanup | Consumer-proof quality follow-up | Not required | Not required | Fix/annotate in blog workflow; only block adapter release if it exposes adapter routing/markup regressions. |
-

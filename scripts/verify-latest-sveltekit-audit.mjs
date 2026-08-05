@@ -135,4 +135,3 @@ main().catch((error) => {
 	console.error(`FAIL latest-sveltekit-compatibility-audit: ${error.message}`);
 	process.exit(1);
 });
-

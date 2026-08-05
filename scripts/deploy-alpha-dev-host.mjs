@@ -43,7 +43,7 @@ function assertDevRemotePath(remotePath) {
 		fail('DEPLOY_REMOTE is required and must point at the isolated alpha dev directory.');
 	}
 
-	if (!new RegExp(`(^|/)${expectedSuffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`).test(normalized)) {
+	if (normalized !== expectedSuffix && !normalized.endsWith(`/${expectedSuffix}`)) {
 		fail(`DEPLOY_REMOTE must end with ${devBasePath} for the alpha dev-host lane.`);
 	}
 

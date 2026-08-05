@@ -516,4 +516,3 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 	return lines.join('\n');
 }
 
-

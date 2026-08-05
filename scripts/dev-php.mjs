@@ -1,10 +1,17 @@
 import { spawn } from 'node:child_process';
-import { watch } from 'node:fs';
-import { resolve } from 'node:path';
+import { watch, existsSync } from 'node:fs';
+import { isAbsolute, resolve } from 'node:path';
 
 const PORT = process.env.PHP_PORT ?? '8080';
 const HOST = process.env.PHP_HOST ?? '127.0.0.1';
 const ROUTER = process.env.PHP_ROUTER ?? 'router.php';
+const resolvedRouter = isAbsolute(ROUTER) ? ROUTER : resolve(ROUTER);
+
+if (!existsSync(resolvedRouter)) {
+	throw new Error(
+		`Router script not found: ${resolvedRouter}. Set PHP_ROUTER to a real router.php or rebuild the adapter first.`
+	);
+}
 
 // What to rebuild. Adjust if your adapter uses other dirs.
 const WATCH_DIRS = ['src', 'adapter/src', 'static', 'svelte.config.js'];
@@ -93,7 +100,7 @@ function startPhp() {
 	// Checking verify script again: `spawn('php', ... 'router.php')`
 	// It expects `router.php` in CWD (project root).
 
-	phpProc = run('php', ['-S', `${HOST}:${PORT}`, '-t', 'build', ROUTER], {
+	phpProc = run('php', ['-S', `${HOST}:${PORT}`, '-t', 'build', resolvedRouter], {
 		env: { ...process.env, APP_ENV: 'dev' }
 	});
 }

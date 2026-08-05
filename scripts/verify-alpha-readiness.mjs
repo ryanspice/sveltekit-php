@@ -4,8 +4,14 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildAlphaReadinessReport } from '../src/lib/alpha-readiness.ts';
 import { requiredAlphaEvidence } from '../src/lib/alpha-required-evidence.ts';
+import { PACKAGE_VERSION } from './utils/release-snapshot.mjs';
+import npmLatest from './snapshots/npm-latest.json' with { type: 'json' };
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const releaseTrack = PACKAGE_VERSION.replace(/\.\d+$/, '');
+const npmLatestMarkers = Object.entries(npmLatest.packages).map(
+	([name, info]) => `${name}\` | \`${info.latest}`
+);
 
 const requiredGeneratedFiles = [
 	'report/alpha-community-analytics.json',
@@ -146,8 +152,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	const adapterSource = generated.adapterSource ?? '';
 
 	checks.push(
-		report.target === '1.0.2-alpha.0'
-			? ok('target', 'Report target is 1.0.2-alpha.0.')
+		report.target === PACKAGE_VERSION
+			? ok('target', `Report target is ${PACKAGE_VERSION}.`)
 			: fail('target', `Report target is ${report.target ?? 'missing'}.`)
 	);
 
@@ -156,10 +162,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(latestSvelteKitAudit, 'https://svelte.dev/docs/kit/writing-adapters') &&
 			hasText(latestSvelteKitAudit, 'https://svelte.dev/docs/kit/page-options') &&
 			hasText(latestSvelteKitAudit, 'Remote functions') &&
-			hasText(latestSvelteKitAudit, 'svelte` | `5.56.4') &&
-			hasText(latestSvelteKitAudit, '@sveltejs/kit` | `2.69.1') &&
-			hasText(latestSvelteKitAudit, '@sveltejs/vite-plugin-svelte` | `7.1.4') &&
-			hasText(latestSvelteKitAudit, 'vite` | `8.1.3') &&
+			npmLatestMarkers.every((marker) => hasText(latestSvelteKitAudit, marker)) &&
 			hasText(latestSvelteKitAudit, 'Official adapter snapshot') &&
 			hasText(latestSvelteKitAudit, '@sveltejs/adapter-node` | `5.5.7') &&
 			hasText(latestSvelteKitAudit, '@sveltejs/adapter-static` | `3.0.10') &&
@@ -247,12 +250,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	checks.push(
 		report.releasePolicy?.marker === 'alpha-over-rc-release-policy' &&
 			report.releasePolicy?.channel === 'alpha' &&
-			report.releasePolicy?.track === '1.0.2-alpha' &&
+			report.releasePolicy?.track === releaseTrack &&
 			report.releasePolicy?.rank === 'above-rc' &&
 			(report.releasePolicy?.disallowedChannels ?? []).includes('rc') &&
 			(report.releasePolicy?.disallowedChannels ?? []).includes('stable') &&
 			report.releasePolicy?.stablePromotionRule?.includes('hosted PHP smoke')
-			? ok('release-policy', 'Release policy pins the 1.0.2-alpha channel above RC/stable promotion semantics.')
+			? ok('release-policy', `Release policy pins the ${releaseTrack} channel above RC/stable promotion semantics.`)
 			: fail('release-policy', 'Release policy is missing alpha-over-RC channel, track, rank, or stable promotion blockers.')
 	);
 
@@ -2995,7 +2998,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			manifest?.trustModel?.['real-php-host-smoke-evidence'] &&
 			manifest?.releasePolicy?.marker === 'alpha-over-rc-release-policy' &&
 			manifest?.releasePolicy?.channel === 'alpha' &&
-			manifest?.releasePolicy?.track === '1.0.2-alpha' &&
+			manifest?.releasePolicy?.track === releaseTrack &&
 			manifest?.releasePolicy?.rank === 'above-rc' &&
 			manifest?.releasePolicy?.projectRankPolicy?.includes('ranks above any RC') &&
 			manifest?.releasePolicy?.semverNote?.includes('SemVer') &&
@@ -3310,7 +3313,10 @@ async function main() {
 			path.join(repoRoot, 'scripts/verify-remote-functions-policy.mjs'),
 			'utf8'
 		),
-		adapterSource: await readFile(path.join(repoRoot, 'adapter/src/index.ts'), 'utf8')
+		adapterSource:
+			(await readFile(path.join(repoRoot, 'adapter/src/index.ts'), 'utf8')) +
+			'\n' +
+			(await readFile(path.join(repoRoot, 'adapter/src/utils/guards.ts'), 'utf8'))
 	};
 
 	const checks = checkAlphaReadinessContract({
@@ -3335,6 +3341,5 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
-
 
 

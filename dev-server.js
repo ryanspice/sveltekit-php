@@ -13,6 +13,7 @@ console.log('📋 This provides EXACTLY what you want: HMR through localhost:800
 let viteServer = null;
 let isViteReady = false;
 
+// PHP data server used by this standalone dev proxy.
 const PHP_DATA_PORT = 8888;
 
 // Function to start PHP Data Server
@@ -153,6 +154,39 @@ async function createPerfectProxyServer() {
 	// Start PHP Data Server
 	startPhpDataServer();
 
+	function proxyTo(port, url, method, req, res) {
+		const options = {
+			hostname: 'localhost',
+			port,
+			path: url,
+			method,
+			headers: {
+				...req.headers,
+				host: `localhost:${port}`,
+				'x-forwarded-host': req.headers.host || `localhost:${DEV_PORT}`
+			}
+		};
+
+		const proxyReq = request(options, (proxyRes) => {
+			res.statusCode = proxyRes.statusCode;
+			res.statusMessage = proxyRes.statusMessage;
+
+			Object.keys(proxyRes.headers).forEach((key) => {
+				res.setHeader(key, proxyRes.headers[key]);
+			});
+
+			proxyRes.pipe(res);
+		});
+
+		proxyReq.on('error', (err) => {
+			console.error('❌ Proxy error:', err);
+			res.statusCode = 502;
+			res.end('Bad Gateway: Could not connect to proxy target');
+		});
+
+		req.pipe(proxyReq);
+	}
+
 	// Create the PERFECT HTTP proxy server
 	const server = createServer(async (req, res) => {
 		const url = req.url;
@@ -160,43 +194,12 @@ async function createPerfectProxyServer() {
 
 		console.log(`📡 [PERFECT PROXY] ${method} ${url}`);
 
-		// PERFECT solution: Proxy EVERYTHING to Vite
-		// This ensures 100% identical behavior including HMR and data loading
 		if (isViteReady) {
-			const options = {
-				hostname: 'localhost',
-				port: VITE_PORT,
-				path: url,
-				method: method,
-				headers: {
-					...req.headers,
-					host: `localhost:${VITE_PORT}`,
-					'x-forwarded-host': req.headers.host || `localhost:${DEV_PORT}`
-				}
-			};
-
-			const proxyReq = request(options, (proxyRes) => {
-				// Forward status code
-				res.statusCode = proxyRes.statusCode;
-				res.statusMessage = proxyRes.statusMessage;
-
-				// Forward all headers
-				Object.keys(proxyRes.headers).forEach((key) => {
-					res.setHeader(key, proxyRes.headers[key]);
-				});
-
-				// Forward the response
-				proxyRes.pipe(res);
-			});
-
-			proxyReq.on('error', (err) => {
-				console.error('❌ Proxy error:', err);
-				res.statusCode = 502;
-				res.end('Bad Gateway: Could not connect to Vite server');
-			});
-
-			// Forward the request body
-			req.pipe(proxyReq);
+			// Everything goes to Vite (HMR + SvelteKit dev rendering).
+			// NOTE: do not proxy __data.json to php-data-server.php here; that
+			// helper does not emit SvelteKit devalue payloads (Opus review
+			// 2026-08-05). A real PHP bridge needs the adapter-built runtime.
+			proxyTo(VITE_PORT, url, method, req, res);
 		} else {
 			// Fallback when Vite is not ready
 			res.statusCode = 503;

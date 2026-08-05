@@ -26,4 +26,3 @@ export const requiredAlphaEvidence = [
 	'deploy-env-preflight-safety',
 	'hosted-php-smoke-proof'
 ];
-

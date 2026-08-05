@@ -32,234 +32,18 @@ import {
 } from './runtime/php-templates.js';
 import { getNodeHandlerMjs, getPhpProxy, getStandaloneApiPhp } from './runtime/js-ssr-templates.js';
 import { getHtaccess } from './runtime/htaccess-templates.js';
-import type { AdapterMode, AdapterOptions, Builder, BuildIdentityContract } from './types.js';
+import type { AdapterMode, AdapterOptions, Builder } from './types.js';
+import {
+	REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER,
+	assertRemoteFunctionsUnsupported,
+	assertSafeBuildTarget,
+	resolveBuildIdentityContract,
+	validateReservedRouteIds,
+	verifyBuildIdentityContract
+} from './utils/guards.js';
+import type { ResolvedBuildIdentityContract } from './utils/guards.js';
 
 const ADAPTER_VERSION = '1.0.2-alpha.0';
-const DEFAULT_BUILD_IDENTITY_EXTENSIONS = ['.php', '.html', '.json'];
-const RESERVED_ROUTE_SEGMENTS = new Set(['_app', '_runtime', '_protected', 'adapter']);
-const RESERVED_ROUTE_FILES = new Set([
-	'__data',
-	'__action',
-	'router',
-	'route-manifest',
-	'compat'
-]);
-const REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER = 'remote-functions-alpha-policy';
-const REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE =
-	'sveltekit-php: SvelteKit remote functions are not supported by the PHP runtime in 1.0.2-alpha. Remote functions generate server HTTP endpoints that are not yet mapped through the PHP router. Disable kit.experimental.remoteFunctions and remove .remote.* files, or use a Node/edge adapter until remote-functions-alpha-policy has fixture proof.';
-const REMOTE_FUNCTION_FILE_RE = /\.remote\.(?:js|ts|mjs|mts|cjs|cts)$/i;
-
-type ResolvedBuildIdentityContract = Required<
-	Pick<BuildIdentityContract, 'required' | 'forbidden' | 'extensions'>
-> &
-	Pick<BuildIdentityContract, 'name'>;
-
-async function collectRemoteFunctionFiles(root: string): Promise<string[]> {
-	const files: string[] = [];
-	const visit = async (dir: string) => {
-		let entries: Array<{ name: string; isDirectory(): boolean; isFile(): boolean }>;
-		try {
-			entries = await readdir(dir, { withFileTypes: true });
-		} catch {
-			return;
-		}
-
-		for (const entry of entries) {
-			const abs = path.join(dir, entry.name);
-			if (entry.isDirectory()) {
-				if (
-					entry.name === 'node_modules' ||
-					entry.name === '.git' ||
-					entry.name === '.svelte-kit' ||
-					entry.name === 'build'
-				) {
-					continue;
-				}
-				await visit(abs);
-			} else if (entry.isFile() && REMOTE_FUNCTION_FILE_RE.test(entry.name)) {
-				files.push(abs);
-			}
-		}
-	};
-
-	await visit(root);
-	return files;
-}
-
-async function assertRemoteFunctionsUnsupported(builder: Builder) {
-	const kit = builder.config.kit as unknown as {
-		experimental?: { remoteFunctions?: unknown };
-		files?: { routes?: string; lib?: string };
-	};
-	const remoteFunctionsEnabled = kit.experimental?.remoteFunctions === true;
-	const cwd = path.resolve(process.cwd());
-	const roots = Array.from(
-		new Set(
-			[
-				path.join(cwd, 'src'),
-				kit.files?.routes ? path.resolve(kit.files.routes) : '',
-				kit.files?.lib ? path.resolve(kit.files.lib) : ''
-			].filter(Boolean)
-		)
-	);
-	const remoteFiles = (
-		await Promise.all(roots.map((root) => collectRemoteFunctionFiles(root)))
-	)
-		.flat()
-		.map((file) => path.relative(cwd, file).replaceAll(path.sep, '/'))
-		.sort();
-	const uniqueRemoteFiles = Array.from(new Set(remoteFiles));
-
-	if (!remoteFunctionsEnabled && uniqueRemoteFiles.length === 0) return;
-
-	const reasons = [
-		remoteFunctionsEnabled ? '- kit.experimental.remoteFunctions is enabled' : '',
-		...uniqueRemoteFiles.map((file) => `- ${file}`)
-	].filter(Boolean);
-
-	throw new Error(
-		[
-			REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE,
-			`Policy marker: ${REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER}`,
-			'Detected unsupported remote-functions surface:',
-			...reasons
-		].join('\n')
-	);
-}
-
-function normalizeMarkerList(value: unknown): string[] {
-	if (value == null) return [];
-	if (Array.isArray(value)) {
-		return value
-			.flatMap((item) => normalizeMarkerList(item))
-			.map((item) => item.trim())
-			.filter(Boolean);
-	}
-	if (typeof value !== 'string') return [];
-
-	const trimmed = value.trim();
-	if (!trimmed) return [];
-
-	try {
-		const parsed = JSON.parse(trimmed);
-		if (Array.isArray(parsed)) return normalizeMarkerList(parsed);
-	} catch {
-		// Treat non-JSON values as delimiter-separated marker lists.
-	}
-
-	return trimmed
-		.split(/\r?\n|;;/)
-		.map((item) => item.trim())
-		.filter(Boolean);
-}
-
-function normalizeSafeExternalRoots(value: string | undefined): string[] {
-	if (!value) return [];
-	const trimmed = value.trim();
-	if (!trimmed) return [];
-
-	try {
-		const parsed = JSON.parse(trimmed);
-		if (Array.isArray(parsed)) {
-			return parsed
-				.filter((item): item is string => typeof item === 'string')
-				.map((item) => item.trim())
-				.filter(Boolean)
-				.map((item) => path.resolve(item));
-		}
-	} catch {
-		// Treat non-JSON values as semicolon-separated Windows path lists.
-	}
-
-	return trimmed
-		.split(';')
-		.map((item) => item.trim())
-		.filter(Boolean)
-		.map((item) => path.resolve(item));
-}
-
-function resolveBuildIdentityContract(
-	buildIdentity: AdapterOptions['buildIdentity']
-): ResolvedBuildIdentityContract | null {
-	if (buildIdentity === false) return null;
-	const option = buildIdentity && typeof buildIdentity === 'object' ? buildIdentity : undefined;
-
-	const envRequired = normalizeMarkerList(process.env.SVELTEKIT_PHP_BUILD_REQUIRED_MARKERS);
-	const envForbidden = normalizeMarkerList(process.env.SVELTEKIT_PHP_BUILD_FORBIDDEN_MARKERS);
-	const optionRequired = normalizeMarkerList(option?.required);
-	const optionForbidden = normalizeMarkerList(option?.forbidden);
-	const required = [...optionRequired, ...envRequired];
-	const forbidden = [...optionForbidden, ...envForbidden];
-
-	if (required.length === 0 && forbidden.length === 0) return null;
-
-	const extensions = normalizeMarkerList(option?.extensions).map((extension) =>
-		extension.startsWith('.') ? extension.toLowerCase() : `.${extension.toLowerCase()}`
-	);
-
-	return {
-		name: option?.name ?? process.env.SVELTEKIT_PHP_BUILD_IDENTITY ?? 'generated-output',
-		required,
-		forbidden,
-		extensions: extensions.length > 0 ? extensions : DEFAULT_BUILD_IDENTITY_EXTENSIONS
-	};
-}
-
-async function verifyBuildIdentityContract(
-	outDir: string,
-	contract: ResolvedBuildIdentityContract,
-	builder: Builder
-) {
-	const extensions = new Set(contract.extensions);
-	const textFiles: string[] = [];
-
-	const collectTextFiles = async (dir: string) => {
-		let entries: string[];
-		try {
-			entries = await readdir(dir);
-		} catch {
-			// Ignore transient directories removed by user hooks or post-processing.
-			return;
-		}
-
-		for (const entry of entries) {
-			const file = path.join(dir, entry);
-			try {
-				const info = await stat(file);
-				if (info.isDirectory()) {
-					await collectTextFiles(file);
-				} else if (info.isFile() && extensions.has(path.extname(file).toLowerCase())) {
-					textFiles.push(file);
-				}
-			} catch {
-				// Ignore transient files removed by user hooks or post-processing.
-			}
-		}
-	};
-
-	await collectTextFiles(outDir);
-
-	let corpus = '';
-	for (const file of textFiles) {
-		corpus += `\n/* ${path.relative(outDir, file)} */\n`;
-		corpus += await readFile(file, 'utf8');
-	}
-
-	const missing = contract.required.filter((marker) => !corpus.includes(marker));
-	const presentForbidden = contract.forbidden.filter((marker) => corpus.includes(marker));
-
-	if (missing.length > 0 || presentForbidden.length > 0) {
-		const lines = [`Build identity contract "${contract.name ?? 'generated-output'}" failed.`];
-		if (missing.length > 0) lines.push(`Missing required markers: ${missing.join(', ')}`);
-		if (presentForbidden.length > 0)
-			lines.push(`Forbidden markers present: ${presentForbidden.join(', ')}`);
-		throw new Error(lines.join('\n'));
-	}
-
-	builder.log.minor(
-		`Build identity contract "${contract.name ?? 'generated-output'}" passed (${textFiles.length} files scanned)`
-	);
-}
 
 function buildStamp(mode: AdapterMode, basePath: string, buildIdentity: ResolvedBuildIdentityContract | null) {
 	return {
@@ -280,52 +64,6 @@ function buildStamp(mode: AdapterMode, basePath: string, buildIdentity: Resolved
 	};
 }
 
-function normalizeRouteIdSegments(routeId: string): string[] {
-	return routeId
-		.split('/')
-		.map((segment) => segment.trim())
-		.filter(Boolean)
-		.filter((segment) => !(segment.startsWith('(') && segment.endsWith(')')));
-}
-
-function isRouteParamSegment(segment: string): boolean {
-	return segment.startsWith('[') && segment.endsWith(']');
-}
-
-function validateReservedRouteIds(routes: Builder['routes'], strict: boolean, builder: Builder) {
-	const conflicts = routes
-		.map((route) => route.id)
-		.filter(Boolean)
-		.filter((routeId) => {
-			const segments = normalizeRouteIdSegments(routeId);
-			if (segments.length === 0) return false;
-			const firstSegment = segments[0];
-			const lastSegment = segments[segments.length - 1] ?? '';
-			const lastBase = lastSegment.replace(/\.[^.]+$/, '');
-
-			return (
-				RESERVED_ROUTE_SEGMENTS.has(firstSegment) ||
-				RESERVED_ROUTE_FILES.has(lastBase) ||
-				segments.some((segment) => !isRouteParamSegment(segment) && segment.includes('..'))
-			);
-		});
-
-	if (conflicts.length === 0) return;
-
-	const message = [
-		'sveltekit-php reserved route collision detected.',
-		'These route ids overlap adapter-generated runtime paths and can break static assets, data/action dispatch, or protected PHP handler output:',
-		...conflicts.map((routeId) => `- ${routeId}`),
-		'Rename these routes or move them under a non-reserved segment.'
-	].join('\n');
-
-	if (strict) {
-		throw new Error(message);
-	}
-
-	builder.log.warn(message);
-}
-
 export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 	const {
 		ssr = true,
@@ -341,7 +79,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 	const buildIdentity = resolveBuildIdentityContract(options.buildIdentity);
 
 	return {
-		name: '@ryanspice/sveltekit-adapter-php',
+		name: 'sveltekit-php',
 		supports: {
 			read: () => {
 				if (mode === 'js-ssr') return true;
@@ -361,7 +99,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				async platform({ prerender }: { config?: unknown; prerender?: unknown } = {}) {
 					return {
 						php: {
-							adapter: '@ryanspice/sveltekit-adapter-php',
+							adapter: 'sveltekit-php',
 							adapterVersion: ADAPTER_VERSION,
 							mode,
 							ssr,
@@ -430,22 +168,6 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				? compatCandidates[0]
 				: compatCandidates[1];
 			const compatPhp = await readFile(compatSource, 'utf8');
-			const assertPhp74Safe = (php: string, label: string) => {
-				const banned: Array<[RegExp, string]> = [
-					[/\b__construct\s*\(\s*(public|protected|private)\s+/i, 'constructor property promotion'],
-					[/\(\s*mixed\s+\$/i, 'mixed type param'],
-					[/:\\s*mixed\\b/i, 'mixed return type'],
-					[/\bmatch\s*\(/i, 'match expression'],
-					[/\?->/i, 'nullsafe operator'],
-					[/\breadonly\b/i, 'readonly'],
-					[/#\[/, 'attributes']
-				];
-				for (const [re, name] of banned) {
-					if (re.test(php)) {
-						throw new Error(`Generated PHP is not PHP 7.4-safe (${name}) in ${label}`);
-					}
-				}
-			};
 			const isDevProxyServerFile = async (abs: string) => {
 				const code = await readFile(abs, 'utf8');
 				return code.includes('getPhpData') && code.includes('php-dev');
@@ -463,60 +185,9 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			await assertRemoteFunctionsUnsupported(builder);
 			validateReservedRouteIds(builder.routes, strict, builder);
 
-			const isInside = (parent: string, child: string) => {
-				const rel = path.relative(parent, child);
-				return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
-			};
-			const isInsideOrSame = (parent: string, child: string) =>
-				path.resolve(parent) === path.resolve(child) || isInside(parent, child);
-			const assertSafeBuildTarget = (target: string, label: string) => {
-				const resolved = path.resolve(target);
-				const cwd = path.resolve(process.cwd());
-				const home = path.resolve(os.homedir());
-				const temp = path.resolve(os.tmpdir());
-				const root = path.parse(resolved).root;
-				const routesRoot = path.resolve(builder.config.kit.files.routes);
-				const sourceRoots = [
-					path.join(cwd, 'src'),
-					path.join(cwd, 'adapter', 'src'),
-					path.join(cwd, 'scripts'),
-					path.join(cwd, 'tests'),
-					routesRoot
-				];
-				const safeExternalRoots = normalizeSafeExternalRoots(
-					process.env.SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS
-				);
-
-				if (resolved === root || resolved === cwd || resolved === home) {
-					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
-				}
-				if (sourceRoots.some((source) => resolved === source || isInside(source, resolved))) {
-					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
-				}
-
-				for (const safeRoot of safeExternalRoots) {
-					const safeRootFsRoot = path.parse(safeRoot).root;
-					if (
-						safeRoot === safeRootFsRoot ||
-						safeRoot === cwd ||
-						safeRoot === home ||
-						sourceRoots.some((source) => safeRoot === source || isInside(source, safeRoot))
-					) {
-						throw new Error(`Unsafe configured external build root for ${label}: ${safeRoot}`);
-					}
-				}
-
-				const isConfiguredExternalTarget = safeExternalRoots.some((safeRoot) =>
-					isInsideOrSame(safeRoot, resolved)
-				);
-				if (!isInside(cwd, resolved) && !isInside(temp, resolved) && !isConfiguredExternalTarget) {
-					throw new Error(`Unsafe build target for ${label}: ${resolved}`);
-				}
-			};
-
-			assertSafeBuildTarget(outDir, 'out');
-			if (!assetsIsUrl) assertSafeBuildTarget(assetsDir, 'assets');
-			assertSafeBuildTarget(tmpDir, 'tmp');
+			assertSafeBuildTarget(outDir, 'out', builder.config.kit.files.routes);
+			if (!assetsIsUrl) assertSafeBuildTarget(assetsDir, 'assets', builder.config.kit.files.routes);
+			assertSafeBuildTarget(tmpDir, 'tmp', builder.config.kit.files.routes);
 
 			// Robust delete for Windows
 			const robustRimraf = async (dir: string) => {
@@ -1219,8 +890,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				// requirePrefix is always empty now because data is alongside index.php
 				requirePrefix = '';
 
-				assertPhp74Safe(dataPhp, `__data.php (${navPath})`);
-				assertPhp74Safe(actionPhp, `__action.php (${navPath})`);
+
+
 				await writeFile(path.join(dataDir, '__data.php'), dataPhp, 'utf8');
 				await writeFile(path.join(dataDir, '__action.php'), actionPhp, 'utf8');
 
@@ -1447,21 +1118,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				// Generate router.php for PHP built-in server (Proxy Mode)
 				builder.log.minor('Generating router.php');
 				const router = getRouterPhp(basePath, 'js-ssr', fallback);
-				assertPhp74Safe(router, 'router.php (js-ssr)');
+
 				await writeFile(path.join(outDir, 'router.php'), router, 'utf8');
-
-				// Generate route manifest for js-ssr mode
-				builder.log.minor('Generating route manifest for js-ssr');
-				const routeManifest = await generateRouteManifest(builder);
-				const manifestPhp = `<?php\nreturn ${phpArrayString(routeManifest)};\n`;
-				const manifestDir = path.join(outDir, 'adapter');
-				builder.mkdirp(manifestDir);
-				await writeFile(path.join(manifestDir, 'route-manifest.php'), manifestPhp, 'utf8');
-
-				if (buildIdentity) {
-					builder.log.minor('Verifying build identity contract');
-					await verifyBuildIdentityContract(outDir, buildIdentity, builder);
-				}
 
 				// Write Build Stamp
 				builder.log.minor('Writing build stamp');
@@ -1476,6 +1134,9 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 				if (mode === 'js-ssr') {
 					// --- Mode B: JavaScript SSR sidecar ---
+
+					// js-ssr stage-2 writes target the real output tree (audit fix P1-4).
+					const jsSsrOutputRoot = outDir;
 
 					// Basic prerender safety
 					if (strict !== false) {
@@ -1539,7 +1200,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 							usedServerFiles.add(relPosix);
 
-							const outDir = path.join(prerenderedRoot, stripLeadingSlash(routeDir));
+							const outDir = path.join(jsSsrOutputRoot, stripLeadingSlash(routeDir));
 							if (await isFile(outDir)) {
 								builder.log.minor(`Skipping prerendered PHP endpoint file: ${routeDir}`);
 								continue;
@@ -1634,7 +1295,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 										content = `<?php
 // Generated HTML content from ${path.basename(pageFile)}
 header('Content-Type: text/html; charset=utf-8');
-echo <<<HTML
+echo <<<'HTML'
 ${content}
 HTML;
 ?>`;
@@ -1657,7 +1318,7 @@ HTML;
 								// 3. Create new index.php that negotiates
 								const negotiationPhp = `<?php
 // SvelteKit-style Content Negotiation
-// Generated by @ryanspice/sveltekit-adapter-php
+// Generated by sveltekit-php
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
@@ -1714,13 +1375,13 @@ if (sk_prefers_html($accept)) {
     require __DIR__ . '/_server_dispatch.php';
 }
 ?>`;
-								assertPhp74Safe(apiPhp, `API dispatch (${routeDir})`);
-								assertPhp74Safe(negotiationPhp, `Negotiation index.php (${routeDir})`);
+
+
 								await writeFile(indexPhp, negotiationPhp, 'utf8');
 							} else {
 								// No collision, just write index.php
 								builder.log.minor(`Writing index.php to ${indexPhp}`);
-								assertPhp74Safe(apiPhp, `API index.php (${routeDir})`);
+
 								await writeFile(indexPhp, apiPhp, 'utf8');
 							}
 						}
@@ -1759,7 +1420,7 @@ if (sk_prefers_html($accept)) {
 
 							usedServerFiles.add(normalized);
 
-							const outDir = path.join(prerenderedRoot, stripLeadingSlash(routeDir));
+							const outDir = path.join(jsSsrOutputRoot, stripLeadingSlash(routeDir));
 							if (await isFile(outDir)) {
 								builder.log.minor(`Skipping prerendered JS/TS endpoint file: ${routeDir}`);
 								continue;
@@ -1833,7 +1494,7 @@ if (sk_prefers_html($accept)) {
 								// 3. Create new index.php that negotiates
 								const negotiationPhp = `<?php
 // SvelteKit-style Content Negotiation
-// Generated by @ryanspice/sveltekit-adapter-php
+// Generated by sveltekit-php
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
@@ -1890,12 +1551,12 @@ if (sk_prefers_html($accept)) {
     require __DIR__ . '/_server_dispatch.php';
 }
 ?>`;
-								assertPhp74Safe(apiPhp, `API dispatch (${routeDir})`);
-								assertPhp74Safe(negotiationPhp, `Negotiation index.php (${routeDir})`);
+
+
 								await writeFile(indexPhp, negotiationPhp, 'utf8');
 							} else {
 								// No collision, just write index.php
-								assertPhp74Safe(apiPhp, `API index.php (${routeDir})`);
+
 								await writeFile(indexPhp, apiPhp, 'utf8');
 							}
 						}
@@ -1903,7 +1564,7 @@ if (sk_prefers_html($accept)) {
 
 					// 5) Convert PHP server files into namespaced protected copies
 					builder.log.minor('Converting PHP server files');
-					const protectedRoot = path.join(prerenderedRoot, '_protected');
+					const protectedRoot = path.join(outDir, '_protected');
 					builder.mkdirp(protectedRoot);
 					await writeFile(path.join(protectedRoot, '.htaccess'), 'Require all denied\n', 'utf8');
 
@@ -1915,9 +1576,9 @@ if (sk_prefers_html($accept)) {
 
 						if (!protectedRel || !prefix) continue;
 
-						const outFs = path.join(prerenderedRoot, protectedRel.replace(/^\//, ''));
-						const outDir = path.dirname(outFs);
-						builder.mkdirp(outDir);
+						const outFs = path.join(outDir, protectedRel.replace(/^\//, ''));
+						const protectedOutDir = path.dirname(outFs);
+						builder.mkdirp(protectedOutDir);
 
 						conversions.push(
 							(async () => {
@@ -1944,9 +1605,14 @@ if (sk_prefers_html($accept)) {
 					const routeManifest = await generateRouteManifest(builder);
 					debug('DEBUG: generateRouteManifest returned:', JSON.stringify(routeManifest, null, 2));
 					const manifestPhp = `<?php\nreturn ${phpArrayString(routeManifest)};\n`;
-					const manifestDir = path.join(prerenderedRoot, 'adapter');
+					const manifestDir = path.join(outDir, 'adapter');
 					builder.mkdirp(manifestDir);
 					await writeFile(path.join(manifestDir, 'route-manifest.php'), manifestPhp, 'utf8');
+				}
+
+				if (buildIdentity) {
+					builder.log.minor('Verifying build identity contract (after js-ssr emission)');
+					await verifyBuildIdentityContract(outDir, buildIdentity, builder);
 				}
 			} else if (mode === 'php-static') {
 				// --- Mode A: php-static ---
@@ -2153,7 +1819,7 @@ if (is_file($fallback_200)) {
 `;
 
 					builder.mkdirp(outDirForRoute);
-					assertPhp74Safe(shimPhp, `Route shim index.php (${routeId})`);
+
 					await writeFile(outIndexPhp, shimPhp, 'utf8');
 
 					// Generate __data.php and __action.php for this dynamic route
@@ -2180,8 +1846,8 @@ if (is_file($fallback_200)) {
 					const pagePrefix = pageDep ? fnPrefixMap.get(pageDep) : null;
 					const actionPhp = getActionPhp(includes, routeId, pagePrefix ?? null, compatRel);
 
-					assertPhp74Safe(dataPhp, `__data.php (${routeId})`);
-					assertPhp74Safe(actionPhp, `__action.php (${routeId})`);
+
+
 					await writeFile(path.join(outDirForRoute, '__data.php'), dataPhp, 'utf8');
 					await writeFile(path.join(outDirForRoute, '__action.php'), actionPhp, 'utf8');
 				}
@@ -2286,7 +1952,7 @@ if (is_file($fallback_200)) {
 							// 3. Create new index.php that negotiates
 							const negotiationPhp = `<?php
 // SvelteKit-style Content Negotiation
-// Generated by @ryanspice/sveltekit-adapter-php
+// Generated by sveltekit-php
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
@@ -2343,13 +2009,13 @@ if (sk_prefers_html($accept)) {
     require __DIR__ . '/_server_dispatch.php';
 }
 ?>`;
-							assertPhp74Safe(apiPhp, `API dispatch (${routeDir})`);
-							assertPhp74Safe(negotiationPhp, `Negotiation index.php (${routeDir})`);
+
+
 							await writeFile(indexPhp, negotiationPhp, 'utf8');
 						} else {
 							// No collision, just write index.php
 							builder.log.minor(`Writing index.php to ${indexPhp}`);
-							assertPhp74Safe(apiPhp, `API index.php (${routeDir})`);
+
 							await writeFile(indexPhp, apiPhp, 'utf8');
 						}
 					}
@@ -2483,7 +2149,7 @@ if (sk_prefers_html($accept)) {
 							// 3. Create new index.php that negotiates
 							const negotiationPhp = `<?php
 // SvelteKit-style Content Negotiation
-// Generated by @ryanspice/sveltekit-adapter-php
+// Generated by sveltekit-php
 
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
@@ -2540,14 +2206,14 @@ if (sk_prefers_html($accept)) {
     require __DIR__ . '/_server_dispatch.php';
 }
 ?>`;
-							assertPhp74Safe(apiPhp, `API dispatch (${routeDir})`);
-							assertPhp74Safe(negotiationPhp, `Negotiation index.php (${routeDir})`);
+
+
 							await writeFile(indexPhp, negotiationPhp, 'utf8');
 						} else {
 							// No collision, just write index.php
 							debugMinor(`DEBUG: No collision found, writing index.php to ${indexPhp}`);
 							debug(`DEBUG: No collision found, writing index.php to ${indexPhp}`);
-							assertPhp74Safe(apiPhp, `API index.php (${routeDir})`);
+
 							await writeFile(indexPhp, apiPhp, 'utf8');
 							debugMinor(`DEBUG: Successfully wrote index.php to ${indexPhp}`);
 							debug(`DEBUG: Successfully wrote index.php to ${indexPhp}`);
@@ -2655,7 +2321,7 @@ if (sk_prefers_html($accept)) {
 				// Use fallback if provided, regardless of strict mode (user choice)
 				const routerFallback = fallback;
 				const router = getRouterPhp(basePath, 'php-static', routerFallback);
-				assertPhp74Safe(router, 'router.php');
+
 				await writeFile(path.join(outDir, 'router.php'), router, 'utf8');
 
 				// 9) Compress assets
