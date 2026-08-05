@@ -3744,7 +3744,10 @@ function assertSafeBuildTarget(target, label, routesRoot) {
   }
   const exactDenyRoots = new Set([temp]);
   const subtreeDenyRoots = [
-    ...process.platform === "win32" ? [] : ["/etc", "/usr", "/var", "/opt", "/boot", "/dev", "/proc", "/sys"],
+    ...process.platform === "win32" ? [
+      path3.resolve(process.env.SystemRoot || "C:\\Windows"),
+      path3.resolve(path3.join(process.env.SystemRoot || "C:\\Windows", "System32"))
+    ] : ["/etc", "/usr", "/var", "/opt", "/boot", "/dev", "/proc", "/sys"],
     path3.join(home, "Documents"),
     path3.join(home, "Downloads"),
     path3.join(home, "Desktop"),

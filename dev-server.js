@@ -13,8 +13,8 @@ console.log('📋 This provides EXACTLY what you want: HMR through localhost:800
 let viteServer = null;
 let isViteReady = false;
 
-// Matches src/lib/server/php-dev.ts, which fetches the PHP bridge from 127.0.0.1:8080.
-const PHP_DATA_PORT = 8080;
+// PHP data server used by this standalone dev proxy.
+const PHP_DATA_PORT = 8888;
 
 // Function to start PHP Data Server
 async function startPhpDataServer() {
@@ -195,16 +195,11 @@ async function createPerfectProxyServer() {
 		console.log(`📡 [PERFECT PROXY] ${method} ${url}`);
 
 		if (isViteReady) {
-			// PHP bridge requests go to the PHP data server so the adapter's
-			// PHP data/action handling is exercised in dev (fix, audit P1-7).
-			const isPhpBridgeRequest =
-				(url || '').includes('/__data.json') || (url || '').includes('/__action');
-			if (isPhpBridgeRequest) {
-				proxyTo(PHP_DATA_PORT, url, method, req, res);
-			} else {
-				// Everything else goes to Vite (HMR + SvelteKit dev rendering).
-				proxyTo(VITE_PORT, url, method, req, res);
-			}
+			// Everything goes to Vite (HMR + SvelteKit dev rendering).
+			// NOTE: do not proxy __data.json to php-data-server.php here; that
+			// helper does not emit SvelteKit devalue payloads (Opus review
+			// 2026-08-05). A real PHP bridge needs the adapter-built runtime.
+			proxyTo(VITE_PORT, url, method, req, res);
 		} else {
 			// Fallback when Vite is not ready
 			res.statusCode = 503;

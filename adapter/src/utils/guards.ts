@@ -333,7 +333,12 @@ export function assertSafeBuildTarget(target: string, label: string, routesRoot:
 		// POSIX system roots only; on Windows path.resolve('/dev') maps to the
 		// current drive root and could swallow real trees like B:\Dev.
 		...(process.platform === 'win32'
-			? []
+			? [
+					path.resolve(process.env.SystemRoot || 'C:\\Windows'),
+					path.resolve(
+						path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
+					)
+				]
 			: ['/etc', '/usr', '/var', '/opt', '/boot', '/dev', '/proc', '/sys']),
 		path.join(home, 'Documents'),
 		path.join(home, 'Downloads'),
