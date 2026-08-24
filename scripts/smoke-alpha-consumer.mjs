@@ -10,6 +10,8 @@ const requiredPackFiles = [
 	'package.json',
 	'README.md',
 	'adapter/index.js',
+	'adapter/declarations/index.d.ts',
+	'adapter/declarations/types.d.ts',
 	'adapter/src/runtime/php-compat.php',
 	'docs/ALPHA-READINESS.md'
 ];
@@ -70,6 +72,12 @@ export async function assertPackageExportShape(packageJsonPath = path.join(repoR
 
 	if (!files.includes('adapter/index.js')) {
 		throw new Error('package.json files must include adapter/index.js.');
+	}
+	if (!files.includes('adapter/declarations')) {
+		throw new Error('package.json files must include adapter/declarations.');
+	}
+	if (typeof adapterExport !== 'object' || adapterExport.types !== './adapter/declarations/index.d.ts') {
+		throw new Error('The adapter export must expose generated TypeScript declarations.');
 	}
 
 	return {
@@ -161,7 +169,7 @@ async function installPackedPackage(tempRoot, tarballPath) {
 		)}\n`
 	);
 
-	await run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', tarballPath], {
+	await run('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--package-lock=false', tarballPath, 'typescript@5.9.3', '@types/node@22'], {
 		cwd: tempRoot
 	});
 }
@@ -191,8 +199,34 @@ async function main() {
 		const result = await run(nodeBin, [consumerPath], { cwd: tempRoot });
 		process.stdout.write(result.stdout);
 		process.stderr.write(result.stderr);
+
+		await writeFile(
+			path.join(tempRoot, 'consumer.ts'),
+			[
+				"import adapter, { type AdapterMode, type AdapterOptions, type BuildIdentityContract } from 'sveltekit-php';",
+				"import adapterFromSubpath from 'sveltekit-php/adapter';",
+				"import type { Adapter } from '@sveltejs/kit';",
+				"const identity: BuildIdentityContract = { name: 'canopy', required: ['site-shell--canopy'] };",
+				"const mode: AdapterMode = 'php-static';",
+				"const options = { mode, fallback: 'errors/200.html', strict: true, buildIdentity: identity } satisfies AdapterOptions;",
+				"const configured: Adapter = adapter(options);",
+				"const configuredSubpath: Adapter = adapterFromSubpath(options);",
+				"void configured; void configuredSubpath;",
+				"// @ts-expect-error invalid modes remain rejected",
+				"adapter({ mode: 'php_static' });",
+				"// @ts-expect-error fallback does not accept arbitrary values",
+				"adapter({ fallback: 42 });",
+				''
+			].join('\n')
+		);
+		await writeFile(
+			path.join(tempRoot, 'tsconfig.json'),
+			`${JSON.stringify({ compilerOptions: { strict: true, module: 'NodeNext', moduleResolution: 'NodeNext', noEmit: true, skipLibCheck: false }, files: ['consumer.ts'] }, null, 2)}\n`
+		);
+		await run('npm', ['exec', '--', 'tsc', '--project', 'tsconfig.json'], { cwd: tempRoot });
+		console.log('consumer TypeScript API ok');
 		console.log(
-			`Alpha consumer smoke passed for ${exportShape.name}@${exportShape.version} via ${exportShape.adapterExport}.`
+			`Alpha consumer smoke passed for ${exportShape.name}@${exportShape.version} via ${JSON.stringify(exportShape.adapterExport)}.`
 		);
 		console.log(
 			`Publish manifest smoke passed for ${packManifest.filename} with ${packManifest.fileCount} files.`

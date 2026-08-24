@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -83,6 +83,39 @@ function compareArtifact(artifact) {
 	}
 }
 
+function listFiles(root, current = root) {
+	return readdirSync(current)
+		.flatMap((name) => {
+			const absolute = path.join(current, name);
+			return statSync(absolute).isDirectory() ? listFiles(root, absolute) : path.relative(root, absolute);
+		})
+		.sort();
+}
+
+function compareDeclarations() {
+	const tempRoot = mkdtempSync(path.join(os.tmpdir(), 'sk-php-declarations-sync-'));
+	try {
+		runBun(['x', 'tsc', '-p', 'adapter/tsconfig.declarations.json', '--outDir', tempRoot]);
+		const checkedRoot = path.join(repoRoot, 'adapter', 'declarations');
+		const generatedFiles = listFiles(tempRoot);
+		const checkedFiles = listFiles(checkedRoot);
+		if (JSON.stringify(generatedFiles) !== JSON.stringify(checkedFiles)) {
+			return { ok: false, message: 'adapter/declarations file list is stale. Run `bun run build:adapter:types`.' };
+		}
+		for (const relative of generatedFiles) {
+			if (
+				normalizeBuiltArtifact(readFileSync(path.join(tempRoot, relative), 'utf8')) !==
+				normalizeBuiltArtifact(readFileSync(path.join(checkedRoot, relative), 'utf8'))
+			) {
+				return { ok: false, message: `adapter/declarations/${relative.replaceAll('\\', '/')} is stale.` };
+			}
+		}
+		return { ok: true, message: `adapter/declarations matches the public TypeScript source (${generatedFiles.length} files).` };
+	} finally {
+		rmSync(tempRoot, { recursive: true, force: true });
+	}
+}
+
 const failures = [];
 
 for (const artifact of generatedArtifacts) {
@@ -96,6 +129,15 @@ for (const artifact of generatedArtifacts) {
 	}
 }
 
+const declarationResult = compareDeclarations();
+if (declarationResult.ok) {
+	console.log(`PASS artifact-sync: ${declarationResult.message}`);
+} else {
+	failures.push(declarationResult);
+	const output = strict ? console.error : console.warn;
+	output(`FAIL artifact-sync: ${declarationResult.message}`);
+}
+
 if (failures.length > 0) {
 	if (strict) {
 		process.exit(1);
@@ -103,6 +145,6 @@ if (failures.length > 0) {
 
 	console.warn('Non-strict artifact sync check is advisory; pass --strict or run in CI to fail on drift.');
 } else {
-	console.log(`Generated artifacts are synchronized: ${generatedArtifacts.length} checked.`);
+	console.log(`Generated artifacts are synchronized: ${generatedArtifacts.length + 1} checked.`);
 }
 

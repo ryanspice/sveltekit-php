@@ -1,0 +1,22 @@
+name: RC Consumer Proof
+
+on:
+  workflow_dispatch:
+
+jobs:
+  canopy-consumers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run build:adapter
+      - run: bun run verify:rc-consumer-profile
+      - run: bun run rc:consumer:smoke
+      - name: Upload proof receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rc-consumer-proof
+          path: report/rc-consumer-evidence.json
+          if-no-files-found: warn

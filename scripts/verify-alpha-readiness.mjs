@@ -393,9 +393,12 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 	);
 
 	checks.push(
-		packageJson?.exports?.['./adapter'] === './adapter/index.js' &&
-			(packageJson?.files ?? []).includes('adapter/index.js')
-			? ok('package-export', 'Package exposes sveltekit-php/adapter and includes adapter/index.js.')
+		packageJson?.exports?.['./adapter']?.types === './adapter/declarations/index.d.ts' &&
+			packageJson?.exports?.['./adapter']?.import === './adapter/index.js' &&
+			packageJson?.exports?.['./adapter']?.default === './adapter/index.js' &&
+			(packageJson?.files ?? []).includes('adapter/index.js') &&
+			(packageJson?.files ?? []).includes('adapter/declarations')
+			? ok('package-export', 'Package exposes typed sveltekit-php/adapter declarations and runtime.')
 			: fail('package-export', 'Package export shape does not expose sveltekit-php/adapter.')
 	);
 
@@ -2120,7 +2123,8 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('community-analytics-freshness-contract') &&
 			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('adapter-platform-emulation') &&
 			(packageContract?.publishShape?.releasePolicy?.requiredEvidence ?? []).includes('hosted-php-smoke-proof') &&
-			packageContract?.publishShape?.exports?.['./adapter'] === './adapter/index.js' &&
+			packageContract?.publishShape?.exports?.['./adapter']?.types === './adapter/declarations/index.d.ts' &&
+			packageContract?.publishShape?.exports?.['./adapter']?.import === './adapter/index.js' &&
 			packageContract?.consumerProof?.command === 'bun run alpha:consumer:smoke' &&
 			packageContract?.consumerProof?.proofStage === 'package-consumer-proof' &&
 			packageContract?.adapterPlatformEmulationProof?.marker === 'adapter-platform-emulation' &&

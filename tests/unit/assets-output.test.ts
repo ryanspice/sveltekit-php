@@ -7,8 +7,7 @@ import { getHtaccess } from '../../adapter/src/runtime/htaccess-templates.ts';
 import { getPhpProxy } from '../../adapter/src/runtime/js-ssr-templates.ts';
 import { getRouterPhpStaticPhp } from '../../adapter/src/runtime/router/php-static.ts';
 import { getRouterSharedPhp } from '../../adapter/src/runtime/router/shared.ts';
-
-type AdapterBuilder = Parameters<ReturnType<typeof adapter>['adapt']>[0];
+import type { Builder as AdapterBuilder } from '@sveltejs/kit';
 
 const fixtureRoot = path.resolve('tests/fixtures/assets-output');
 const fixtureClient = path.join(fixtureRoot, 'client');
@@ -32,6 +31,7 @@ function createBuilder(tempRoot: string) {
 	const assetsDir = path.join(tempRoot, 'assets');
 	const buildDir = path.join(tempRoot, '.svelte-kit');
 	const prerenderedPages = new Map([['/', { file: 'index.html' }]]);
+	const compressCalls: string[] = [];
 	const builder = {
 		log: {
 			minor: () => {},
@@ -55,6 +55,7 @@ function createBuilder(tempRoot: string) {
 			fs.cpSync(src, dest, { recursive: true });
 		},
 		compress: (dest: string) => {
+			compressCalls.push(dest);
 			const targets = collectAssetFiles(dest);
 			if (!targets.length) return;
 			const target = targets[0];
@@ -67,7 +68,10 @@ function createBuilder(tempRoot: string) {
 			fs.writeFileSync(path.join(dest, 'index.js'), '');
 		},
 		generateManifest: () => '{}',
-		generateFallback: async () => {},
+		generateFallback: async (dest: string) => {
+			fs.mkdirSync(path.dirname(dest), { recursive: true });
+			fs.writeFileSync(dest, '<!doctype html><title>Fallback</title>');
+		},
 		config: {
 			kit: {
 				paths: {
@@ -84,7 +88,7 @@ function createBuilder(tempRoot: string) {
 			pages: prerenderedPages
 		}
 	};
-	return { builder, outDir, assetsDir };
+	return { builder, outDir, assetsDir, compressCalls };
 }
 
 function createExternalTempRoot() {
@@ -113,7 +117,7 @@ describe('assets output in js-ssr', () => {
 			precompress: false,
 			strict: false
 		});
-		await instance.adapt(builder as AdapterBuilder);
+		await instance.adapt(builder as unknown as AdapterBuilder);
 		const assetPath = path.join(outDir, '_app', 'immutable', 'entry', 'app.js');
 		expect(fs.existsSync(assetPath)).toBe(true);
 	});
@@ -127,7 +131,7 @@ describe('assets output in js-ssr', () => {
 			precompress: true,
 			strict: false
 		});
-		await instance.adapt(builder as AdapterBuilder);
+		await instance.adapt(builder as unknown as AdapterBuilder);
 		const target = collectAssetFiles(outDir)[0];
 		expect(target).toBeTruthy();
 		expect(fs.existsSync(target + '.br')).toBe(true);
@@ -143,7 +147,7 @@ describe('assets output in js-ssr', () => {
 			strict: false
 		});
 
-		await expect(instance.adapt(builder as AdapterBuilder)).rejects.toThrow(
+		await expect(instance.adapt(builder as unknown as AdapterBuilder)).rejects.toThrow(
 			/Unsafe build target for out/
 		);
 	});
@@ -162,7 +166,7 @@ describe('assets output in js-ssr', () => {
 				strict: false
 			});
 
-			await expect(instance.adapt(builder as AdapterBuilder)).rejects.toThrow(
+			await expect(instance.adapt(builder as unknown as AdapterBuilder)).rejects.toThrow(
 				/Unsafe build target for out/
 			);
 		} finally {
@@ -192,7 +196,7 @@ describe('assets output in js-ssr', () => {
 				strict: false
 			});
 
-			await instance.adapt(builder as AdapterBuilder);
+			await instance.adapt(builder as unknown as AdapterBuilder);
 			expect(fs.existsSync(path.join(outDir, '_app', 'immutable', 'entry', 'app.js'))).toBe(true);
 		} finally {
 			if (previousSafeRoots === undefined) {
@@ -214,7 +218,7 @@ describe('assets output in js-ssr', () => {
 			strict: false
 		});
 
-		await instance.adapt(builder as AdapterBuilder);
+		await instance.adapt(builder as unknown as AdapterBuilder);
 		expect(fs.existsSync(path.join(outDir, '_app', 'immutable', 'entry', 'app.js'))).toBe(true);
 	});
 
@@ -232,9 +236,38 @@ describe('assets output in js-ssr', () => {
 			}
 		});
 
-		await expect(instance.adapt(builder as AdapterBuilder)).rejects.toThrow(
+		await expect(instance.adapt(builder as unknown as AdapterBuilder)).rejects.toThrow(
 			/Build identity contract "canopy-static-skin" failed/
 		);
+	});
+});
+
+describe('assets output in php-static', () => {
+	it('does not precompress either output when disabled', async () => {
+		const { builder, outDir, assetsDir, compressCalls } = createBuilder(tempRoot);
+		await adapter({ mode: 'php-static', out: outDir, assets: assetsDir, precompress: false }).adapt(
+			builder as unknown as AdapterBuilder
+		);
+		expect(compressCalls).toEqual([]);
+	});
+
+	it('precompresses separate route and asset outputs when enabled', async () => {
+		const { builder, outDir, assetsDir, compressCalls } = createBuilder(tempRoot);
+		await adapter({ mode: 'php-static', out: outDir, assets: assetsDir, precompress: true }).adapt(
+			builder as unknown as AdapterBuilder
+		);
+		expect(compressCalls).toEqual([outDir, assetsDir]);
+	});
+
+	it('creates parent directories for a nested fallback path', async () => {
+		const { builder, outDir, assetsDir } = createBuilder(tempRoot);
+		await adapter({
+			mode: 'php-static',
+			out: outDir,
+			assets: assetsDir,
+			fallback: 'errors/200.html'
+		}).adapt(builder as unknown as AdapterBuilder);
+		expect(fs.existsSync(path.join(outDir, 'errors', '200.html'))).toBe(true);
 	});
 });
 

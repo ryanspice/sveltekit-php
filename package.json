@@ -67,13 +67,23 @@
     ]
   },
   "type": "module",
+  "types": "./adapter/declarations/index.d.ts",
   "exports": {
-    ".": "./adapter/index.js",
-    "./adapter": "./adapter/index.js",
+    ".": {
+      "types": "./adapter/declarations/index.d.ts",
+      "import": "./adapter/index.js",
+      "default": "./adapter/index.js"
+    },
+    "./adapter": {
+      "types": "./adapter/declarations/index.d.ts",
+      "import": "./adapter/index.js",
+      "default": "./adapter/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "adapter/index.js",
+    "adapter/declarations",
     "adapter/src/runtime/php-compat.php",
     "LICENSE",
     "README.md",
@@ -84,6 +94,7 @@
     "docs/ALPHA-RELEASE-CHECKLIST.md",
     "docs/DEV-ADAPTER-BOUNDARY.md",
     "docs/HOSTING-CONTRACT.md",
+    "docs/RC-CONSUMER-PROOF.md",
     "docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md",
     "docs/recipes/composer-bootstrap.md",
     "docs/recipes/wordpress.md"
@@ -99,7 +110,9 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "build:php": "vite build && node scripts/build-php.js",
     "build:apache": "vite build && node scripts/build-apache.js",
-    "build:adapter": "bun build adapter/src/index.ts --outfile adapter/index.js --target node --format esm",
+    "build:adapter:js": "bun build adapter/src/index.ts --outfile adapter/index.js --target node --format esm",
+    "build:adapter:types": "node scripts/build-adapter-types.mjs",
+    "build:adapter": "bun run build:adapter:js && bun run build:adapter:types",
     "build:e2e": "bun scripts/build-e2e.mjs",
     "build:watch": "vite build --watch",
     "format": "prettier --write .",
@@ -121,6 +134,10 @@
     "alpha:report": "bun scripts/export-alpha-readiness.mjs",
     "alpha:report:full": "bun run alpha:analytics && bun run alpha:remote:placeholder && bun run alpha:report",
     "alpha:consumer:smoke": "bun scripts/smoke-alpha-consumer.mjs",
+    "verify:rc-consumer-profile": "bun scripts/verify-rc-consumer-profile.mjs",
+    "rc:consumer:smoke": "bun scripts/smoke-rc-consumers.mjs",
+    "rc:consumer:probe": "bun scripts/smoke-rc-consumers.mjs --report-only",
+    "rc:consumer:verify": "bun scripts/verify-rc-consumer-receipt.mjs --require-current",
     "alpha:published:smoke": "bun scripts/smoke-published-alpha.mjs",
     "alpha:latest-same-major:smoke": "bun scripts/smoke-latest-same-major.mjs",
     "alpha:latest-vite-major:smoke": "bun scripts/smoke-latest-vite-major.mjs",

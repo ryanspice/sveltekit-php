@@ -20,7 +20,7 @@ import {
 	type RouteManifestEntry
 } from './utils/routing.js';
 import { detectInlineDataModeFromHtml, replaceInlineConstData } from './utils/html.js';
-import { exists } from './utils/fs.js';
+import { cleanBuildDirectory, exists } from './utils/fs.js';
 import {
 	getDataPhp,
 	getActionPhp,
@@ -33,6 +33,12 @@ import {
 import { getNodeHandlerMjs, getPhpProxy, getStandaloneApiPhp } from './runtime/js-ssr-templates.js';
 import { getHtaccess } from './runtime/htaccess-templates.js';
 import type { AdapterMode, AdapterOptions, Builder } from './types.js';
+import type { Adapter } from '@sveltejs/kit';
+import {
+	normalizeAdapterOptions,
+	normalizeBasePathOption,
+	resolveContainedOutputPath
+} from './utils/options.js';
 import {
 	REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER,
 	assertRemoteFunctionsUnsupported,
@@ -64,19 +70,23 @@ function buildStamp(mode: AdapterMode, basePath: string, buildIdentity: Resolved
 	};
 }
 
-export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
+export type { AdapterMode, AdapterOptions, BuildIdentityContract } from './types.js';
+
+export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapter {
+	const normalizedOptions = normalizeAdapterOptions(options);
 	const {
 		ssr = true,
 		out = './build',
 		assets = './build',
 		precompress = false,
-		fallback = false,
+		fallback,
 		strict = true,
-		baseMode = 'fixed'
-	} = options;
-	const mode: AdapterMode = options.mode ?? 'php-static';
+		baseMode,
+		basePath: configuredBasePathOption
+	} = normalizedOptions;
+	const mode: AdapterMode = normalizedOptions.mode;
 	const debugEnabled = process.env.ADAPTER_DEBUG === 'true' || process.env.SK_DEBUG === 'true';
-	const buildIdentity = resolveBuildIdentityContract(options.buildIdentity);
+	const buildIdentity = resolveBuildIdentityContract(normalizedOptions.buildIdentity);
 
 	return {
 		name: 'sveltekit-php',
@@ -114,7 +124,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 								baseMode
 							},
 							paths: {
-								base: options.basePath ?? ''
+								base: configuredBasePathOption ?? ''
 							},
 							runtime: {
 								documentSsr: mode === 'js-ssr',
@@ -139,7 +149,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				}
 			};
 		},
-		async adapt(builder: Builder) {
+		async adapt(kitBuilder) {
+			const builder = kitBuilder as unknown as Builder;
 			const debug = (...args: unknown[]) => {
 				if (debugEnabled) process.stdout.write(`${args.map(String).join(' ')}\n`);
 			};
@@ -154,12 +165,14 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			const outDir = path.resolve(out);
 			const assetsDir = assetsIsUrl ? outDir : path.resolve(assets);
 			const tmpDir = builder.getBuildDirectory('sveltekit-php');
-			const basePath =
-				baseMode === 'fixed' ? (options.basePath ?? builder.config.kit.paths.base ?? '') : '';
+			const configuredBasePath = normalizeBasePathOption(
+				configuredBasePathOption ?? builder.config.kit.paths.base ?? ''
+			) ?? '';
+			const basePath = baseMode === 'fixed' ? configuredBasePath : '';
 			const routesBasePath = path.resolve(builder.config.kit.files.routes);
 			const trailingSlash = (await readTrailingSlashFromRoute('/', routesBasePath)) ?? 'ignore';
 			debug(`DEBUG: trailingSlash from root route: ${trailingSlash}`);
-			const buildTimeBase = options.basePath ?? builder.config.kit.paths.base ?? '';
+			const buildTimeBase = configuredBasePath;
 			const compatCandidates = [
 				fileURLToPath(new URL('./runtime/php-compat.php', import.meta.url)),
 				fileURLToPath(new URL('./src/runtime/php-compat.php', import.meta.url))
@@ -189,34 +202,12 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			if (!assetsIsUrl) assertSafeBuildTarget(assetsDir, 'assets', builder.config.kit.files.routes);
 			assertSafeBuildTarget(tmpDir, 'tmp', builder.config.kit.files.routes);
 
-			// Robust delete for Windows
-			const robustRimraf = async (dir: string) => {
-				try {
-					// Retry logic or just simple rmSync with force
-					// We import fs from 'node:fs/promises', but we need sync or standard fs for some ops?
-					// builder.rimraf is likely sync or async? It returns void in types usually.
-					// Let's use the one from 'node:fs/promises' if we imported it?
-					// I imported { readFile, writeFile, rename } from 'node:fs/promises'.
-					// I need 'rm' or 'rmdir'.
-					// But I can import 'node:fs' dynamically.
-					const fs = await import('node:fs');
-					if (fs.existsSync(dir)) {
-						try {
-							fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
-						} catch {
-							// If ENOTEMPTY, try again after a short delay
-							await new Promise((r) => setTimeout(r, 200));
-							fs.rmSync(dir, { recursive: true, force: true });
-						}
-					}
-				} catch (error) {
-					builder.log.warn(`Failed to clean ${dir}: ${error}`);
-				}
-			};
+			const clean = (dir: string) =>
+				cleanBuildDirectory(dir, { strict, warn: (message) => builder.log.warn(message) });
 
-			await robustRimraf(outDir);
-			if (!assetsIsUrl && assetsDir !== outDir) await robustRimraf(assetsDir);
-			await robustRimraf(tmpDir);
+			await clean(outDir);
+			if (!assetsIsUrl && assetsDir !== outDir) await clean(assetsDir);
+			await clean(tmpDir);
 
 			builder.mkdirp(outDir);
 			if (!assetsIsUrl && assetsDir !== outDir) builder.mkdirp(assetsDir);
@@ -242,11 +233,16 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			if (fallback) {
 				const fallbackFile = typeof fallback === 'string' ? fallback : '200.html';
 				builder.log.minor(`Generating fallback page: ${fallbackFile}`);
-				const fallbackSrc = path.join(prerenderedRoot, fallbackFile);
+				const fallbackSrc = resolveContainedOutputPath(
+					prerenderedRoot,
+					fallbackFile,
+					'fallback source'
+				);
+				builder.mkdirp(path.dirname(fallbackSrc));
 				await builder.generateFallback(fallbackSrc);
 
 				// Manually copy fallback file to outDir as it might not be in builder.prerendered.pages
-				const fallbackDest = path.join(outDir, fallbackFile);
+				const fallbackDest = resolveContainedOutputPath(outDir, fallbackFile, 'fallback destination');
 				await builder.copy(fallbackSrc, fallbackDest);
 			}
 
@@ -2325,8 +2321,13 @@ if (sk_prefers_html($accept)) {
 				await writeFile(path.join(outDir, 'router.php'), router, 'utf8');
 
 				// 9) Compress assets
-				builder.log.minor('Compressing assets');
-				await builder.compress(outDir);
+				if (precompress) {
+					builder.log.minor('Compressing assets');
+					await builder.compress(outDir);
+					if (!assetsIsUrl && assetsDir !== outDir) {
+						await builder.compress(assetsDir);
+					}
+				}
 
 				if (buildIdentity) {
 					builder.log.minor('Verifying build identity contract');

@@ -1,4 +1,5 @@
 import { htaccessTrailingSlashBlock } from './trailing-slash';
+import { normalizeBasePathOption, normalizeFallbackOption } from '../../utils/options.js';
 
 const trimSlashes = (s: string) => s.replace(/^\/+|\/+$/g, '');
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -20,14 +21,16 @@ export function getHtaccessPhpStatic(
 	fallback?: string | boolean,
 	trailingSlash: 'always' | 'never' | 'ignore' = 'ignore'
 ) {
-	const baseTrimmed = trimSlashes(base);
+	const normalizedBase = normalizeBasePathOption(base) ?? '';
+	const normalizedFallback = normalizeFallbackOption(fallback);
+	const baseTrimmed = trimSlashes(normalizedBase);
 	const baseRe = baseTrimmed ? escapeRe(baseTrimmed) : '';
 	const basePrefix = baseTrimmed ? `${baseTrimmed}/` : '';
 	const baseOptional = baseTrimmed ? `(?:${baseRe}/)?` : '';
 
 	const rootPrefix = baseTrimmed ? `/${basePrefix}` : `/`;
 
-	const fallbackTarget = normalizeFallback(rootPrefix, fallback);
+	const fallbackTarget = normalizeFallback(rootPrefix, normalizedFallback);
 
 	const redirectRules = htaccessTrailingSlashBlock({ basePath: rootPrefix, trailingSlash });
 

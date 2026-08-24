@@ -28,11 +28,20 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 				disallowedCandidateLabels: ['rc', 'release-candidate', 'latest', 'stable']
 			},
 			exports: {
-				'.': './adapter/index.js',
-				'./adapter': './adapter/index.js'
+				'.': {
+					types: './adapter/declarations/index.d.ts',
+					import: './adapter/index.js',
+					default: './adapter/index.js'
+				},
+				'./adapter': {
+					types: './adapter/declarations/index.d.ts',
+					import: './adapter/index.js',
+					default: './adapter/index.js'
+				}
 			},
 			files: [
 				'adapter/index.js',
+				'adapter/declarations',
 				'README.md',
 				'docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md',
 				'docs/ALPHA-READINESS.md',
@@ -47,7 +56,8 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 			proves: [
 				'npm pack --json succeeds without publishing',
 				'Packed tarball contains only the expected publish contract files',
-				'Temporary external consumer install can import sveltekit-php/adapter'
+				'Temporary external consumer install can import both package entry points',
+				'A strict TypeScript consumer resolves public options and the official SvelteKit Adapter contract'
 			]
 		},
 		releasePrepProof: {
@@ -80,10 +90,10 @@ export function buildAlphaPackageContract(report: AlphaReadinessReport) {
 			markers: [
 				'Latest package snapshot freshness',
 				'npm view',
-				'svelte@5.56.4',
-				'@sveltejs/kit@2.69.1',
-				'@sveltejs/vite-plugin-svelte@7.1.4',
-				'vite@8.1.3',
+				'svelte@5.56.10',
+				'@sveltejs/kit@2.70.3',
+				'@sveltejs/vite-plugin-svelte@7.3.0',
+				'vite@8.2.2',
 				'Vite 8 isolated validation lane',
 				'latest-vite-major-validation',
 				'alpha:latest-vite-major:smoke',

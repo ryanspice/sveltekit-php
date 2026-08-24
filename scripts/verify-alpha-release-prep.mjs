@@ -303,12 +303,16 @@ async function verifyPackageMetadata() {
 		);
 	}
 
-	if (packageJson.exports?.['./adapter'] !== './adapter/index.js') {
-		throw new Error('package.json must export ./adapter to ./adapter/index.js.');
+	if (
+		packageJson.exports?.['./adapter']?.types !== './adapter/declarations/index.d.ts' ||
+		packageJson.exports?.['./adapter']?.import !== './adapter/index.js'
+	) {
+		throw new Error('package.json must export typed ./adapter declarations and runtime.');
 	}
 
 	for (const fileName of [
 		'adapter/index.js',
+		'adapter/declarations',
 		'LICENSE',
 		'README.md',
 		'docs/ADAPTER-FEATURE-CATALOG.md',
@@ -318,6 +322,7 @@ async function verifyPackageMetadata() {
 		'docs/ALPHA-RELEASE-CHECKLIST.md',
 		'docs/DEV-ADAPTER-BOUNDARY.md',
 		'docs/HOSTING-CONTRACT.md',
+		'docs/RC-CONSUMER-PROOF.md',
 		'docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md',
 		'docs/recipes/composer-bootstrap.md',
 		'docs/recipes/wordpress.md'

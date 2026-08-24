@@ -362,7 +362,7 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 			'adapter/src/index.ts supports/emulate/adapt',
 			'Official SvelteKit writing-adapters, building-your-app, page-options, and project-types docs',
 			'Official Svelte 5 migration and browser-support docs',
-			'npm latest snapshot: svelte 5.56.4, @sveltejs/kit 2.69.1, @sveltejs/vite-plugin-svelte 7.1.4, vite 8.1.3',
+			'npm latest snapshot: svelte 5.56.10, @sveltejs/kit 2.70.3, @sveltejs/vite-plugin-svelte 7.3.0, vite 8.2.2',
 			'official adapter snapshot: adapter-node 5.5.7, adapter-static 3.0.10, adapter-cloudflare 7.2.9, adapter-netlify 6.0.4, adapter-vercel 6.3.4, adapter-auto 7.0.1',
 			'bun run verify:latest-sveltekit-audit checks npm view latest snapshot freshness',
 			'bun run alpha:latest-same-major:smoke validates npm-latest Svelte 5 and SvelteKit 2 against a packed PHP/static fixture',

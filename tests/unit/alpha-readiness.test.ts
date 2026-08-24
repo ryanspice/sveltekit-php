@@ -618,7 +618,11 @@ describe('alpha readiness report', () => {
 
 		expect(shape.name).toBe('sveltekit-php');
 		expect(shape.version).toBe('1.0.2-alpha.0');
-		expect(shape.adapterExport).toBe('./adapter/index.js');
+		expect(shape.adapterExport).toEqual({
+			types: './adapter/declarations/index.d.ts',
+			import: './adapter/index.js',
+			default: './adapter/index.js'
+		});
 		expect(shape.private).toBe(false);
 	});
 });

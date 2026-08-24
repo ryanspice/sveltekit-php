@@ -1,6 +1,6 @@
 # Latest Svelte and SvelteKit compatibility audit
 
-Date: 2026-07-06
+Date: 2026-08-24
 
 This audit updates the 1.0.2-alpha goal against current official Svelte and SvelteKit guidance plus the current npm latest package surface. It is an alpha evidence artifact, not a dependency-upgrade commit.
 
@@ -15,8 +15,8 @@ This audit updates the 1.0.2-alpha goal against current official Svelte and Svel
 - Official Svelte 5 migration guidance: <https://svelte.dev/docs/svelte/v5-migration-guide>
 - Official Svelte browser support guidance: <https://svelte.dev/docs/svelte/browser-support>
 - Local unsupported-feature policy: `docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`
-- npm registry latest snapshot captured with `npm view` on 2026-07-06.
-- Official adapter npm latest snapshot captured with `npm view` on 2026-07-06.
+- npm registry latest snapshot captured with `npm view` on 2026-08-24.
+- Official adapter npm latest snapshot captured with `npm view` on 2026-08-24.
 - Live consumer proof surface: <https://blog.ryanspice.com/>.
 - Live crawl evidence from `seo_audit_python`.
 - Latest package snapshot freshness verifier: `bun run verify:latest-sveltekit-audit`.
@@ -27,10 +27,10 @@ This audit updates the 1.0.2-alpha goal against current official Svelte and Svel
 
 | Package | npm latest | Current repo range | Alpha support stance |
 | --- | ---: | --- | --- |
-| `svelte` | `5.56.4` | `^5.45.6` | Green. Same major range, but alpha gates must run against the resolved latest 5.x before claiming compatibility. |
-| `@sveltejs/kit` | `2.69.1` | `^2.49.1` | Green. Same major range and current adapter shape are covered by the latest-same-major fixture lane. |
-| `@sveltejs/vite-plugin-svelte` | `7.1.4` | `^6.2.1` | Yellow. Latest is validated by the isolated Vite-major fixture lane, but it is not the repo dependency floor. |
-| `vite` | `8.1.3` | `^7.2.6` | Yellow. Latest is validated by the isolated Vite-major fixture lane, but it is not the repo dependency floor. |
+| `svelte` | `5.56.10` | `^5.45.6` | Green. Same major range, but alpha gates must run against the resolved latest 5.x before claiming compatibility. |
+| `@sveltejs/kit` | `2.70.3` | `^2.49.1` | Green. Same major range and current adapter shape are covered by the latest-same-major fixture lane. |
+| `@sveltejs/vite-plugin-svelte` | `7.3.0` | `^6.2.1` | Yellow. Latest is validated by the isolated Vite-major fixture lane, but it is not the repo dependency floor. |
+| `vite` | `8.2.2` | `^7.2.6` | Yellow. Latest is validated by the isolated Vite-major fixture lane, but it is not the repo dependency floor. |
 
 Latest package snapshot freshness is enforced by `scripts/verify-latest-sveltekit-audit.mjs`, which compares this table with current `npm view <package> version` output for `svelte`, `@sveltejs/kit`, `@sveltejs/vite-plugin-svelte`, and `vite`.
 

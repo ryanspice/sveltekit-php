@@ -12,6 +12,7 @@ node_modules
 /build
 build-*
 !scripts/build-e2e.mjs
+!scripts/build-adapter-types.mjs
 
 # OS
 .DS_Store

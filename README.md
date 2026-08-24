@@ -20,6 +20,7 @@ Current package track: `1.0.2-alpha.0`.
 - Adapter landscape and competitive positioning: [`docs/ADAPTER-LANDSCAPE.md`](docs/ADAPTER-LANDSCAPE.md)
 - Adapter feature catalogue and backlog: [`docs/ADAPTER-FEATURE-CATALOG.md`](docs/ADAPTER-FEATURE-CATALOG.md)
 - PHP hosting contract: [`docs/HOSTING-CONTRACT.md`](docs/HOSTING-CONTRACT.md)
+- RC production-consumer proof: [`docs/RC-CONSUMER-PROOF.md`](docs/RC-CONSUMER-PROOF.md)
 - Dev adapter boundary: [`docs/DEV-ADAPTER-BOUNDARY.md`](docs/DEV-ADAPTER-BOUNDARY.md)
 - CMS recipes: [`docs/recipes/wordpress.md`](docs/recipes/wordpress.md) and [`docs/recipes/composer-bootstrap.md`](docs/recipes/composer-bootstrap.md)
 - License: MIT
@@ -52,16 +53,59 @@ Mode choice:
 - **Node.js** (or Bun)
 - **PHP 8.1+** (Available in your system PATH)
 
-### Installation
+### Install in a SvelteKit project
 
-```bash
-# Install dependencies
-bun install
+```powershell
+npm install -D sveltekit-php@alpha
 ```
 
-### Development
+Configure `svelte.config.js`:
 
-Start the hybrid development server:
+```js
+import adapter from 'sveltekit-php';
+
+export default {
+	kit: {
+		adapter: adapter({
+			mode: 'php-static',
+			out: 'build',
+			assets: 'build',
+			strict: true
+		})
+	}
+};
+```
+
+Prerender the pages that provide the document shell, then add PHP handlers where the host needs request-time behavior:
+
+```ts
+// src/routes/+page.ts
+export const prerender = true;
+```
+
+```php
+<?php // src/routes/contact/+page.server.php
+function load($params) {
+    return ['title' => 'Contact'];
+}
+
+function action_default($event) {
+    return ['success' => true];
+}
+```
+
+```php
+<?php // src/routes/api/health/+server.php
+function GET($event) {
+    return ['status' => 200, 'body' => ['ok' => true]];
+}
+```
+
+Build with your project package manager, serve `build/` with PHP locally, and upload the complete `build/` directory to the PHP web root. Both `sveltekit-php` and the compatibility import `sveltekit-php/adapter` are supported and typed.
+
+### Contributing to this adapter
+
+Install this repository with `bun install`, then start the hybrid development server:
 
 ```bash
 bun run dev
