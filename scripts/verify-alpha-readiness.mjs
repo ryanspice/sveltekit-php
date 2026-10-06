@@ -782,7 +782,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(html, 'max-width: 860px') &&
 			hasText(html, 'Release policy') &&
 			hasText(html, 'alpha-over-rc-release-policy') &&
-			hasText(html, '1.0.2-alpha') &&
+			hasText(html, releaseTrack) &&
 			hasText(html, 'above-rc') &&
 			hasText(html, 'Required alpha evidence') &&
 			hasText(html, 'requiredEvidence') &&
@@ -888,7 +888,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 		hasText(markdown, 'Collected community analytics') &&
 			hasText(markdown, 'Release policy') &&
 			hasText(markdown, 'alpha-over-rc-release-policy') &&
-			hasText(markdown, '1.0.2-alpha') &&
+			hasText(markdown, releaseTrack) &&
 			hasText(markdown, 'above-rc') &&
 			hasText(markdown, 'Alpha proof ledger') &&
 			hasText(markdown, 'alpha-runtime-gate-ledger') &&
@@ -1210,7 +1210,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(releaseNotes, 'lg-ultragear-native-platform-provenance') &&
 			hasText(releaseNotes, '@scriptgpt/desktop-shell-ui') &&
 			hasText(releaseNotes, 'Project-rank policy') &&
-			hasText(releaseNotes, '1.0.2-alpha is the required pre-stable release label') &&
+			hasText(releaseNotes, `${releaseTrack} is the required pre-stable release label`) &&
 			hasText(releaseNotes, 'SemVer note') &&
 			hasText(releaseNotes, 'RC, latest, and stable channels remain disallowed') &&
 			hasText(releaseNotes, 'desktopShellUiBinding') &&
@@ -1219,7 +1219,7 @@ export function checkAlphaReadinessContract({ report, packageJson, gitignore, ge
 			hasText(releaseNotes, 'toggleWindowMaximize') &&
 			hasText(releaseNotes, 'alpha-over-rc-release-policy') &&
 			hasText(releaseNotes, 'channel alpha') &&
-			hasText(releaseNotes, 'track 1.0.2-alpha') &&
+			hasText(releaseNotes, `track ${releaseTrack}`) &&
 			hasText(releaseNotes, 'rank above-rc') &&
 			hasText(releaseNotes, 'Required alpha evidence') &&
 			hasText(releaseNotes, 'requiredEvidence') &&

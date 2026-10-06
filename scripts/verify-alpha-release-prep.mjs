@@ -263,8 +263,8 @@ async function verifyPackageMetadata() {
 		throw new Error('package.json prepack must run verify:artifacts --strict before pack/publish.');
 	}
 
-	if (packageJson.peerDependencies?.['@sveltejs/kit'] !== '^2.0.0') {
-		throw new Error('package.json peerDependencies must declare @sveltejs/kit ^2.0.0.');
+	if (packageJson.peerDependencies?.['@sveltejs/kit'] !== '^2.0.0 || ^3.0.0') {
+		throw new Error('package.json peerDependencies must declare @sveltejs/kit ^2.0.0 || ^3.0.0.');
 	}
 
 	if (packageJson.exports?.['./package.json'] !== './package.json') {

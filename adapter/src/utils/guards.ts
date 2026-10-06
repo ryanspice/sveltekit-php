@@ -15,7 +15,7 @@ export const RESERVED_ROUTE_FILES = new Set([
 export const REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER = 'remote-functions-alpha-policy';
 export const REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE =
 	'sveltekit-php: SvelteKit remote functions are not supported by the PHP runtime in 1.0.2-alpha. Remote functions generate server HTTP endpoints that are not yet mapped through the PHP router. Disable kit.experimental.remoteFunctions and remove .remote.* files, or use a Node/edge adapter until remote-functions-alpha-policy has fixture proof.';
-export const REMOTE_FUNCTION_FILE_RE = /\.remote\.(?:js|ts|mjs|mts|cjs|cts)$/i;
+export const REMOTE_FUNCTION_FILE_RE = /\.remote(?:\.svelte)?\.(?:js|ts|mjs|mts|cjs|cts)$/i;
 
 export type ResolvedBuildIdentityContract = Required<
 	Pick<BuildIdentityContract, 'required' | 'forbidden' | 'extensions'>

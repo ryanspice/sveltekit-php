@@ -1,11 +1,11 @@
-export function getNodeHandlerMjs(base: string = '') {
+export function getNodeHandlerMjs(base: string = '', serverInstance = false) {
 	return `
-import { Server } from './index.js';
-import { manifest } from './manifest.js';
+${serverInstance ? "import { server } from './instance.js';" : "import { Server } from './index.js';\nimport { manifest } from './manifest.js';\nconst server = new Server(manifest);"}
 import http from 'node:http';
+import { createReadStream } from 'node:fs';
+import { Readable } from 'node:stream';
 
-const server = new Server(manifest);
-await server.init({ env: process.env });
+await server.init({ env: process.env, read: (file) => Readable.toWeb(createReadStream(new URL('./' + file, import.meta.url))) });
 
 const PORT = process.env.PORT || 3000;
 const DEBUG = process.env.SK_DEBUG === 'true' || process.env.ADAPTER_DEBUG === 'true';
@@ -181,9 +181,13 @@ $contentLength = is_numeric($contentLengthHeader) ? (int)$contentLengthHeader : 
 if ($path && $path !== '/') {
     $path = preg_replace('#/+#', '/', $path);
 }
+$localPath = $path;
+if ($base !== '' && ($path === $base || strpos($path, $base . '/') === 0)) {
+    $localPath = substr($path, strlen($base)) ?: '/';
+}
 
 // 1. Prerendered Home Page Support
-if (($path === '/' || $path === '/index.php')) {
+if (!$hasBody && ($localPath === '/' || $localPath === '/index.php')) {
     if (file_exists(__DIR__ . '/_home.php')) {
         require __DIR__ . '/_home.php';
         exit;
@@ -201,8 +205,8 @@ if (($path === '/' || $path === '/index.php')) {
 // If we have a local __data.php corresponding to the request, serve it directly.
 // This handles /__data.json -> /__data.php (Root)
 // And /about/__data.json -> /about/__data.php (Subdir)
-if (substr($path, -12) === '/__data.json') {
-    $phpDataRel = substr($path, 0, -12) . '/__data.php';
+if (substr($localPath, -12) === '/__data.json') {
+    $phpDataRel = substr($localPath, 0, -12) . '/__data.php';
     // Prevent directory traversal attacks if someone requests /../../__data.json (though parse_url cleans some)
     // Realpath check is good.
     $phpData = __DIR__ . $phpDataRel;

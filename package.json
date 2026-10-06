@@ -1,7 +1,7 @@
 {
   "name": "sveltekit-php",
   "private": false,
-  "version": "1.0.2-alpha.0",
+  "version": "1.1.0-alpha.0",
   "license": "MIT",
   "description": "SvelteKit adapter for PHP/shared hosting with prerendered output, PHP data/actions, and optional JavaScript SSR sidecar.",
   "keywords": [
@@ -30,7 +30,7 @@
   "sveltekitPhpReleasePolicy": {
     "marker": "alpha-over-rc-release-policy",
     "channel": "alpha",
-    "track": "1.0.2-alpha",
+    "track": "1.1.0-alpha",
     "rank": "above-rc",
     "requiredEvidence": [
       "alpha-over-rc-release-policy",
@@ -92,6 +92,8 @@
     "docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md",
     "docs/ALPHA-READINESS.md",
     "docs/ALPHA-RELEASE-CHECKLIST.md",
+    "docs/SVELTEKIT-3-COMPATIBILITY.md",
+    "CHANGELOG.md",
     "docs/DEV-ADAPTER-BOUNDARY.md",
     "docs/HOSTING-CONTRACT.md",
     "docs/RC-CONSUMER-PROOF.md",
@@ -139,6 +141,7 @@
     "rc:consumer:probe": "bun scripts/smoke-rc-consumers.mjs --report-only",
     "rc:consumer:verify": "bun scripts/verify-rc-consumer-receipt.mjs --require-current",
     "alpha:published:smoke": "bun scripts/smoke-published-alpha.mjs",
+    "test:kit-compatibility": "node scripts/smoke-kit-compatibility.mjs",
     "alpha:latest-same-major:smoke": "bun scripts/smoke-latest-same-major.mjs",
     "alpha:latest-vite-major:smoke": "bun scripts/smoke-latest-vite-major.mjs",
     "alpha:native:smoke": "bun scripts/smoke-native-host-wrapper.mjs",
@@ -190,7 +193,7 @@
     "vitest": "^3.0.0"
   },
   "peerDependencies": {
-    "@sveltejs/kit": "^2.0.0"
+    "@sveltejs/kit": "^2.0.0 || ^3.0.0"
   }
 }
 

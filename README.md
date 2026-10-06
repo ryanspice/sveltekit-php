@@ -4,7 +4,7 @@
 
 This project implements a **SvelteKit adapter for PHP**, allowing you to deploy SvelteKit applications to standard PHP hosting environments (Apache, Nginx, Shared Hosting) while maintaining a modern development experience.
 
-Current package track: `1.0.2-alpha.0`.
+Current package track: `1.1.0-alpha.0`. See [SvelteKit 2/3 compatibility and CoS integration](docs/SVELTEKIT-3-COMPATIBILITY.md).
 
 ## Support Policy
 
@@ -14,7 +14,7 @@ Current package track: `1.0.2-alpha.0`.
 - `php-static` is the deployment default
 - `js-ssr` is JavaScript-sidecar SSR behind PHP
 - Prerendered SSR still hydrates unless the app exports `csr = false`; use the build identity contract below for static skins where client data must not downgrade the deployed theme or tenant
-- SvelteKit remote functions (`kit.experimental.remoteFunctions` and `.remote.*` files) are unsupported in `1.0.2-alpha` and fail the build; see [`docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`](docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md)
+- SvelteKit remote functions (`kit.experimental.remoteFunctions` and `.remote.*` files) are unsupported in the current alpha and fail the build; see [`docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`](docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md)
 - Historical audit notes under `docs/AUDIT-*` and `docs/CHAT-*` are archival snapshots, not the current contract
 - Live example: [blog.ryanspice.com](https://blog.ryanspice.com) uses this adapter for its PHP-hosted release path
 - Adapter landscape and competitive positioning: [`docs/ADAPTER-LANDSCAPE.md`](docs/ADAPTER-LANDSCAPE.md)
@@ -59,7 +59,7 @@ Mode choice:
 npm install -D sveltekit-php@alpha
 ```
 
-Configure `svelte.config.js`:
+For SvelteKit 2, configure `svelte.config.js` (Kit 3 uses `sveltekit({ adapter: adapter() })` in `vite.config.js`; see the compatibility guide):
 
 ```js
 import adapter from 'sveltekit-php';

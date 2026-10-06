@@ -182,7 +182,7 @@ describe('alpha readiness report', () => {
 	it('keeps the report summary and score derived from readiness areas', () => {
 		const report = buildAlphaReadinessReport();
 
-		expect(report.target).toBe('1.0.2-alpha.0');
+		expect(report.target).toBe('1.1.0-alpha.0');
 		expect(report.overallScore).toBe(calculateAlphaScore(readinessAreas));
 		expect(report.summary).toEqual(summarizeReadiness(readinessAreas));
 	});
@@ -617,7 +617,7 @@ describe('alpha readiness report', () => {
 		const shape = await assertPackageExportShape();
 
 		expect(shape.name).toBe('sveltekit-php');
-		expect(shape.version).toBe('1.0.2-alpha.0');
+		expect(shape.version).toBe('1.1.0-alpha.0');
 		expect(shape.adapterExport).toEqual({
 			types: './adapter/declarations/index.d.ts',
 			import: './adapter/index.js',

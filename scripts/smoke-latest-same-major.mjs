@@ -46,6 +46,11 @@ function run(command, args, options = {}) {
 }
 
 async function npmLatestVersion(packageName) {
+	if (packageName === '@sveltejs/kit') {
+		const result = await run('npm', ['view', '@sveltejs/kit@2', 'version', '--json', '--silent']);
+		const versions = JSON.parse(result.stdout);
+		return Array.isArray(versions) ? versions.at(-1) : versions;
+	}
 	const result = await run('npm', ['view', packageName, 'version', '--silent']);
 	return result.stdout.trim();
 }

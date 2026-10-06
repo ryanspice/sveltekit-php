@@ -55,6 +55,10 @@ export interface Builder {
 	generateFallback(fallbackSrc: string): Promise<void> | void;
 	writeServer(dest: string): void;
 	generateManifest(options?: { relativePath: string }): string;
+	generateServerInstance?: (dest: string, options?: { serverDirectory: string }) => void;
+	hasServerInstrumentationFile?: () => boolean;
+	createInstrumentationInitializer?: (options: { outputDirectory: string; serverDirectory: string }) => string;
+	instrument?: (options: { entrypoint: string; instrumentation: string; start: string; initializer?: string; module: { exports: string[] } }) => void;
 	config: {
 		kit: {
 			files: { routes: string };
