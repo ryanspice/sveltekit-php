@@ -18,7 +18,7 @@ var __toESM = (mod, isNodeMode, target) => {
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 var __require = /* @__PURE__ */ createRequire(import.meta.url);
 
-// ../../../Dev/sveltekit-php/node_modules/globrex/index.js
+// node_modules/globrex/index.js
 var require_globrex = __commonJS((exports, module) => {
   var isWin = process.platform === "win32";
   var SEP = isWin ? `\\\\+` : `\\/`;
@@ -248,7 +248,7 @@ var require_globrex = __commonJS((exports, module) => {
   module.exports = globrex;
 });
 
-// ../../../Dev/sveltekit-php/node_modules/globalyzer/src/index.js
+// node_modules/globalyzer/src/index.js
 var require_src = __commonJS((exports, module) => {
   var os = __require("os");
   var path = __require("path");
@@ -310,7 +310,7 @@ var require_src = __commonJS((exports, module) => {
   module.exports = globalyzer;
 });
 
-// ../../../Dev/sveltekit-php/node_modules/tiny-glob/index.js
+// node_modules/tiny-glob/index.js
 var require_tiny_glob = __commonJS((exports, module) => {
   var fs = __require("fs");
   var globrex = require_globrex();

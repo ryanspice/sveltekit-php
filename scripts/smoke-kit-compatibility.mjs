@@ -13,8 +13,8 @@ const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = await mkdtemp(path.join(os.tmpdir(), 'sveltekit-php-kit-compat-'));
 const keep = process.argv.includes('--keep');
 const lanes = [
-	{ kit: '3.0.1', svelte: '5.57.1', vite: '8.3.3', plugin: '7.3.1', typescript: '6.0.3' },
-	{ kit: '2.49.2', svelte: '5.57.1', vite: '7.2.6', plugin: '6.2.1', typescript: '5.9.3' }
+	{ kit: '3.1.0', svelte: '5.57.2', vite: '8.3.5', plugin: '7.3.1', typescript: '6.0.3' },
+	{ kit: '2.70.3', svelte: '5.57.2', vite: '7.3.7', plugin: '6.2.1', typescript: '5.9.3' }
 ];
 const results = [];
 const adapterSha256 = createHash('sha256').update(await readFile(path.join(repo, 'adapter/index.js'))).digest('hex');
