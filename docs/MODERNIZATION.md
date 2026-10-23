@@ -1,12 +1,12 @@
 # SvelteKit PHP security and modernization plan
 
-Reviewed October 23, 2026. Baseline: `main`, `202e692676f40495c58980f72832720ac0b4fc36`, local version `1.1.0-alpha.0`. Scope: adapter/runtime source, prior reviews, upstream security changes, agent workflow and GitHub presentation. This is a source/research review and documentation package; runtime fixes, dependency changes, commits, deployment and publication remain open.
+Reviewed October 23, 2026. Original baseline: `main`, `202e692676f40495c58980f72832720ac0b4fc36`, local version `1.1.0-alpha.0`. Scope: adapter/runtime source, prior reviews, upstream security changes, agent workflow and GitHub presentation. The first local fix wave is implemented on `codex/security-hardening-20261023`; see the [implementation receipt](security/implementation-20261023.md). Deployment and publication remain open.
 
-## Evidence and baseline
+## Original review evidence and current graph
 
 - Preserve existing changes to `adapter/index.js`, `adapter/src/runtime/router/shared.ts`, RC consumer docs/profile/scripts/tests, and all pre-existing untracked `.ai`, `.codegraph`, `.hermes-sidecars` and `*.hermes.*` material.
-- Current dirty bundle SHA-256: `49744F5084AD7C8713757023C5EE8CC6B52AF48EF39516B295676F2BA6D4C110`. The October 6 compatibility receipt describes a different bundle; it is historical evidence.
-- Lockfile: Kit **2.49.2**, Svelte **5.46.1**, Vite **7.3.0**, plugin **6.2.1**, devalue **5.6.1**. The peer range permits Kit 2/3; this does not upgrade the development lock or consumer graphs.
+- Original dirty bundle SHA-256: `49744F5084AD7C8713757023C5EE8CC6B52AF48EF39516B295676F2BA6D4C110`. The October 6 compatibility receipt describes a different bundle; it is historical evidence. The implementation receipt binds the fresh packed-consumer result to the current bundle.
+- Review-baseline lockfile: Kit **2.49.2**, Svelte **5.46.1**, Vite **7.3.0**, plugin **6.2.1**, devalue **5.6.1**. The implementation resolves Kit **2.70.3**, Svelte **5.57.2**, Vite **7.3.7**, plugin **6.2.1**, devalue **5.9.4**. The peer range permits Kit 2/3; consumer graphs still need their own updates.
 - `bun run check`: **PASS**, 0 errors/0 warnings, October 23. The old October 6 note about a dirty-test type error does not describe this current check result.
 - Independent read-only source review returned four findings. A PHP CLI probe against existing `build-e2e-js-ssr-root/router.php` found `/server/handler.mjs` delegated to static serving (`return false`, status 200). This is router control-flow evidence, not an HTTP host test or a fresh build.
 - No full unit/build/browser/Kit matrix, artifact rebuild, hosted gate or npm publish ran for this documentation review. The review covers accessible primary sources and local artifacts; it does not claim every public review has been found.
@@ -31,18 +31,18 @@ The official [Kit advisory index](https://github.com/sveltejs/kit/security/advis
 
 Registry snapshot checked October 23: **Kit 3.1.0, Svelte 5.57.2, Vite 8.3.5, plugin 7.3.1, devalue 6.0.3**. Patch compatible devalue 5.x resolutions first; a 6.x move is a separate API/consumer migration. `sveltekit-php` has **latest 1.0.1 only**; no alpha tag. Registry metadata is not compatibility or publication proof for this local candidate.
 
-**Dated Kit 3 migration exception — October 23, 2026:** retain the current development lock at `@sveltejs/kit@2.49.2` for this documentation-only task. Owner: dependency/compatibility workstream, integrated by the lead. Concrete blockers: runtime findings A-01–A-03, the coordinated Node/TS/Svelte/Vite/plugin migration and fresh packed-consumer acceptance. Next gate: patched Kit 2 fixture plus Kit 3.1 candidate with checks, both modes/root/base builds and desktop/mobile browser flows. This records an open exception, not security approval of the old lock; reassess before migration or release.
+**Dated Kit 3 migration exception — October 23, 2026:** the development application remains on the exact resolved `@sveltejs/kit@2.70.3` compatibility lane for this initial fix wave. Owner: dependency/compatibility workstream, integrated by the lead. Concrete remaining work: migrate `svelte.config.js` into the Vite plugin, move TypeScript 5 to 6 and Vite/plugin to 8/7, and update 42 source files using `$lib` or removed `$app` imports. The adapter's freshly packed Kit **3.1.0** lane passed both modes at root and `/sites/cos`; that proves adapter compatibility, not migration of this development application. Next gate: a separate development-app migration with source/type/build checks and desktop/mobile action/navigation acceptance. Kit 2 does not receive every October fix available in Kit 3; this exception is unresolved security debt and must be reassessed before release.
 
-## Current source findings
+## Review findings and implementation targets
 
 | ID | Priority and evidence | Fix scope | Required checks |
 | --- | --- | --- | --- |
 | A-01 | P1: `adapter/src/index.ts:997–1014` writes the server bundle inside public output. `runtime/htaccess-templates.ts:21` reuses static rules; `runtime/htaccess/php-static.ts:110–135` and `runtime/router/shared.ts:135–138` allow existing server files. | Separate private server output and deny server/runtime source before all static shortcuts. Preserve public assets. | Apache, Nginx and PHP-built-in HTTP tests; server handler/manifest/chunks and encoded/case variants denied at root and base. Packed output contains no public private-source tree. |
 | A-02 | P1: `runtime/php-templates.ts:708–748` dispatches PHP POST actions without Origin validation. Cookie/session-backed consumer actions can be exposed. | Canonical origin and explicit missing/null-Origin policy before action dispatch; documented trusted-origin exceptions. | Ordinary/named/enhanced/multipart/direct-shim actions, root/base, cross-origin/null/missing origins; rejected requests never execute handlers. |
-| A-03 | P1: `runtime/js-ssr-templates.ts:18–20`, `79`, `118` trusts forwarded origin/address and binds all interfaces. Existing PHP proxy header replacement does not protect direct access. | Loopback default, explicit binding, canonical origin/host validation, trusted-proxy policy, direct-sidecar body limit. | Direct/proxied spoofing, TLS termination, address handling, root/base and oversized bodies. `SK_ORIGIN`/`SK_TRUSTED_PROXY_HEADERS` are currently proposed, absent runtime controls. |
+| A-03 | P1 at review baseline: `runtime/js-ssr-templates.ts:18–20`, `79`, `118` trusted forwarded origin/address and bound all interfaces. | Implemented loopback default, explicit binding, canonical origin validation, trusted-peer policy, direct-sidecar body limit. | Direct/proxied spoofing and oversized bodies passed locally. Set the same `SK_ORIGIN` on PHP and Node; see the updated hosting contract. TLS/host acceptance remains open. |
 | A-04 | P2: August latest-audit and 1.0.2 checklist differ from October 1.1 candidate; old hosted reports are skipped/failed/expired; bundle hash differs from October fixture receipt. | Single candidate/evidence record, freshness/hash checks and clear local/hosted/published state. | Reject stale/mismatched receipts and unsupported release claims. Correct nonexistent alpha install guidance. |
 
-Runtime paths abbreviated in A-01–A-03 are beneath `adapter/src/`. Findings are source conclusions with deployment preconditions, not a live exploit or disclosure of consumer secrets.
+Runtime paths abbreviated in A-01–A-03 are beneath `adapter/src/`. A-01 through A-03 now have focused local fix commits and regression checks. The source evidence above describes the original baseline; it is not a live exploit or disclosure of consumer secrets. A-04's broader release-receipt consolidation remains open; the new implementation receipt records this candidate without replacing unrelated dirty consumer work.
 
 ## Reviews and syntheses found
 
@@ -55,7 +55,7 @@ Runtime paths abbreviated in A-01–A-03 are beneath `adapter/src/`. Findings ar
 | `.ai/runs/20260805-014805/final/SUMMARY.md`, [PR #1](https://github.com/ryanspice/sveltekit-php/pull/1) | Follow-up fixes and conditional review disposition, historical deterministic gates, npm/host limits. Reconcile final merged source rather than reapplying the initial audit list. |
 | `docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md`, Aug 24 | Useful adapter landscape and latest-major synthesis; stale as a current version snapshot. |
 | `docs/SVELTEKIT-3-COMPATIBILITY.md`, `report/kit-compatibility.json`, Oct 6 | Pinned Kit 2/3 historical package/build/PHP/HTTP proof with exact bundle hash and exclusions; not acceptance for the current dirty candidate. |
-| `docs/HOSTING-CONTRACT.md`, RC/remote-functions policy docs | Current boundaries plus proposed controls. Ordinary FPM hosting is distinct from the explicitly excluded special PHP-FPM package mode. |
+| `docs/HOSTING-CONTRACT.md`, RC/remote-functions policy docs | Hosting contract updated with the implemented origin/proxy/body controls; unrelated dirty RC consumer work is preserved. Ordinary FPM hosting is distinct from the explicitly excluded special PHP-FPM package mode. |
 
 Preserve existing nowdoc emission, safe build-root guards, Windows sensitive-root denial, strict prepack artifact sync, cookie/header forwarding and remote-function rejection. The pre-existing dirty case-insensitive `_protected` denial and regression test are already present; this review does not claim them as newly implemented.
 
@@ -94,7 +94,7 @@ README now opens with the deployment problem, mode table, architecture and hones
 
 Add a verified root/subdirectory deployment demo with a native PHP form, a small sanitized screenshot and alt text. Show host configuration requirements next to the mode that needs them. Use real build/compatibility/release badges and distinguish local candidate from published version. No profile, metadata, release or hosting change is performed by this planning package.
 
-## Planning-package verification receipt
+## Historical planning-package verification receipt
 
-The current Svelte check passed with zero errors/warnings. Both shared JSON Schema 2020-12 copies compiled in strict mode: four valid intent/work-order/handoff fixtures passed, and seven deliberately invalid fixtures were rejected. All 35 relative Markdown links and metadata paths across the ten files resolved; owned whitespace checks passed. All eleven pre-existing tracked dirty files retained their original SHA-256 hashes. Independent review's two README findings were corrected: deployment guidance now distinguishes public `php-static` output from blocked `js-ssr` output, and artifact verification commands use strict mode. These are planning/documentation checks; runtime, full package/browser and hosted gates remain open.
+At the earlier planning checkpoint, the Svelte check passed with zero errors/warnings. Both shared JSON Schema 2020-12 copies compiled in strict mode: four valid intent/work-order/handoff fixtures passed, and seven deliberately invalid fixtures were rejected. All 35 relative Markdown links and metadata paths across the ten files resolved; owned whitespace checks passed. All eleven pre-existing tracked dirty files retained their original SHA-256 hashes at that checkpoint. Independent review's two README findings were corrected: deployment guidance distinguishes public output and private sidecar files, and artifact verification commands use strict mode. These checks preceded the source fixes; the [implementation receipt](security/implementation-20261023.md) records the fresh runtime, package and browser results and remaining hosted gates.
 

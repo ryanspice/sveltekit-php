@@ -1,12 +1,12 @@
 # PHP hosting contract
 
-Last updated: 2026-06-17
+Last updated: 2026-10-23
 
 This document defines the production hosting assumptions for `sveltekit-php`. It borrows the useful parts of `adapter-node`, `adapter-static`, and Azure Static Web Apps configuration without pretending PHP shared hosting has the same platform features.
 
 ## PHP version floor
 
-PHP **8.1+ is required** for the adapter's runtime compat layer (`php-compat.php` hard-exits with `This app requires PHP 8.1+.` below `SK_PHP_MIN_VERSION=80100`). The generator and this contract both target PHP 8.1+; older polyfill stubs are not shipped.
+The runtime compat layer retains its PHP **8.1+ syntax floor** (`SK_PHP_MIN_VERSION=80100`). Production requires a supported branch with current security fixes: the October 21 baseline is 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12. Prefer a patched 8.4/8.5 host after acceptance. `bun run check:runtime` checks the selected CLI binary; it does not attest a remote FPM pool or vendor backport. See the [local runtime receipt](security/runtime-20261023.md) and [PHP advisory](https://www.php.net/archive/2026.php#2026-10-21-5).
 
 ## Support levels
 
@@ -60,7 +60,7 @@ This boundary is intentional for 1.x stability. A future PHP-native streaming/de
 
 ## Origin and proxy headers
 
-Use an explicit origin when the app is behind a proxy, CDN, or subdirectory deployment.
+Set the same explicit `SK_ORIGIN` in **both PHP and Node** for `js-ssr` deployments. It is the public scheme, hostname and optional port, without a base-path suffix. Without it, the sidecar sees its private hostname/port; browser actions through a different public PHP origin can fail SvelteKit's origin check. Set it for PHP behind a proxy/CDN too.
 
 Recommended environment contract:
 
@@ -69,16 +69,20 @@ $env:SK_ORIGIN = 'https://example.com'
 $env:SK_TRUSTED_PROXY_HEADERS = 'false'
 ```
 
-Future runtime knobs should follow the `adapter-node` model:
+The current source candidate implements these controls:
 
-| Proposed variable | Purpose | Default posture |
+| Variable | Purpose | Default posture |
 | --- | --- | --- |
-| `SK_ORIGIN` | Canonical public origin for redirects, form-action checks, and generated absolute URLs. | Prefer explicit production value. |
-| `SK_PROTOCOL_HEADER` | Trusted header for original protocol, such as `X-Forwarded-Proto`. | Disabled unless explicitly trusted. |
-| `SK_HOST_HEADER` | Trusted header for original host, such as `X-Forwarded-Host`. | Disabled unless explicitly trusted. |
-| `SK_PORT_HEADER` | Trusted header for original port, such as `X-Forwarded-Port`. | Disabled unless explicitly trusted. |
-| `SK_ADDRESS_HEADER` | Trusted client address header. | Disabled unless explicitly trusted. |
-| `SK_XFF_DEPTH` | Number of trusted proxies when parsing `X-Forwarded-For` from the right. | Disabled unless explicitly configured. |
+| `SK_ORIGIN` | Canonical public origin used for requests and PHP action checks. | Required deployment configuration for proxied sidecar actions. Invalid values fail closed. |
+| `SK_SIDECAR_HOST` | Node listener address. | `127.0.0.1`; non-loopback binding additionally requires `SK_ORIGIN`. |
+| `SK_TRUSTED_PROXY_HEADERS` | Trust `X-Forwarded-Proto`, `X-Forwarded-Host`, and `X-Forwarded-For` from an allowed peer. | Disabled; only exact `true` opts in. |
+| `SK_TRUSTED_PROXY_IPS` | Comma-separated exact immediate-peer addresses. | `127.0.0.1,::1`; no CIDR expansion. Still requires the opt-in above. |
+| `SK_XFF_DEPTH` | Select client address from the right of a trusted `X-Forwarded-For` chain. | `1`; configure for the real trusted chain. |
+| `SK_BODY_SIZE_LIMIT` | Maximum buffered request body bytes for PHP actions and non-read Node sidecar requests. | `10485760` (10 MiB), positive integer. Configure separately in each process. |
+| `MAX_BODY_BYTES` | Existing PHP-to-Node proxy request limit. | `10485760` (10 MiB). Separate from `SK_BODY_SIZE_LIMIT`; set both deliberately when changing the proxy/sidecar cap. |
+| `SK_ALLOW_MISSING_ORIGIN` | Permit a PHP action POST with no Origin header for an explicitly reviewed machine client. | Disabled; only `1` permits absent Origin. Null or mismatched origins still fail. |
+
+PHP action checks run before user handler includes for ordinary, named, enhanced and direct shim POSTs. Missing, literal `null`, malformed and cross-origin headers are rejected by default. This is a CSRF boundary; consumers still own authentication, authorization and input validation. The PHP proxy replaces inbound forwarding headers, validates a loopback sidecar URL, and preserves the configured public origin. The Node listener discards untrusted forwarding headers. Arbitrary protocol/host/address header-name overrides are not implemented.
 
 Do not trust forwarded headers on public shared hosting unless the host/CDN boundary is known. Spoofable proxy headers can cause bad redirects, bad form-action origin checks, and misleading client-address data.
 
@@ -121,9 +125,15 @@ PHP request body limits are controlled partly outside the adapter.
 | `upload_max_filesize` | PHP config | Caps individual uploaded files. |
 | `max_input_vars` | PHP config | Caps parsed form variables. |
 | `memory_limit` | PHP config | Caps memory available while parsing/serializing. |
-| `SK_BODY_SIZE_LIMIT` | Future adapter/runtime knob | Should cap raw action parsing where PHP exposes enough information. |
+| `SK_BODY_SIZE_LIMIT` | PHP actions / Node sidecar | Bounds declared and readable raw action/non-read sidecar bodies; rejects oversize requests with 413 before dispatch. |
 
-Until `SK_BODY_SIZE_LIMIT` is implemented, production hosts should set conservative PHP limits and avoid accepting large uploads through the generic action bridge.
+Set conservative web-server and PHP limits as well. PHP may parse multipart uploads before application code runs; these adapter limits do not replace ingress, `post_max_size`, `upload_max_filesize`, execution-time or memory limits. Standalone `+server.php` endpoint wrappers do not apply `SK_BODY_SIZE_LIMIT`; their consumers and ingress must enforce appropriate limits. The PHP proxy uses its existing `MAX_BODY_BYTES` setting; `SK_BODY_SIZE_LIMIT` does not configure that layer. Sidecar request bodies are buffered within the cap; response streaming remains supported.
+
+## Private server output
+
+For `out: 'build'`, `js-ssr` writes the JavaScript server and `handler.mjs` into the sibling **`build-server/`** directory. Keep that directory outside every document root and upload it separately to the sidecar host. Start Node with `node build-server/handler.mjs` and supply the same `SK_ORIGIN` to PHP and Node. `PHP_SIDECAR_URL` identifies the loopback Node upstream, for example `http://127.0.0.1:3000`.
+
+The adapter refuses overlapping public/private output and refuses to clean a nonempty unowned sibling directory. Its `.sveltekit-php-server` marker identifies owned private output. Generated PHP routing and Apache rules deny legacy server/runtime source before existing-file delegation; configure equivalent Nginx denies. `_runtime/build-stamp.json` is intentionally public diagnostic metadata. A PHP router test cannot prove Apache/Nginx rules or filesystem permissions on a host.
 
 ## Static assets versus PHP responses
 

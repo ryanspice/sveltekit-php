@@ -8,7 +8,7 @@ PHP hosting is widely available, and many sites already have PHP endpoints, form
 
 The interesting engineering work lives at the boundary: matching routes, protecting server files, preserving cookies and base paths, and producing a package consumers can verify. The fixtures and hosting contract make those choices inspectable.
 
-**Current status:** local `1.1.0-alpha.0` candidate, unpublished. October 23 registry inspection found only `latest → 1.0.1`, with no `alpha` tag. The current review identifies open runtime-security work; the [plan](docs/MODERNIZATION.md) separates source fixes, compatibility tests, hosted proof, and publication.
+**Current status:** local `1.1.0-alpha.0` candidate, unpublished. October 23 registry inspection found only `latest → 1.0.1`, with no `alpha` tag. Private sidecar output, PHP action-origin checks, and sidecar proxy/body boundaries are implemented in source. The [implementation receipt](docs/security/implementation-20261023.md) records current local checks; hosted proof and publication remain open.
 
 ## Choose the host you actually need
 
@@ -470,7 +470,7 @@ The precheck requires non-empty `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REMOTE`, a
 - Form actions: PHP-provided `$_POST`/`$_FILES` data is used when available, with a `php://input` fallback for JSON, URL-encoded raw bodies, and raw text.
 - Server fetch: `sk_fetch()` uses PHP stream wrappers when available, falls back to cURL, and returns an explicit fetch-error response if neither transport is available. Shared hosts should enable either `allow_url_fopen` or `curl`.
 
-The [current security review](docs/MODERNIZATION.md) identifies missing PHP action-origin enforcement, sidecar trust/binding issues, and server-bundle exposure. `SK_ORIGIN` and `SK_TRUSTED_PROXY_HEADERS` in the existing hosting contract are proposed controls, not implemented runtime enforcement. Apply and verify the planned fixes before relying on these paths for authenticated production traffic.
+The source candidate enforces PHP action origins before handler includes, writes the sidecar bundle to the private sibling `<out>-server/`, and defaults Node to loopback. PHP action and non-read Node request bodies have a default 10 MiB cap; the PHP proxy has a separate limit. Standalone PHP endpoints still rely on host/consumer body limits. Set the same public `SK_ORIGIN` in PHP and Node for proxied actions; keep the sibling server directory outside all document roots. The [hosting contract](docs/HOSTING-CONTRACT.md) documents implemented defaults and exceptions. Consumers still own authentication, authorization and ingress limits; complete hosted acceptance before production rollout.
 
 ---
 

@@ -8,9 +8,9 @@ The project earns attention by making the difficult boundaries visible and verif
 
 ## Current limits
 
-Local package track is `1.1.0-alpha.0`. October 23 registry inspection found published `latest=1.0.1` and no alpha tag. Kit 2/3 compatibility documentation records earlier pinned fixtures, not current hosted acceptance. Remote functions remain unsupported. Ordinary FPM-backed hosting is distinct from any proposed special PHP-FPM package mode.
+Local package track is `1.1.0-alpha.0`. October 23 registry inspection found published `latest=1.0.1` and no alpha tag. Fresh packed Kit 2.70.3/3.1.0 fixtures passed both modes at root and `/sites/cos`; this establishes local compatibility, with hosted acceptance still open. Remote functions remain unsupported. Ordinary FPM-backed hosting is distinct from any proposed special PHP-FPM package mode.
 
-The [modernization plan](docs/MODERNIZATION.md) owns the current security queue and research inventory. Runtime fixes, dependency migration, fresh host proof and publication remain open. Repository metadata does not change the adapter's options, consumer API, or application data schema.
+The [modernization plan](docs/MODERNIZATION.md) owns the security queue and research inventory. A-01 through A-03 and compatible dependency patches are implemented locally; the [implementation receipt](docs/security/implementation-20261023.md) records evidence. Development-app migration to Kit 3, fresh host proof and publication remain open. Repository metadata does not replace the adapter's options, consumer API, or application data schema.
 
 ## Priorities
 
@@ -30,7 +30,7 @@ This JSON block is the `intent` instance for `repo.schema.json`. The schema also
   "kind": "intent",
   "repository": "ryanspice/sveltekit-php",
   "reviewedAt": "2026-10-23",
-  "baselineCommit": "202e692676f40495c58980f72832720ac0b4fc36",
+  "baselineCommit": "5886f8467dda20a56fb125d5a292f1ce15d2f70d",
   "status": "alpha",
   "purpose": "Deploy SvelteKit frontend output to PHP hosting with explicit PHP-static and JavaScript-sidecar modes.",
   "entrypoints": ["README.md", "AGENTS.md", "docs/HOSTING-CONTRACT.md", "docs/MODERNIZATION.md"],

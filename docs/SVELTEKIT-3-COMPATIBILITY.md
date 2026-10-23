@@ -1,6 +1,6 @@
 # SvelteKit 3 compatibility and CoS integration
 
-Date: 2026-10-06. Local candidate: **1.1.0-alpha.0**, unpublished.
+Original receipt date: 2026-10-06. Local candidate: **1.1.0-alpha.0**, unpublished. The historical matrix and limits below describe that date. See the [October 23 implementation receipt](security/implementation-20261023.md) for the fresh Kit **2.70.3 / 3.1.0** packed matrix, patched dependencies, PHP **8.5.12**, private sibling output and current checks.
 
 ## API and release verification
 
