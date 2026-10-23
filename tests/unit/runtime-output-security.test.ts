@@ -17,6 +17,16 @@ describe('private runtime output boundary', () => {
 					mkdirSync(path.join(f.root, directory));
 					writeFileSync(path.join(f.root, directory, 'private.txt'), 'PRIVATE_SOURCE');
 				}
+				for (const directory of ['server', 'adapter', '_runtime']) {
+					const nested = path.join(f.root, base, 'api', directory, 'status');
+					mkdirSync(path.dirname(nested), { recursive: true });
+					writeFileSync(nested, `NESTED_PUBLIC_${directory}`);
+				}
+				const nestedPrivate = path.join(f.root, base, 'api');
+				writeFileSync(path.join(nestedPrivate, '.env'), 'PRIVATE_ENV');
+				writeFileSync(path.join(nestedPrivate, 'data.server.js'), 'PRIVATE_SOURCE');
+				mkdirSync(path.join(nestedPrivate, '_protected'));
+				writeFileSync(path.join(nestedPrivate, '_protected/private.txt'), 'PRIVATE_SOURCE');
 				mkdirSync(path.join(f.root, '_app'));
 				writeFileSync(path.join(f.root, '_app/public.js'), 'PUBLIC_ASSET');
 				writeFileSync(path.join(f.root, '.env'), 'PRIVATE_ENV');
@@ -34,11 +44,19 @@ describe('private runtime output boundary', () => {
 					'_PROTECTED/private.txt',
 					'adapter/private.txt',
 					'_runtime/compat.php',
-					'.env'
+					'.env',
+					'api/.env',
+					'api/data.server.js',
+					'api/_protected/private.txt'
 				]) {
 					const response = await fetch(origin + base + '/' + privatePath);
 					expect(response.status, privatePath).toBe(403);
 					expect(await response.text()).not.toContain('PRIVATE_');
+				}
+				for (const directory of ['server', 'adapter', '_runtime']) {
+					const response = await fetch(origin + base + '/api/' + directory + '/status');
+					expect(response.status, `nested ${directory}`).toBe(200);
+					expect(await response.text()).toBe(`NESTED_PUBLIC_${directory}`);
 				}
 				const publicAsset = await fetch(origin + '/_app/public.js');
 				expect(await publicAsset.text()).toBe('PUBLIC_ASSET');
@@ -49,10 +67,20 @@ describe('private runtime output boundary', () => {
 	it('places Apache private denial before file/asset shortcuts in both modes', () => {
 		for (const mode of ['php-static', 'js-ssr']) {
 			const config = getHtaccess(mode, '/base');
-			expect(config.indexOf('(?:server|adapter|_protected)')).toBeLessThan(
+			expect(config.indexOf('^(?:base/)?(?:server|adapter)')).toBeLessThan(
 				config.indexOf('# let existing files through')
 			);
-			expect(config).toContain('_runtime[. ]*(?:/|$) - [F,L,NC]');
+			expect(config).toContain('RewriteRule ^(?:base/)?_runtime[.\\x20]*(?:/|$) - [F,L,NC]');
+			const rules = config
+				.split('\n')
+				.filter((line) => line.includes('[F,L,NC]'))
+				.map((line) => new RegExp(line.trim().split(' ')[1], 'i'));
+			for (const prefix of ['', 'base/']) {
+				for (const directory of ['server', 'adapter', '_runtime']) {
+					expect(rules.some((rule) => rule.test(`${prefix}api/${directory}/status`))).toBe(false);
+					expect(rules.some((rule) => rule.test(`${prefix}${directory}/private.txt`))).toBe(true);
+				}
+			}
 		}
 	});
 });

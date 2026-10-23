@@ -1433,14 +1433,27 @@ for ($i = 0; $i < 3; $i++) {
     if ($next === $guard_uri) break;
     $guard_uri = $next;
 }
-$guard_segments = explode('/', str_replace('\\\\', '/', $guard_uri));
+$guard_segments = array_values(array_filter(explode('/', str_replace('\\\\', '/', $guard_uri)), 'strlen'));
+$private_roots = [0];
+$base_segments = array_values(array_filter(explode('/', $base), 'strlen'));
+if (count($base_segments) > 0 && count($guard_segments) >= count($base_segments)) {
+    $matches_base = true;
+    foreach ($base_segments as $index => $segment) {
+        if (strtolower(rtrim($guard_segments[$index], ' .')) !== strtolower(rtrim($segment, ' .'))) {
+            $matches_base = false;
+            break;
+        }
+    }
+    if ($matches_base) $private_roots[] = count($base_segments);
+}
 foreach ($guard_segments as $index => $segment) {
     $normalized = strtolower(rtrim($segment, ' .'));
-    $private = in_array($normalized, ['server', '_protected', 'adapter'], true);
-    if ($normalized === '_runtime') {
+    $at_private_root = in_array($index, $private_roots, true);
+    $private = $normalized === '_protected' || ($at_private_root && in_array($normalized, ['server', 'adapter'], true));
+    if ($at_private_root && $normalized === '_runtime') {
         $private = count($guard_segments) !== $index + 2 || $guard_segments[$index + 1] !== 'build-stamp.json';
     }
-    if ($private || (isset($segment[0]) && $segment[0] === '.')) {
+    if ($private || (isset($segment[0]) && $segment[0] === '.') || preg_match('/\\.server(?:\\.|$)/i', $normalized)) {
         http_response_code(403);
         echo "Access Denied";
         return;
@@ -3779,9 +3792,11 @@ ${redirectRules}
 
 ${guardRules}
 	# Private artifacts must be denied before any existing-file or asset shortcut.
-	RewriteRule (^|/)(?:server|adapter|_protected)[. ]*(?:/|$) - [F,L,NC]
-	RewriteCond %{REQUEST_URI} !/_runtime/build-stamp\\.json$ [NC]
-	RewriteRule (^|/)_runtime[. ]*(?:/|$) - [F,L,NC]
+	RewriteRule ^${baseOptional}(?:server|adapter)[.\\x20]*(?:/|$) - [F,L,NC]
+	RewriteRule (^|/)_protected[.\\x20]*(?:/|$) - [F,L,NC]
+	RewriteRule (^|/)[^/]*\\.server(?:\\.|\\x20*(?:/|$)) - [F,L,NC]
+	RewriteCond %{REQUEST_URI} !^/${baseOptional}_runtime/build-stamp\\.json$ [NC]
+	RewriteRule ^${baseOptional}_runtime[.\\x20]*(?:/|$) - [F,L,NC]
 	# deny adapter private area (convention)
 	RewriteRule ^${baseOptional}_protected/ - [F,L]
 
