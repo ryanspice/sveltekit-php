@@ -1,6 +1,52 @@
 # SvelteKit PHP Adapter
 
-![PHP 8.1+](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white) ![Apache/Nginx](https://img.shields.io/badge/Apache%20%2F%20Nginx-supported-6c757d)
+**Keep SvelteKit's frontend workflow when your deployment target is PHP hosting.**
+
+[Choose a mode](#choose-the-host-you-actually-need) · [Project intent](INTENT.md) · [Agent guide](AGENTS.md) · [Security and update plan](docs/MODERNIZATION.md) · [Compatibility evidence](docs/SVELTEKIT-3-COMPATIBILITY.md)
+
+PHP hosting is widely available, and many sites already have PHP endpoints, forms, and operational knowledge. This adapter connects that environment to SvelteKit's build and frontend tooling: prerendered documents and PHP handlers for ordinary PHP hosts, with a separate JavaScript sidecar when request-time Svelte SSR is needed.
+
+The interesting engineering work lives at the boundary: matching routes, protecting server files, preserving cookies and base paths, and producing a package consumers can verify. The fixtures and hosting contract make those choices inspectable.
+
+**Current status:** local `1.1.0-alpha.0` candidate, unpublished. October 23 registry inspection found only `latest → 1.0.1`, with no `alpha` tag. The current review identifies open runtime-security work; the [plan](docs/MODERNIZATION.md) separates source fixes, compatibility tests, hosted proof, and publication.
+
+## Choose the host you actually need
+
+| Mode | What runs in production | Good fit | Boundary |
+| --- | --- | --- | --- |
+| `php-static` | Prerendered documents/assets plus PHP data, action, and endpoint handlers | Static sites and PHP-backed interactions on standard PHP hosting | Request-time Svelte document SSR is outside this mode. |
+| `js-ssr` | PHP frontend proxy plus a persistent JavaScript SSR sidecar | Dynamic Svelte documents and streaming where the host can run Node | Requires a Node process, a private server bundle, and proxy/origin hardening. |
+
+```mermaid
+flowchart LR
+  Source[SvelteKit project] --> Build[Adapter build]
+  Build --> Static[Prerendered HTML and assets]
+  Build --> PHP[PHP data / actions / endpoints]
+  Build --> JS[Optional private JavaScript sidecar]
+  Browser[Browser] --> Host[Apache or Nginx with PHP]
+  Host --> Static
+  Host --> PHP
+  Host --> JS
+```
+
+Kit 2 and Kit 3 have separate configuration and pinned fixture lanes. Remote functions remain explicitly unsupported. A peer range, a passing build, and real-host acceptance answer different questions. EFSDB's use of imported static output is narrower than the adapter's own modes; see [EFSDB](https://github.com/ryanspice/efsdb).
+
+## Start here
+
+For the published package, inspect the current release before selecting it:
+
+```powershell
+npm view sveltekit-php dist-tags --json
+npm view sveltekit-php@1.0.1 version
+```
+
+The guide below describes the current source candidate. Its newer compatibility features are not established for the older published package. For development, use this checkout's Bun workflow and a security-patched PHP runtime; run the package/consumer gates before distributing a candidate. Do not copy a nonexistent `@alpha` installation command.
+
+For contributors and coding agents, begin with [INTENT.md](INTENT.md) and [AGENTS.md](AGENTS.md). Pick one owned task, include generated-package verification, and return a focused patch/authorized commit with a current receipt.
+
+<details>
+<summary>Source-candidate setup, configuration, recipes, and full verification guide</summary>
+
 
 This project implements a **SvelteKit adapter for PHP**, allowing you to deploy SvelteKit applications to standard PHP hosting environments (Apache, Nginx, Shared Hosting) while maintaining a modern development experience.
 
@@ -8,8 +54,8 @@ Current package track: `1.1.0-alpha.0`. See [SvelteKit 2/3 compatibility and CoS
 
 ## Support Policy
 
-- Official support floor: PHP 8.1+
-- Recommended production target: PHP 8.3+
+- Current code compatibility floor: PHP 8.1+; this does not establish security support for an end-of-life branch.
+- Production requires a supported, patched PHP branch. Prefer patched 8.4/8.5 after host acceptance; see the [PHP support calendar](https://www.php.net/supported-versions.php) and [October 21 security advisory](https://www.php.net/archive/2026.php#2026-10-21-5).
 - Supported hosting styles: Apache, Nginx, shared hosting, and PHP-FPM-backed hosts
 - `php-static` is the deployment default
 - `js-ssr` is JavaScript-sidecar SSR behind PHP
@@ -53,11 +99,9 @@ Mode choice:
 - **Node.js** (or Bun)
 - **PHP 8.1+** (Available in your system PATH)
 
-### Install in a SvelteKit project
+### Select a source-candidate package
 
-```powershell
-npm install -D sveltekit-php@alpha
-```
+Build and verify this checkout, then use a reviewed local package tarball in a disposable consumer. The October 23 registry has no `alpha` dist-tag; publication and hosted acceptance are still required. The published `1.0.1` package and this `1.1.0-alpha.0` source candidate have different evidence. The [compatibility guide](docs/SVELTEKIT-3-COMPATIBILITY.md) documents the packed-consumer fixture workflow.
 
 For SvelteKit 2, configure `svelte.config.js` (Kit 3 uses `sveltekit({ adapter: adapter() })` in `vite.config.js`; see the compatibility guide):
 
@@ -101,7 +145,7 @@ function GET($event) {
 }
 ```
 
-Build with your project package manager, serve `build/` with PHP locally, and upload the complete `build/` directory to the PHP web root. Both `sveltekit-php` and the compatibility import `sveltekit-php/adapter` are supported and typed.
+For `php-static`, build with your project package manager, verify the generated output locally, and deploy the reviewed public output to the PHP web root after the required security/host checks. Current `js-ssr` deployment must wait for private server-output isolation and its host acceptance checks (A-01 in the modernization plan); its complete output is not an acceptable public document root. Both `sveltekit-php` and the compatibility import `sveltekit-php/adapter` are supported and typed.
 
 ### Contributing to this adapter
 
@@ -305,14 +349,14 @@ For the same split used by CI:
 
 ```bash
 bun run build:e2e
-bun run verify:artifacts
+bun run verify:artifacts -- --strict
 bun scripts/verify-all.mjs --mode=php-static --skipBuild
 bun scripts/verify-all.mjs --mode=all --skipBuild
 ```
 
-Generated artifacts such as `adapter/index.js` should be produced by the build scripts, not patched by hand. `bun run verify:artifacts` fails when checked-in generated output drifts after `bun run build:adapter`.
+Generate artifacts such as `adapter/index.js` with the build scripts. `bun run verify:artifacts -- --strict` fails when checked-in generated output drifts after `bun run build:adapter`; plain verification can be advisory outside CI.
 
-After editing `adapter/src/**` or runtime PHP templates, run `bun run build:adapter` before `bun run verify:artifacts`. Treat stale `adapter/index.js` output as a release blocker until it is regenerated from source.
+After editing `adapter/src/**` or runtime PHP templates, run `bun run build:adapter` before `bun run verify:artifacts -- --strict`. Treat stale `adapter/index.js` output as a release blocker until it is regenerated from source.
 
 ### Build identity contract
 
@@ -426,6 +470,8 @@ The precheck requires non-empty `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REMOTE`, a
 - Form actions: PHP-provided `$_POST`/`$_FILES` data is used when available, with a `php://input` fallback for JSON, URL-encoded raw bodies, and raw text.
 - Server fetch: `sk_fetch()` uses PHP stream wrappers when available, falls back to cURL, and returns an explicit fetch-error response if neither transport is available. Shared hosts should enable either `allow_url_fopen` or `curl`.
 
+The [current security review](docs/MODERNIZATION.md) identifies missing PHP action-origin enforcement, sidecar trust/binding issues, and server-bundle exposure. `SK_ORIGIN` and `SK_TRUSTED_PROXY_HEADERS` in the existing hosting contract are proposed controls, not implemented runtime enforcement. Apply and verify the planned fixes before relying on these paths for authenticated production traffic.
+
 ---
 
 ## 📂 Project Structure
@@ -435,5 +481,7 @@ The precheck requires non-empty `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REMOTE`, a
 - `scripts/`: Build and verification scripts.
   - `dev-php.mjs`: The hybrid dev server orchestrator.
 - `src/lib/server/php-dev.ts`: The bridge connecting Vite to PHP in dev.
+
+</details>
 
 
