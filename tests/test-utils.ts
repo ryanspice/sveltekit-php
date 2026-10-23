@@ -50,7 +50,8 @@ export async function startPhpAndSidecar(options: ServerOptions): Promise<Server
 				env: {
 					...process.env,
 					...env,
-					PORT: sidecarPort.toString()
+					PORT: sidecarPort.toString(),
+					SK_ORIGIN: `http://127.0.0.1:${port}`
 					// ORIGIN: `http://localhost:${sidecarPort}` // SvelteKit might need this
 				},
 				stdio: 'pipe' // Capture output for debugging

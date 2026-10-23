@@ -2808,10 +2808,44 @@ const server = new Server(manifest);`}
 import http from 'node:http';
 import { createReadStream } from 'node:fs';
 import { Readable } from 'node:stream';
+import { isIP } from 'node:net';
 
 await server.init({ env: process.env, read: (file) => Readable.toWeb(createReadStream(new URL('./' + file, import.meta.url))) });
 
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.SK_SIDECAR_HOST || '127.0.0.1';
+const BODY_SIZE_LIMIT = Number(process.env.SK_BODY_SIZE_LIMIT || 10485760);
+if (!Number.isInteger(PORT) || PORT < 0 || PORT > 65535) throw new Error('Invalid PORT');
+if (!Number.isSafeInteger(BODY_SIZE_LIMIT) || BODY_SIZE_LIMIT < 1) throw new Error('Invalid SK_BODY_SIZE_LIMIT');
+const normalizeOrigin = (value) => {
+    if (typeof value !== 'string' || /[\\\\\\x00-\\x20\\x7f,]/.test(value)) return null;
+    try {
+        const parsed = new URL(value);
+        if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) return null;
+        return parsed.origin;
+    } catch { return null; }
+};
+const configuredOrigin = process.env.SK_ORIGIN ? normalizeOrigin(process.env.SK_ORIGIN) : null;
+if (process.env.SK_ORIGIN && !configuredOrigin) throw new Error('Invalid SK_ORIGIN');
+if (!['127.0.0.1', '::1', 'localhost'].includes(HOST) && !configuredOrigin) throw new Error('SK_ORIGIN is required for non-loopback sidecar binding');
+const proxyAddresses = (process.env.SK_TRUSTED_PROXY_IPS || '127.0.0.1,::1').split(',').map((value) => value.trim());
+const proxyDepth = Number(process.env.SK_XFF_DEPTH || 1);
+if (!Number.isSafeInteger(proxyDepth) || proxyDepth < 1) throw new Error('Invalid SK_XFF_DEPTH');
+const trustedProxy = (req) => process.env.SK_TRUSTED_PROXY_HEADERS === 'true' && proxyAddresses.includes((req.socket.remoteAddress || '').replace(/^::ffff:/, ''));
+const readBody = (req) => new Promise((resolve, reject) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (chunk) => {
+        size += chunk.length;
+        if (size > BODY_SIZE_LIMIT) {
+            chunks.length = 0;
+            reject(Object.assign(new Error('Payload Too Large'), { status: 413 }));
+        } else chunks.push(chunk);
+    });
+    req.once('end', () => resolve(Buffer.concat(chunks)));
+    req.once('error', () => reject(Object.assign(new Error('Bad Request'), { status: 400 })));
+    req.once('aborted', () => reject(Object.assign(new Error('Bad Request'), { status: 400 })));
+});
 const DEBUG = process.env.SK_DEBUG === 'true' || process.env.ADAPTER_DEBUG === 'true';
 const debugLog = (...args) => {
     if (DEBUG) globalThis.console.log(...args);
@@ -2819,9 +2853,14 @@ const debugLog = (...args) => {
 
 http.createServer(async (req, res) => {
 	try {
-		const protocol = req.headers['x-forwarded-proto'] || 'http';
-		const host = req.headers['x-forwarded-host'] || req.headers.host;
-		let url = new URL(req.url, \`\${protocol}://\${host}\`);
+		const trustsProxy = trustedProxy(req);
+		const protocol = trustsProxy ? req.headers['x-forwarded-proto'] || 'http' : 'http';
+		const host = trustsProxy ? req.headers['x-forwarded-host'] || req.headers.host : req.headers.host;
+		const origin = configuredOrigin || normalizeOrigin(protocol + '://' + host);
+		if (!origin || !req.url.startsWith('/') || req.url.startsWith('//') || /[\\\\\\x00-\\x20\\x7f]/.test(req.url)) {
+            res.writeHead(400); res.end('Bad Request'); return;
+        }
+		const url = new URL(req.url, origin);
 
     // Health/Ready Checks
     const base = '${base}';
@@ -2871,16 +2910,30 @@ http.createServer(async (req, res) => {
         debugLog('[Handler] Converting HEAD to GET for ' + url.pathname);
     }
 
+    const requestHeaders = { ...req.headers, host: url.host };
+    if (!trustsProxy) {
+        for (const name of Object.keys(requestHeaders)) {
+            if (name === 'forwarded' || name.startsWith('x-forwarded-')) delete requestHeaders[name];
+        }
+    }
+    const contentLength = req.headers['content-length'];
+    if (contentLength !== undefined && (!/^\\d+$/.test(contentLength) || Number(contentLength) > BODY_SIZE_LIMIT)) {
+        req.resume(); res.writeHead(413, { Connection: 'close' }); res.end('Payload Too Large'); return;
+    }
+    const body = method === 'GET' || method === 'HEAD' ? undefined : await readBody(req);
     const request = new Request(url, {
         method: method,
-        headers: req.headers,
-        body: method === 'GET' || method === 'HEAD' ? undefined : req,
-        duplex: 'half'
+        headers: requestHeaders,
+        body
     });
 
     const response = await server.respond(request, {
         getClientAddress: () => {
-            return req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+            const remote = req.socket.remoteAddress || '127.0.0.1';
+            if (!trustsProxy || typeof req.headers['x-forwarded-for'] !== 'string') return remote;
+            const chain = req.headers['x-forwarded-for'].split(',').map((value) => value.trim());
+            const address = chain[chain.length - proxyDepth];
+            return isIP(address || '') ? address : remote;
         },
         platform: { req, res }
     });
@@ -2916,10 +2969,11 @@ http.createServer(async (req, res) => {
 
 } catch (e) {
     globalThis.console.error(e);
-    res.statusCode = 500;
-    res.end('Internal Server Error');
+    res.statusCode = e.status === 413 || e.status === 400 ? e.status : 500;
+    if (res.statusCode === 413) { req.resume(); res.setHeader('Connection', 'close'); }
+    res.end(res.statusCode === 413 ? 'Payload Too Large' : res.statusCode === 400 ? 'Bad Request' : 'Internal Server Error');
 }
-}).listen(PORT, () => {
+}).listen(PORT, HOST, () => {
     globalThis.console.log(\`Listening on port \${PORT}\`);
 });
 `;
@@ -2927,6 +2981,7 @@ http.createServer(async (req, res) => {
 function getPhpProxy(sidecarUrl, base = "") {
   return `<?php
 require_once __DIR__ . '/_runtime/compat.php';
+${getPhpRequestSecurity()}
 /**
  * SvelteKit Node Sidecar Proxy
  * - Forwards requests to the running Node/Bun sidecar
@@ -2974,6 +3029,18 @@ if (!$sidecar) {
 }
 
 $sidecar = rtrim($sidecar, '/');
+$sidecarOrigin = sk_normalize_origin($sidecar);
+$sidecarHost = $sidecarOrigin === null ? '' : parse_url($sidecarOrigin, PHP_URL_HOST);
+if ($sidecarOrigin === null || (getenv('ALLOW_NONLOCAL_SIDECAR') !== '1' && !in_array($sidecarHost, ['127.0.0.1', 'localhost', '[::1]'], true))) {
+    http_response_code(500);
+    exit('Configuration Error: Invalid sidecar origin');
+}
+$sidecar = $sidecarOrigin;
+$publicOrigin = sk_request_origin();
+if ($publicOrigin === null) {
+    http_response_code(400);
+    exit('Invalid request origin configuration');
+}
 $base = '${base}';
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -3093,7 +3160,7 @@ $headers = [];
 // Explicitly ignore client-provided Forwarded headers to prevent spoofing
 $headersToIgnore = [
     'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-prefix',
-    'x-request-id', 'connection', 'keep-alive', 'proxy-authenticate',
+    'forwarded', 'x-request-id', 'connection', 'keep-alive', 'proxy-authenticate',
     'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'host', 'content-length'
 ];
 
@@ -3109,13 +3176,13 @@ if ($clientReqId && preg_match('/^[a-zA-Z0-9-_]{1,200}$/', $clientReqId)) {
 $headers[] = "X-Request-Id: $reqId";
 
 foreach (getallheaders() as $name => $value) {
-    if (in_array(strtolower($name), $headersToIgnore)) continue;
+    if (in_array(strtolower($name), $headersToIgnore) || str_starts_with(strtolower($name), 'x-forwarded-')) continue;
     $headers[] = "$name: $value";
 }
 
-$headers[] = "X-Forwarded-For: " . ($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1');
-$headers[] = "X-Forwarded-Proto: " . ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http');
-$headers[] = "X-Forwarded-Host: " . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+$headers[] = "X-Forwarded-For: " . sk_client_address();
+$headers[] = "X-Forwarded-Proto: " . parse_url($publicOrigin, PHP_URL_SCHEME);
+$headers[] = "X-Forwarded-Host: " . parse_url($publicOrigin, PHP_URL_HOST) . (parse_url($publicOrigin, PHP_URL_PORT) !== null ? ':' . parse_url($publicOrigin, PHP_URL_PORT) : '');
 if ($base) {
     $headers[] = "X-Forwarded-Prefix: " . $base;
 }

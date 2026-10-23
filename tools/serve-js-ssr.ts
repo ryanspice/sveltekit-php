@@ -48,6 +48,7 @@ const nodeServer = spawn('node', [handlerPath], {
 	env: {
 		...process.env,
 		PORT: port,
+		SK_ORIGIN: process.env.SK_ORIGIN || `http://127.0.0.1:${phpPort}`,
 		ADDRESS_HEADER: 'x-forwarded-for',
 		XFF_DEPTH: '1'
 	}
