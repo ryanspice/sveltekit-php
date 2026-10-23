@@ -1498,6 +1498,7 @@ async function verifyFormAction(baseUrl, check) {
 		method: 'POST',
 		body: new URLSearchParams(check.form),
 		headers: {
+			origin: new URL(url).origin,
 			accept: 'application/json',
 			'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
 			'x-sveltekit-action': 'true'

@@ -245,6 +245,7 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 			const resActionSanity = await fetch(`${baseUrl}/form-basic?/echo`, {
 				method: 'POST',
 				headers: {
+					Origin: new URL(baseUrl).origin,
 					'x-sveltekit-action': 'true'
 				},
 				body: formDataSanity
@@ -399,6 +400,7 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				body: formData,
 				redirect: 'manual', // Do not auto-follow
 				headers: {
+					Origin: new URL(baseUrl).origin,
 					'Content-Type': 'application/x-www-form-urlencoded',
 					'X-SvelteKit-Action': 'true',
 					Accept: 'application/json'
@@ -501,6 +503,7 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				body: failData,
 				redirect: 'manual',
 				headers: {
+					Origin: new URL(baseUrl).origin,
 					'Content-Type': 'application/x-www-form-urlencoded',
 					'X-SvelteKit-Action': 'true',
 					Accept: 'application/json'

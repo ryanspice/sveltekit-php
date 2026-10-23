@@ -1507,6 +1507,89 @@ if (preg_match('#^/_protected(?:/|$)#', $uri) || ($base !== '' && preg_match('#^
 }
 
 // adapter/src/runtime/php-templates.ts
+function getPhpRequestSecurity() {
+  return String.raw`
+if (!function_exists('sk_normalize_origin')) {
+function sk_normalize_origin($value): ?string {
+    if (!is_string($value) || $value === '' || preg_match('/[\x00-\x20\x7f,\\\\]/', $value)) return null;
+    $parts = parse_url($value);
+    if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) return null;
+    $scheme = strtolower($parts['scheme']);
+    $host = strtolower($parts['host']);
+    if (!in_array($scheme, ['http', 'https'], true) || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) return null;
+    if (($parts['path'] ?? '') !== '' && $parts['path'] !== '/') return null;
+    if (!preg_match('/^(?:[a-z0-9.-]+|\[[a-f0-9:.]+\])$/', $host)) return null;
+    $port = $parts['port'] ?? null;
+    if ($port !== null && ($port < 1 || $port > 65535)) return null;
+    $default = ($scheme === 'https' ? 443 : 80);
+    return $scheme . '://' . $host . ($port !== null && $port !== $default ? ':' . $port : '');
+}
+function sk_trust_proxy_headers(): bool {
+    if (getenv('SK_TRUSTED_PROXY_HEADERS') !== 'true') return false;
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (str_starts_with($remote, '::ffff:')) $remote = substr($remote, 7);
+    $trusted = explode(',', getenv('SK_TRUSTED_PROXY_IPS') ?: '127.0.0.1,::1');
+    return in_array($remote, array_map('trim', $trusted), true);
+}
+function sk_request_origin(): ?string {
+    $configured = getenv('SK_ORIGIN');
+    if ($configured !== false && $configured !== '') return sk_normalize_origin($configured);
+    $scheme = (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTPS'] ?? '') === '1') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if (sk_trust_proxy_headers()) {
+        $scheme = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? $scheme;
+        $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $host;
+    }
+    return sk_normalize_origin($scheme . '://' . $host);
+}
+function sk_client_address(): string {
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    if (!sk_trust_proxy_headers() || !isset($_SERVER['HTTP_X_FORWARDED_FOR'])) return $remote;
+    $depth = getenv('SK_XFF_DEPTH') ?: '1';
+    if (!ctype_digit($depth) || (int)$depth < 1) return $remote;
+    $chain = array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']));
+    $index = count($chain) - (int)$depth;
+    return $index >= 0 && filter_var($chain[$index], FILTER_VALIDATE_IP) !== false ? $chain[$index] : $remote;
+}
+function sk_read_limited_body(): string {
+    static $body = null;
+    if ($body !== null) return $body;
+    $limit = getenv('SK_BODY_SIZE_LIMIT') ?: '10485760';
+    if (!ctype_digit($limit) || (int)$limit < 1 || (int)$limit >= PHP_INT_MAX) {
+        http_response_code(500);
+        exit('Invalid SK_BODY_SIZE_LIMIT');
+    }
+    $length = $_SERVER['CONTENT_LENGTH'] ?? null;
+    if ($length !== null && (!ctype_digit((string)$length) || (int)$length > (int)$limit)) {
+        http_response_code(413);
+        exit('Payload Too Large');
+    }
+    $raw = file_get_contents('php://input', false, null, 0, (int)$limit + 1);
+    $body = is_string($raw) ? $raw : '';
+    if (strlen($body) > (int)$limit) {
+        http_response_code(413);
+        exit('Payload Too Large');
+    }
+    return $body;
+}
+function sk_validate_action_origin(): void {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') return;
+    $expected = sk_request_origin();
+    if ($expected === null) {
+        http_response_code(400);
+        exit('Invalid request origin configuration');
+    }
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
+    $allowMissing = $origin === null && getenv('SK_ALLOW_MISSING_ORIGIN') === '1';
+    if (!$allowMissing && ($origin === null || sk_normalize_origin($origin) !== $expected)) {
+        http_response_code(403);
+        exit('Cross-site POST form submissions are forbidden');
+    }
+    sk_read_limited_body();
+}
+}
+`;
+}
 function getDataPhp(includes, base = "", compatRel = "./_runtime/compat.php", relToRoot = "./") {
   return `<?php
 /**
@@ -1518,6 +1601,9 @@ function getDataPhp(includes, base = "", compatRel = "./_runtime/compat.php", re
  */
 
 declare(strict_types=1);
+
+${getPhpRequestSecurity()}
+sk_validate_action_origin();
 
 // Runtime Hardening
 if (!defined('SK_HARDENED')) {
@@ -2136,6 +2222,9 @@ function getActionPhp(includes, routeId, pagePrefix, compatRel = "./_runtime/com
 
 declare(strict_types = 1);
 
+${getPhpRequestSecurity()}
+sk_validate_action_origin();
+
 require_once __DIR__ . '/${compatRel}';
 
 ${includes.join(`
@@ -2166,9 +2255,7 @@ function sk_action_content_type(): string {
 
 if (!function_exists('sk_action_raw_body')) {
 function sk_action_raw_body(): string {
-	static $body = null;
-	if ($body === null) $body = file_get_contents('php://input') ?: '';
-	return $body;
+	return sk_read_limited_body();
 }
 }
 
@@ -2364,6 +2451,8 @@ try {
 function getBootstrapPhp(routeId, loadFns, templateJson, inlineMode, requirePrefix = "") {
   const templateB64 = Buffer.from(templateJson, "utf8").toString("base64");
   return `<?php
+${getPhpRequestSecurity()}
+sk_validate_action_origin();
 require_once __DIR__ . '${requirePrefix}/__data.php';
 
 ini_set('output_buffering', '0');
@@ -2442,6 +2531,8 @@ if (!empty($sk_deferreds)) {
 }
 function getMinimalBootstrapPhp(requirePrefix = "") {
   return `<?php
+${getPhpRequestSecurity()}
+sk_validate_action_origin();
 // Minimal bootstrap for actions only (SSR=false or no data)
 // Keep GET/HEAD page requests on the generated HTML shell; delegate only action posts.
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && file_exists(__DIR__ . '${requirePrefix}/__action.php')) {
