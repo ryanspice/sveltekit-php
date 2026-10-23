@@ -4,7 +4,7 @@ import { readdir, stat, readFile } from 'node:fs/promises';
 import type { AdapterOptions, Builder, BuildIdentityContract } from '../types.js';
 
 export const DEFAULT_BUILD_IDENTITY_EXTENSIONS = ['.php', '.html', '.json'];
-export const RESERVED_ROUTE_SEGMENTS = new Set(['_app', '_runtime', '_protected', 'adapter']);
+export const RESERVED_ROUTE_SEGMENTS = new Set(['_app', '_runtime', '_protected', 'adapter', 'server']);
 export const RESERVED_ROUTE_FILES = new Set([
 	'__data',
 	'__action',

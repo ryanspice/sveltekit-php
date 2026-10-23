@@ -40,7 +40,7 @@ export async function startPhpAndSidecar(options: ServerOptions): Promise<Server
 
 	try {
 		if (mode === 'js-ssr') {
-			const handlerPath = path.resolve(outDir, 'server/handler.mjs');
+			const handlerPath = path.resolve(`${outDir}-server`, 'handler.mjs');
 			if (!fs.existsSync(handlerPath)) {
 				throw new Error(`Node handler not found at ${handlerPath}`);
 			}

@@ -104,8 +104,10 @@ async function run() {
 		checkContent(statusShim, 'sk_extract_params', 'shim: parameter extraction');
 	} else {
 		log('Skipping shim checks for js-ssr mode', COLORS.yellow);
-		// For js-ssr, the entry point is the generated handler in server/
-		checkFileExists('server/handler.mjs');
+		const handler = path.join(`${path.resolve(OUT_DIR)}-server`, 'handler.mjs');
+		if (!fs.existsSync(handler)) fail('Missing private sidecar handler');
+		if (fs.existsSync(path.join(OUT_DIR, 'server'))) fail('Private server tree leaked into public output');
+		pass('Private sidecar handler is outside public output');
 	}
 
 	// 4. Asset Checks

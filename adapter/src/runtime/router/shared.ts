@@ -125,6 +125,27 @@ if (router_has_bad_path($path) || router_has_bad_path($uri_raw)) {
 	return;
 }
 
+// Deny private artifacts before exact-file delegation, including Windows path aliases.
+$guard_uri = $uri_raw;
+for ($i = 0; $i < 3; $i++) {
+    $next = rawurldecode($guard_uri);
+    if ($next === $guard_uri) break;
+    $guard_uri = $next;
+}
+$guard_segments = explode('/', str_replace('\\\\', '/', $guard_uri));
+foreach ($guard_segments as $index => $segment) {
+    $normalized = strtolower(rtrim($segment, ' .'));
+    $private = in_array($normalized, ['server', '_protected', 'adapter'], true);
+    if ($normalized === '_runtime') {
+        $private = count($guard_segments) !== $index + 2 || $guard_segments[$index + 1] !== 'build-stamp.json';
+    }
+    if ($private || (isset($segment[0]) && $segment[0] === '.')) {
+        http_response_code(403);
+        echo "Access Denied";
+        return;
+    }
+}
+
 if (preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)) {
 	http_response_code(403);
 	echo "Access Denied";

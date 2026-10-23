@@ -35,7 +35,7 @@ console.log(`✓ Artifacts verified in ${outDir} (built at ${result.stamp.builtA
 console.log(`Starting js-ssr sidecar on port ${port}...`);
 console.log(`Starting PHP proxy on port ${phpPort} with base path "${basePath}"...`);
 
-const serverDir = path.join(outDir, 'server');
+const serverDir = `${path.resolve(outDir)}-server`;
 const handlerPath = path.join(serverDir, 'handler.mjs');
 
 if (!fs.existsSync(handlerPath)) {

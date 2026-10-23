@@ -165,6 +165,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 			const assetsIsUrl = isUrlLike(assets);
 			const outDir = path.resolve(out);
 			const assetsDir = assetsIsUrl ? outDir : path.resolve(assets);
+			const privateServerDir = `${outDir}-server`;
 			const tmpDir = builder.getBuildDirectory('sveltekit-php');
 			const configuredBasePath = normalizeBasePathOption(
 				configuredBasePathOption ?? builder.config.kit.paths.base ?? ''
@@ -202,6 +203,24 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 			assertSafeBuildTarget(outDir, 'out', builder.config.kit.files.routes);
 			if (!assetsIsUrl) assertSafeBuildTarget(assetsDir, 'assets', builder.config.kit.files.routes);
 			assertSafeBuildTarget(tmpDir, 'tmp', builder.config.kit.files.routes);
+			if (mode === 'js-ssr') {
+				assertSafeBuildTarget(privateServerDir, 'private server', builder.config.kit.files.routes);
+				if (!assetsIsUrl) {
+					const overlaps = (parent: string, child: string) => {
+						const rel = path.relative(parent, child);
+						return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel));
+					};
+					if (overlaps(assetsDir, privateServerDir) || overlaps(privateServerDir, assetsDir)) {
+						throw new Error('sveltekit-php: private server output must not overlap public assets');
+					}
+				}
+				if (await exists(privateServerDir)) {
+					const entries = await readdir(privateServerDir);
+					if (entries.length > 0 && !entries.includes('.sveltekit-php-server')) {
+						throw new Error('sveltekit-php: refusing to clean an unowned private server directory');
+					}
+				}
+			}
 
 			const clean = (dir: string) =>
 				cleanBuildDirectory(dir, { strict, warn: (message) => builder.log.warn(message) });
@@ -209,6 +228,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 			await clean(outDir);
 			if (!assetsIsUrl && assetsDir !== outDir) await clean(assetsDir);
 			await clean(tmpDir);
+			if (mode === 'js-ssr') await clean(privateServerDir);
 
 			builder.mkdirp(outDir);
 			if (!assetsIsUrl && assetsDir !== outDir) builder.mkdirp(assetsDir);
@@ -994,8 +1014,10 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				await writeFile(path.join(outDir, '_runtime', 'compat.php'), compatPhp, 'utf8');
 
 				// Generate Server Bundle
-				const serverDir = path.join(outDir, 'server');
+				// Only outDir is a public document root. The sidecar is a separate deployment tree.
+				const serverDir = privateServerDir;
 				builder.mkdirp(serverDir);
+				await writeFile(path.join(serverDir, '.sveltekit-php-server'), 'sveltekit-php private server output\n');
 				builder.writeServer(serverDir);
 
 				// Kit 3 generates a server instance; Kit 2 retains the manifest/class API.
@@ -1124,7 +1146,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				// SvelteKit's writeServer produces a standalone bundle usually if we use the right options,
 				// but typically it relies on dependencies being installed.
 				// However, the prompt says "zero deps" for the handler.
-				// We assume the user runs `node out/server/handler.mjs` in an environment where deps are available
+				// Run `node <out>-server/handler.mjs` outside the public document root.
 				// OR the bundle is standalone.
 				// Standard adapter-node produces an index.js that requires '0' (the app).
 				// We'll assume the user will run this in the project root or similar.

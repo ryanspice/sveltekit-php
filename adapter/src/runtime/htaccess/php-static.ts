@@ -108,6 +108,10 @@ ${redirectRules}
 	DirectoryIndex index.php index.html
 
 ${guardRules}
+	# Private artifacts must be denied before any existing-file or asset shortcut.
+	RewriteRule (^|/)(?:server|adapter|_protected)[. ]*(?:/|$) - [F,L,NC]
+	RewriteCond %{REQUEST_URI} !/_runtime/build-stamp\\.json$ [NC]
+	RewriteRule (^|/)_runtime[. ]*(?:/|$) - [F,L,NC]
 	# deny adapter private area (convention)
 	RewriteRule ^${baseOptional}_protected/ - [F,L]
 

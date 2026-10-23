@@ -120,6 +120,29 @@ describe('assets output in js-ssr', () => {
 		await instance.adapt(builder as unknown as AdapterBuilder);
 		const assetPath = path.join(outDir, '_app', 'immutable', 'entry', 'app.js');
 		expect(fs.existsSync(assetPath)).toBe(true);
+		expect(fs.existsSync(path.join(`${outDir}-server`, 'handler.mjs'))).toBe(true);
+		expect(fs.existsSync(path.join(outDir, 'server'))).toBe(false);
+	});
+
+	it('rejects public/private output overlap before cleaning any existing files', async () => {
+		const { builder, outDir } = createBuilder(tempRoot);
+		const privateDir = `${outDir}-server`;
+		fs.mkdirSync(privateDir, { recursive: true });
+		fs.writeFileSync(path.join(privateDir, 'preserve.txt'), 'EXISTING');
+		for (const assets of [privateDir, path.join(privateDir, 'public'), tempRoot]) {
+			await expect(adapter({ mode: 'js-ssr', out: outDir, assets }).adapt(builder as unknown as AdapterBuilder))
+				.rejects.toThrow('private server output must not overlap public assets');
+			expect(fs.readFileSync(path.join(privateDir, 'preserve.txt'), 'utf8')).toBe('EXISTING');
+		}
+	});
+	it('never cleans an existing unowned private-output sibling', async () => {
+		const { builder, outDir, assetsDir } = createBuilder(tempRoot);
+		const privateDir = `${outDir}-server`;
+		fs.mkdirSync(privateDir);
+		fs.writeFileSync(path.join(privateDir, 'preserve.txt'), 'EXISTING');
+		await expect(adapter({ mode: 'js-ssr', out: outDir, assets: assetsDir }).adapt(builder as unknown as AdapterBuilder))
+			.rejects.toThrow('refusing to clean an unowned private server directory');
+		expect(fs.readFileSync(path.join(privateDir, 'preserve.txt'), 'utf8')).toBe('EXISTING');
 	});
 
 	it('writes precompressed assets into outDir when enabled', async () => {

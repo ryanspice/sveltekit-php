@@ -142,7 +142,8 @@ async function acceptance(root, mode, base) {
 		assert(!emitted.includes(path.join(build, 'node-api/index.php')), 'JavaScript endpoint must reach the sidecar');
 		const nodePort = await freePort();
 		const nodeOrigin = `http://127.0.0.1:${nodePort}`;
-		await serve(process.execPath, [path.join(build, 'server/handler.mjs')], root, { PORT: String(nodePort) }, async (ready) => {
+		assert(!emitted.some((file) => file.startsWith(path.join(build, 'server') + path.sep)), 'private server output must be outside the document root');
+		await serve(process.execPath, [path.join(`${build}-server`, 'handler.mjs')], root, { PORT: String(nodePort) }, async (ready) => {
 			const response = await ready(nodeOrigin + base + '/live'); assert.equal(response.status, 200);
 			assert.match(await response.text(), /request-time SSR/);
 			const api = await fetch(nodeOrigin + base + '/node-api'); assert.equal(api.status, 200);

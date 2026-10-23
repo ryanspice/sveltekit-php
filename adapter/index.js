@@ -18,7 +18,7 @@ var __toESM = (mod, isNodeMode, target) => {
 var __commonJS = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
 var __require = /* @__PURE__ */ createRequire(import.meta.url);
 
-// node_modules/globrex/index.js
+// ../../../Dev/sveltekit-php/node_modules/globrex/index.js
 var require_globrex = __commonJS((exports, module) => {
   var isWin = process.platform === "win32";
   var SEP = isWin ? `\\\\+` : `\\/`;
@@ -248,7 +248,7 @@ var require_globrex = __commonJS((exports, module) => {
   module.exports = globrex;
 });
 
-// node_modules/globalyzer/src/index.js
+// ../../../Dev/sveltekit-php/node_modules/globalyzer/src/index.js
 var require_src = __commonJS((exports, module) => {
   var os = __require("os");
   var path = __require("path");
@@ -310,7 +310,7 @@ var require_src = __commonJS((exports, module) => {
   module.exports = globalyzer;
 });
 
-// node_modules/tiny-glob/index.js
+// ../../../Dev/sveltekit-php/node_modules/tiny-glob/index.js
 var require_tiny_glob = __commonJS((exports, module) => {
   var fs = __require("fs");
   var globrex = require_globrex();
@@ -379,7 +379,7 @@ var require_tiny_glob = __commonJS((exports, module) => {
 var import_tiny_glob = __toESM(require_tiny_glob(), 1);
 import path5 from "node:path";
 import { fileURLToPath } from "node:url";
-import { readFile as readFile3, writeFile, rename, stat as stat2 } from "node:fs/promises";
+import { readFile as readFile3, writeFile, rename, stat as stat2, readdir as readdir2 } from "node:fs/promises";
 
 // adapter/src/utils/paths.ts
 import path from "node:path";
@@ -1424,6 +1424,27 @@ if (router_has_bad_path($path) || router_has_bad_path($uri_raw)) {
 	http_response_code(400);
 	echo "Bad Request";
 	return;
+}
+
+// Deny private artifacts before exact-file delegation, including Windows path aliases.
+$guard_uri = $uri_raw;
+for ($i = 0; $i < 3; $i++) {
+    $next = rawurldecode($guard_uri);
+    if ($next === $guard_uri) break;
+    $guard_uri = $next;
+}
+$guard_segments = explode('/', str_replace('\\\\', '/', $guard_uri));
+foreach ($guard_segments as $index => $segment) {
+    $normalized = strtolower(rtrim($segment, ' .'));
+    $private = in_array($normalized, ['server', '_protected', 'adapter'], true);
+    if ($normalized === '_runtime') {
+        $private = count($guard_segments) !== $index + 2 || $guard_segments[$index + 1] !== 'build-stamp.json';
+    }
+    if ($private || (isset($segment[0]) && $segment[0] === '.')) {
+        http_response_code(403);
+        echo "Access Denied";
+        return;
+    }
 }
 
 if (preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)) {
@@ -3599,6 +3620,10 @@ ${redirectRules}
 	DirectoryIndex index.php index.html
 
 ${guardRules}
+	# Private artifacts must be denied before any existing-file or asset shortcut.
+	RewriteRule (^|/)(?:server|adapter|_protected)[. ]*(?:/|$) - [F,L,NC]
+	RewriteCond %{REQUEST_URI} !/_runtime/build-stamp\\.json$ [NC]
+	RewriteRule (^|/)_runtime[. ]*(?:/|$) - [F,L,NC]
 	# deny adapter private area (convention)
 	RewriteRule ^${baseOptional}_protected/ - [F,L]
 
@@ -3684,7 +3709,7 @@ import path4 from "node:path";
 import os from "node:os";
 import { readdir, stat, readFile as readFile2 } from "node:fs/promises";
 var DEFAULT_BUILD_IDENTITY_EXTENSIONS = [".php", ".html", ".json"];
-var RESERVED_ROUTE_SEGMENTS = new Set(["_app", "_runtime", "_protected", "adapter"]);
+var RESERVED_ROUTE_SEGMENTS = new Set(["_app", "_runtime", "_protected", "adapter", "server"]);
 var RESERVED_ROUTE_FILES = new Set([
   "__data",
   "__action",
@@ -4034,6 +4059,7 @@ function sveltekitPhpAdapter(options = {}) {
       const assetsIsUrl = isUrlLike(assets);
       const outDir = path5.resolve(out);
       const assetsDir = assetsIsUrl ? outDir : path5.resolve(assets);
+      const privateServerDir = `${outDir}-server`;
       const tmpDir = builder.getBuildDirectory("sveltekit-php");
       const configuredBasePath = normalizeBasePathOption(configuredBasePathOption ?? builder.config.kit.paths.base ?? "") ?? "";
       const basePath = baseMode === "fixed" ? configuredBasePath : "";
@@ -4066,11 +4092,31 @@ function sveltekitPhpAdapter(options = {}) {
       if (!assetsIsUrl)
         assertSafeBuildTarget(assetsDir, "assets", builder.config.kit.files.routes);
       assertSafeBuildTarget(tmpDir, "tmp", builder.config.kit.files.routes);
+      if (mode === "js-ssr") {
+        assertSafeBuildTarget(privateServerDir, "private server", builder.config.kit.files.routes);
+        if (!assetsIsUrl) {
+          const overlaps = (parent, child) => {
+            const rel = path5.relative(parent, child);
+            return rel === "" || !rel.startsWith(`..${path5.sep}`) && rel !== ".." && !path5.isAbsolute(rel);
+          };
+          if (overlaps(assetsDir, privateServerDir) || overlaps(privateServerDir, assetsDir)) {
+            throw new Error("sveltekit-php: private server output must not overlap public assets");
+          }
+        }
+        if (await exists(privateServerDir)) {
+          const entries = await readdir2(privateServerDir);
+          if (entries.length > 0 && !entries.includes(".sveltekit-php-server")) {
+            throw new Error("sveltekit-php: refusing to clean an unowned private server directory");
+          }
+        }
+      }
       const clean = (dir) => cleanBuildDirectory(dir, { strict, warn: (message) => builder.log.warn(message) });
       await clean(outDir);
       if (!assetsIsUrl && assetsDir !== outDir)
         await clean(assetsDir);
       await clean(tmpDir);
+      if (mode === "js-ssr")
+        await clean(privateServerDir);
       builder.mkdirp(outDir);
       if (!assetsIsUrl && assetsDir !== outDir)
         builder.mkdirp(assetsDir);
@@ -4584,8 +4630,10 @@ function sveltekitPhpAdapter(options = {}) {
         }
         builder.mkdirp(path5.join(outDir, "_runtime"));
         await writeFile(path5.join(outDir, "_runtime", "compat.php"), compatPhp, "utf8");
-        const serverDir = path5.join(outDir, "server");
+        const serverDir = privateServerDir;
         builder.mkdirp(serverDir);
+        await writeFile(path5.join(serverDir, ".sveltekit-php-server"), `sveltekit-php private server output
+`);
         builder.writeServer(serverDir);
         const serverInstance = typeof builder.generateServerInstance === "function";
         if (serverInstance) {
