@@ -13,18 +13,20 @@ describe('JS SSR generated PHP execution over loopback', () => {
 		it(`${layout} exact PHP wrappers execute and never disclose source for GET and HEAD`, async () => {
 			const probe = await createRouterProbe(layout);
 			probes.push(probe);
-			for (const file of ['index.php', '_server.php']) {
+			for (const file of ['_server.php', 'index.php']) {
 				const url = `${probe.base}/negotiate/${file}`;
 				const get = await probe.request(url);
 				const body = await get.text();
 				expect(get.status).toBe(200);
-				expect(get.headers.get('content-type')).not.toContain('application/octet-stream');
 				expect(body).not.toContain(probe.marker);
+				expect(get.headers.get('content-type')).not.toContain('application/octet-stream');
 				if (file === 'index.php') expect(body).toContain('Negotiated API');
+				if (file === '_server.php') expect(get.headers.get('x-router-fixture')).toBe('executed');
 
 				const head = await probe.request(url, 'HEAD');
 				expect(head.status).toBe(200);
 				expect(head.headers.get('content-type')).not.toContain('application/octet-stream');
+				if (file === '_server.php') expect(head.headers.get('x-router-fixture')).toBe('executed');
 				expect(await head.text()).toBe('');
 			}
 		});
@@ -40,9 +42,9 @@ describe('JS SSR generated PHP execution over loopback', () => {
 					const response = await probe.request(pathname);
 					const body = await response.text();
 					expect(response.status).toBe(200);
+					expect(body).not.toContain(probe.marker);
 					expect(response.headers.get('content-type')).not.toContain('application/octet-stream');
 					expect(body).toContain('Negotiated API');
-					expect(body).not.toContain(probe.marker);
 				}
 			});
 		}
