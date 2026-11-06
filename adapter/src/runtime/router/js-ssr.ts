@@ -5,6 +5,11 @@ $full_path = __DIR__ . $uri;
 if ($uri !== '/') {
     $real_full_path = router_safe_path(__DIR__, $full_path);
     if ($real_full_path !== null && is_file($real_full_path)) {
+        if (strtolower(pathinfo($real_full_path, PATHINFO_EXTENSION)) === 'php') {
+            $_SERVER["SCRIPT_FILENAME"] = $real_full_path;
+            require $real_full_path;
+            return;
+        }
         router_send_file($real_full_path);
         return;
     } elseif ($real_full_path !== null && is_dir($real_full_path)) {
@@ -62,6 +67,11 @@ if ($real_path !== null && is_dir($real_path)) {
     }
 }
 if ($real_path !== null && is_file($real_path)) {
+    if (strtolower(pathinfo($real_path, PATHINFO_EXTENSION)) === 'php') {
+        $_SERVER["SCRIPT_FILENAME"] = $real_path;
+        require $real_path;
+        return;
+    }
     router_send_file($real_path);
     return;
 }
