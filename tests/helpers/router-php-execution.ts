@@ -1,12 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import {
-	existsSync,
-	mkdtempSync,
-	mkdirSync,
-	readFileSync,
-	rmSync,
-	writeFileSync
-} from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
 import { getStandaloneApiPhp } from '../../adapter/src/runtime/js-ssr-templates.ts';
@@ -73,6 +66,7 @@ export async function createRouterProbe(layout: 'root' | 'base'): Promise<Router
 	try {
 		const endpointDir = path.join(root, 'negotiate');
 		mkdirSync(endpointDir, { recursive: true });
+		mkdirSync(path.join(root, 'static-only'), { recursive: true });
 		mkdirSync(path.join(root, '_protected'), { recursive: true });
 		mkdirSync(path.join(root, '_runtime'), { recursive: true });
 		writeFileSync(path.join(root, '_runtime', 'compat.php'), '<?php // runtime fixture');
@@ -85,8 +79,16 @@ export async function createRouterProbe(layout: 'root' | 'base'): Promise<Router
 			path.join(endpointDir, '_server.php'),
 			`<?php function GET($event) { return ['status' => 200, 'headers' => ['Content-Type' => 'application/json'], 'body' => ['title' => 'Negotiated API']]; }`
 		);
-		writeFileSync(path.join(endpointDir, 'index.php'), getStandaloneApiPhp('_server.php'));
+		writeFileSync(path.join(endpointDir, 'index.php'), getStandaloneApiPhp('_server.php', '..'));
 		writeFileSync(path.join(endpointDir, 'case.PHP'), getStandaloneApiPhp('_server.php'));
+		writeFileSync(
+			path.join(endpointDir, 'index.html'),
+			'<!doctype html><title>Negotiated HTML</title>'
+		);
+		writeFileSync(
+			path.join(root, 'static-only', 'index.html'),
+			'<!doctype html><title>Static only</title>'
+		);
 		writeFileSync(path.join(root, 'asset.txt'), asset);
 		writeFileSync(path.join(root, 'index.php'), '<?php echo "root fixture";');
 		writeFileSync(path.join(root, 'router.php'), getRouterPhp(base, 'js-ssr', false));

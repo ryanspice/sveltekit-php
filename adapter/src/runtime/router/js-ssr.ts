@@ -53,7 +53,7 @@ if ($uri !== '/') {
     $real_path = null;
 }
 if ($real_path !== null && is_dir($real_path)) {
-    foreach (["/index.html", "/index.php"] as $idx) {
+    foreach (["/index.php", "/index.html"] as $idx) {
         $candidate = router_safe_path(__DIR__, $real_path . $idx);
         if ($candidate !== null && is_file($candidate)) {
             if (substr($candidate, -4) === ".php") {
