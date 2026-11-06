@@ -97,6 +97,21 @@ function fixture_action_save($event) { return fixture_action_default($event); }`
 		).toBe(200);
 		expect(existsSync(path.join(f.root, 'action.marker'))).toBe(true);
 	}, 15000);
+	it.each(['0', '-1', 'unbounded', '9223372036854775807'])(
+		'rejects invalid configured body limit %s before dispatch',
+		async (limit) => {
+			const f = await actionFixture({ SK_BODY_SIZE_LIMIT: limit });
+			const response = await fetch(f.origin + '/__action', {
+				method: 'POST',
+				headers: { Origin: f.origin },
+				body: 'body'
+			});
+			expect(response.status).toBe(500);
+			expect(existsSync(path.join(f.root, 'included.marker'))).toBe(false);
+			expect(existsSync(path.join(f.root, 'action.marker'))).toBe(false);
+		},
+		15000
+	);
 	it('rejects oversized PHP action bodies before user includes or handler dispatch', async () => {
 		const f = await actionFixture({ SK_BODY_SIZE_LIMIT: '4' });
 		const response = await fetch(f.origin + '/__action', {

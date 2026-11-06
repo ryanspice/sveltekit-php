@@ -238,10 +238,7 @@ export function buildAlphaGateMatrix(report: AlphaReadinessReport) {
 				command: 'bun run verify:release-prep',
 				proves:
 					'Verifies package metadata, env placeholders, CI markers, hosted-gate wrapper, report pipeline, artifact-sync contract, and hosted smoke coverage contract.',
-				requiredArtifacts: [
-					'docs/ALPHA-RELEASE-CHECKLIST.md',
-					'report/alpha-release-checklist.md'
-				]
+				requiredArtifacts: ['docs/ALPHA-RELEASE-CHECKLIST.md', 'report/alpha-release-checklist.md']
 			},
 			{
 				id: 'local-alpha-gate',
@@ -258,7 +255,8 @@ export function buildAlphaGateMatrix(report: AlphaReadinessReport) {
 				proofStage: 'hosted-smoke-proof',
 				command: 'bun run alpha:remote:smoke',
 				environment: ['ALPHA_SMOKE_BASE_URL'],
-				proves: 'Checks deployed PHP-hosted pages, report endpoints, content types, form POST action, and traversal leak probes.',
+				proves:
+					'Checks deployed PHP-hosted pages, report endpoints, content types, form POST action, and traversal leak probes.',
 				requiredArtifacts: ['report/alpha-remote-smoke.json']
 			},
 			{
@@ -267,7 +265,8 @@ export function buildAlphaGateMatrix(report: AlphaReadinessReport) {
 				proofStage: 'hosted-smoke-proof',
 				command: 'bun run alpha:gate:hosted',
 				environment: ['ALPHA_SMOKE_BASE_URL'],
-				proves: 'Runs the full local alpha gate, hosted smoke, report regeneration, and final alpha verification with hosted evidence embedded.',
+				proves:
+					'Runs the full local alpha gate, hosted smoke, report regeneration, and final alpha verification with hosted evidence embedded.',
 				requiredArtifacts: [
 					'report/alpha-remote-smoke.json',
 					'report/alpha-readiness.full.json',

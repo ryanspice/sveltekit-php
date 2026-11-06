@@ -64,11 +64,17 @@ function parseFirstJsonArray(text) {
 }
 
 const authResult = await runNpm(['whoami'], 30_000);
-const registryResult = await runNpm(['view', packageName, 'dist-tags', 'version', 'versions', '--json'], 30_000);
+const registryResult = await runNpm(
+	['view', packageName, 'dist-tags', 'version', 'versions', '--json'],
+	30_000
+);
 const packDestination = await mkdtemp(join(tmpdir(), 'sveltekit-php-pack-'));
 let packResult;
 try {
-	packResult = await runNpm(['pack', '--dry-run', '--json', '--pack-destination', packDestination], 120_000);
+	packResult = await runNpm(
+		['pack', '--dry-run', '--json', '--pack-destination', packDestination],
+		120_000
+	);
 } finally {
 	await rm(packDestination, { recursive: true, force: true });
 }
@@ -92,7 +98,8 @@ if (registryResult.ok) {
 }
 
 const versions = Array.isArray(registry?.versions) ? registry.versions : [];
-const distTags = registry?.['dist-tags'] && typeof registry['dist-tags'] === 'object' ? registry['dist-tags'] : {};
+const distTags =
+	registry?.['dist-tags'] && typeof registry['dist-tags'] === 'object' ? registry['dist-tags'] : {};
 const targetAlreadyPublished = versions.includes(targetVersion);
 
 if (targetAlreadyPublished) {
@@ -157,7 +164,9 @@ if (jsonOutput) {
 		console.log(`- target published: ${targetAlreadyPublished ? 'yes' : 'no'}`);
 	}
 	if (pack) {
-		console.log(`- pack dry-run: ${pack.filename}, ${pack.entryCount} entries, shasum ${pack.shasum}`);
+		console.log(
+			`- pack dry-run: ${pack.filename}, ${pack.entryCount} entries, shasum ${pack.shasum}`
+		);
 	}
 	for (const warning of warnings) {
 		console.log(`WARN ${warning}`);

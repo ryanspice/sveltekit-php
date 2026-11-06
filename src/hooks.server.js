@@ -44,7 +44,9 @@ export async function handle({ event, resolve }) {
 			return new Response(null, { status: 404 });
 		}
 
-		process.emitWarning(`[Error Handled] ${response.status} at ${event.url.pathname} - Redirecting to /`);
+		process.emitWarning(
+			`[Error Handled] ${response.status} at ${event.url.pathname} - Redirecting to /`
+		);
 
 		// Redirect to home page with cookie
 		return new Response(null, {

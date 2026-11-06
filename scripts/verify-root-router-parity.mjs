@@ -109,7 +109,9 @@ async function requireFile(filePath, label) {
 	try {
 		await access(filePath);
 	} catch {
-		throw new Error(`${label} missing at ${filePath}. Build the adapter output before running parity.`);
+		throw new Error(
+			`${label} missing at ${filePath}. Build the adapter output before running parity.`
+		);
 	}
 }
 
@@ -211,7 +213,11 @@ function createFixtures(base) {
 			headers: { accept: 'text/plain' }
 		},
 		{ name: 'protected', path: withBase('/_protected/secret.txt'), headers: { accept: '*/*' } },
-		{ name: 'missing-route', path: withBase('/definitely-missing'), headers: { accept: 'text/html' } }
+		{
+			name: 'missing-route',
+			path: withBase('/definitely-missing'),
+			headers: { accept: 'text/html' }
+		}
 	];
 
 	if (base) {
@@ -238,21 +244,21 @@ function request(port, fixture) {
 			},
 			(res) => {
 				const chunks = [];
-			res.on('data', (chunk) => chunks.push(chunk));
-			res.on('end', () => {
-				const body = Buffer.concat(chunks);
-				const normalizedBody = normalizeBodyForComparison(body, port);
-				resolve({
-					statusCode: res.statusCode ?? 0,
-					contentType: normalizeHeader(res.headers['content-type']),
-					location: normalizeHeader(res.headers.location),
-					bodyLength: body.length,
-					bodyHash: createHash('sha256').update(body).digest('hex'),
-					normalizedBodyHash: createHash('sha256').update(normalizedBody).digest('hex'),
-					normalizedBody
+				res.on('data', (chunk) => chunks.push(chunk));
+				res.on('end', () => {
+					const body = Buffer.concat(chunks);
+					const normalizedBody = normalizeBodyForComparison(body, port);
+					resolve({
+						statusCode: res.statusCode ?? 0,
+						contentType: normalizeHeader(res.headers['content-type']),
+						location: normalizeHeader(res.headers.location),
+						bodyLength: body.length,
+						bodyHash: createHash('sha256').update(body).digest('hex'),
+						normalizedBodyHash: createHash('sha256').update(normalizedBody).digest('hex'),
+						normalizedBody
+					});
 				});
-			});
-		}
+			}
 		);
 		req.on('timeout', () => {
 			req.destroy(new Error(`request timed out: ${fixture.path}`));
@@ -279,7 +285,10 @@ function compareResponses(generated, root) {
 		};
 	}
 	if (generated.normalizedBodyHash !== root.normalizedBodyHash) {
-		return { ok: false, reason: `body mismatch ${firstDiff(generated.normalizedBody, root.normalizedBody)}` };
+		return {
+			ok: false,
+			reason: `body mismatch ${firstDiff(generated.normalizedBody, root.normalizedBody)}`
+		};
 	}
 	return { ok: true, reason: '' };
 }

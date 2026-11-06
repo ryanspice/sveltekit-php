@@ -38,7 +38,8 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 			},
 			{
 				command: 'bun run alpha:gate:hosted',
-				purpose: 'Run local alpha gate, hosted smoke, report regeneration, and final report verification.'
+				purpose:
+					'Run local alpha gate, hosted smoke, report regeneration, and final report verification.'
 			}
 		],
 		hardProofBlockerLedgerMarker: 'hard-proof-blocker-ledger',
@@ -265,11 +266,12 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 					'native-host-compatibility-matrix',
 					'source-observed-host-compatibility-contract',
 					'packages/ultragear-widget-ui/src/app.ts',
-					'features.micaSupported',		'windowChromeState',
-		'mica-active',
-		'mica-inactive',
-		'plain',
-		'webview.setBackgroundColor([0, 0, 0, 0])',
+					'features.micaSupported',
+					'windowChromeState',
+					'mica-active',
+					'mica-inactive',
+					'plain',
+					'webview.setBackgroundColor([0, 0, 0, 0])',
 					'ShellFeatureProbe.mica_supported',
 					'current_shell_features()',
 					'cfg!(target_os = "windows")',
@@ -943,4 +945,3 @@ export function buildHostedSmokeChecklist(report: AlphaReadinessReport) {
 			'The alpha can be considered hosted-proven only when bun run alpha:gate:hosted passes with ALPHA_SMOKE_BASE_URL set to a real deployed PHP host.'
 	};
 }
-

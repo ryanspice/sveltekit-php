@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { mkdtemp, readFile, rm, writeFile, mkdir, access } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';

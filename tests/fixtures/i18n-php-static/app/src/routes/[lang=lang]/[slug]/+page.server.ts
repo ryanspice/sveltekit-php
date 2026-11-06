@@ -11,4 +11,3 @@ export const load: PageServerLoad = ({ params, request }) => {
 		accept: request.headers.get('accept') ?? ''
 	};
 };
-

@@ -11,7 +11,11 @@
 	const filePath = $derived(pathSegments.join('/'));
 
 	function normalizePathSegments(path: string[] | string | undefined): string[] {
-		return Array.isArray(path) ? path : typeof path === 'string' ? path.split('/').filter(Boolean) : [];
+		return Array.isArray(path)
+			? path
+			: typeof path === 'string'
+				? path.split('/').filter(Boolean)
+				: [];
 	}
 </script>
 
@@ -31,7 +35,11 @@
 					{#if i === pathSegments.length - 1}
 						{segment}
 					{:else}
-						<a href={resolve('/path-viewer/[...path]', { path: pathSegments.slice(0, i + 1).join('/') })}>{segment}</a>
+						<a
+							href={resolve('/path-viewer/[...path]', {
+								path: pathSegments.slice(0, i + 1).join('/')
+							})}>{segment}</a
+						>
 					{/if}
 				</li>
 			{/each}
@@ -52,9 +60,21 @@
 	<div class="actions">
 		<h3>Available Actions</h3>
 		<ul>
-			<li><a href={resolve('/path-viewer/[...path]', { path: 'test/document.pdf' })}>View a sample document</a></li>
-			<li><a href={resolve('/path-viewer/[...path]', { path: 'images/photo.jpg' })}>View a sample image</a></li>
-			<li><a href={resolve('/path-viewer/[...path]', { path: 'code/script.js' })}>View a sample script</a></li>
+			<li>
+				<a href={resolve('/path-viewer/[...path]', { path: 'test/document.pdf' })}
+					>View a sample document</a
+				>
+			</li>
+			<li>
+				<a href={resolve('/path-viewer/[...path]', { path: 'images/photo.jpg' })}
+					>View a sample image</a
+				>
+			</li>
+			<li>
+				<a href={resolve('/path-viewer/[...path]', { path: 'code/script.js' })}
+					>View a sample script</a
+				>
+			</li>
 		</ul>
 	</div>
 </main>

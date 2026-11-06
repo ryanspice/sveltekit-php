@@ -1568,7 +1568,8 @@ function sk_client_address(): string {
 function sk_read_limited_body(): string {
     static $body = null;
     if ($body !== null) return $body;
-    $limit = getenv('SK_BODY_SIZE_LIMIT') ?: '10485760';
+    $limit = getenv('SK_BODY_SIZE_LIMIT');
+    if ($limit === false || $limit === '') $limit = '10485760';
     if (!ctype_digit($limit) || (int)$limit < 1 || (int)$limit >= PHP_INT_MAX) {
         http_response_code(500);
         exit('Invalid SK_BODY_SIZE_LIMIT');
@@ -3173,6 +3174,17 @@ $requestBody = null;
 $requestBodySize = 0;
 $requestContentType = $_SERVER['CONTENT_TYPE'] ?? '';
 if ($hasBody) {
+    $isMultipart = (bool)preg_match('~^multipart/form-data(?:\s*;|\s*$)~i', $requestContentType);
+    if ($isMultipart) {
+        // A failed PHP parse can leave raw input readable. Validate before choosing
+        // raw forwarding or reconstruction so parser failures cannot bypass limits.
+        if (!preg_match('~;\s*boundary=(?:"[^"\r\n]+"|[^\s;"\r\n]+)~i', $requestContentType)) sk_proxy_body_fail(400);
+        if ($method === 'POST' && filter_var(ini_get('enable_post_data_reading'), FILTER_VALIDATE_BOOLEAN)) {
+            $postLimit = sk_proxy_ini_bytes((string)ini_get('post_max_size'));
+            if ($postLimit > 0 && $contentLength !== null && $contentLength > $postLimit) sk_proxy_body_fail(413);
+            if ($proxyParseError !== null && preg_match('~(?:POST Content-Length|input variables exceeded|input variable nesting|multipart|file upload|upload.*error)~i', $proxyParseError['message'] ?? '')) sk_proxy_body_fail(400);
+        }
+    }
     $requestBody = fopen('php://temp/maxmemory:2097152', 'w+b');
     $input = @fopen('php://input', 'rb');
     if ($requestBody === false || $input === false) sk_proxy_body_fail(500);
@@ -3182,14 +3194,10 @@ if ($hasBody) {
         sk_proxy_body_append($requestBody, $bytes, $requestBodySize, $maxBodyBytes);
     }
     fclose($input);
-    if ($requestBodySize === 0 && preg_match('~^multipart/form-data(?:\s*;|\s*$)~i', $requestContentType)) {
+    if ($requestBodySize === 0 && $isMultipart) {
         if ($method !== 'POST' || !filter_var(ini_get('enable_post_data_reading'), FILTER_VALIDATE_BOOLEAN) || $contentLength === 0) sk_proxy_body_fail(400);
         // PHP consumes POST multipart bodies before this script. Rebuild only its parsed semantics.
         // Bare duplicate names, original name spelling, and cross-field ordering cannot be recovered.
-        if (!preg_match('~;\s*boundary=(?:"[^"\r\n]+"|[^\s;"\r\n]+)~i', $requestContentType)) sk_proxy_body_fail(400);
-        $postLimit = sk_proxy_ini_bytes((string)ini_get('post_max_size'));
-        if ($postLimit > 0 && $contentLength !== null && $contentLength > $postLimit) sk_proxy_body_fail(413);
-        if ($proxyParseError !== null && preg_match('~(?:POST Content-Length|input variables exceeded|input variable nesting|multipart|file upload|upload.*error)~i', $proxyParseError['message'] ?? '')) sk_proxy_body_fail(400);
         $boundary = 'sk-proxy-' . bin2hex(random_bytes(16));
         foreach ($_POST as $name => $value) sk_proxy_form_fields($requestBody, (string)$name, $value, $boundary, $requestBodySize, $maxBodyBytes);
         foreach ($_FILES as $name => $file) {
@@ -4094,7 +4102,13 @@ import path4 from "node:path";
 import os from "node:os";
 import { readdir, stat, readFile as readFile2 } from "node:fs/promises";
 var DEFAULT_BUILD_IDENTITY_EXTENSIONS = [".php", ".html", ".json"];
-var RESERVED_ROUTE_SEGMENTS = new Set(["_app", "_runtime", "_protected", "adapter", "server"]);
+var RESERVED_ROUTE_SEGMENTS = new Set([
+  "_app",
+  "_runtime",
+  "_protected",
+  "adapter",
+  "server"
+]);
 var RESERVED_ROUTE_FILES = new Set([
   "__data",
   "__action",

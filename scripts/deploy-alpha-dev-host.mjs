@@ -208,7 +208,9 @@ async function main() {
 
 	if (!apply) {
 		console.log('\nAlpha dev-host deploy precheck passed.');
-		console.log('No upload performed. Re-run with --apply to upload to the guarded /dev/sveltekitphp target.');
+		console.log(
+			'No upload performed. Re-run with --apply to upload to the guarded /dev/sveltekitphp target.'
+		);
 		return;
 	}
 
@@ -222,7 +224,10 @@ async function main() {
 	if (smoke) {
 		assertHostedSmokeEnv('Alpha dev-host smoke');
 		assertSmokeBasePath(process.env.ALPHA_SMOKE_BASE_URL);
-		await runStep('Run hosted alpha smoke against /dev/sveltekitphp', 'bun', ['run', 'alpha:remote:smoke']);
+		await runStep('Run hosted alpha smoke against /dev/sveltekitphp', 'bun', [
+			'run',
+			'alpha:remote:smoke'
+		]);
 		await runStep('Regenerate alpha report with hosted evidence', 'bun', ['run', 'alpha:report']);
 		await runStep('Verify alpha report with hosted evidence', 'bun', ['run', 'verify:alpha']);
 	}

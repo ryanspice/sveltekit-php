@@ -226,7 +226,9 @@ export function renderAlphaReadinessMarkdown(
 		lines.push(`- Handler: \`${handler.handler}\`.`);
 		lines.push(`- UltraGear implementation: \`${handler.ultraGearImplementation}\`.`);
 		lines.push(`- Native host bridge mapping: \`${handler.nativeHostBridgeMapping}\`.`);
-		lines.push(`- Detail fields: ${handler.detailFields.map((field) => `\`${field}\``).join(', ')}.`);
+		lines.push(
+			`- Detail fields: ${handler.detailFields.map((field) => `\`${field}\``).join(', ')}.`
+		);
 		lines.push(`- Notes: ${handler.notes}`, '');
 	}
 
@@ -314,11 +316,7 @@ export function renderAlphaReadinessMarkdown(
 		);
 	}
 
-	lines.push(
-		'',
-		'## UltraGear bridge reuse map',
-		''
-	);
+	lines.push('', '## UltraGear bridge reuse map', '');
 
 	for (const pattern of report.bridgePatterns) {
 		lines.push(`### ${pattern.label}`, '');
@@ -366,7 +364,10 @@ export function renderAlphaReadinessMarkdown(
 		lines.push(`- Successful sources: ${communityAnalytics.summary?.successfulSources ?? 0}`);
 		lines.push(`- Failed sources: ${communityAnalytics.summary?.failedSources ?? 0}`);
 		lines.push(`- Skipped sources: ${communityAnalytics.summary?.skippedSources ?? 0}`);
-		lines.push(`- Average demand score: ${communityAnalytics.summary?.averageDemandScore ?? 0}/100`, '');
+		lines.push(
+			`- Average demand score: ${communityAnalytics.summary?.averageDemandScore ?? 0}/100`,
+			''
+		);
 
 		for (const query of communityAnalytics.queries ?? []) {
 			lines.push(`### ${query.keyword}`, '');

@@ -82,13 +82,25 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 
 	lines.push('## Source coverage plan', '');
 	lines.push('- Freshness marker: `community-analytics-freshness-contract`.');
-	lines.push('- Freshness rule: refresh with `bun run alpha:analytics` within 168 hours before alpha release review.');
+	lines.push(
+		'- Freshness rule: refresh with `bun run alpha:analytics` within 168 hours before alpha release review.'
+	);
 	lines.push(`- Providers: ${summarizeSources(sourceDescriptors, (source) => source.provider)}`);
-	lines.push(`- Evidence kinds: ${summarizeSources(sourceDescriptors, (source) => source.evidenceKind)}`);
-	lines.push(`- Collection risk: ${summarizeSources(sourceDescriptors, (source) => source.collectionRisk)}`);
-	lines.push(`- Reviewer action lanes: ${summarizeSources(sourceDescriptors, (source) => source.actionLane)}`);
-	lines.push(`- Confidence tiers: ${summarizeSources(sourceDescriptors, (source) => source.confidenceTier)}`);
-	lines.push(`- Source health: ${summarizeSources(sourceDescriptors, (source) => source.sourceHealth)}`);
+	lines.push(
+		`- Evidence kinds: ${summarizeSources(sourceDescriptors, (source) => source.evidenceKind)}`
+	);
+	lines.push(
+		`- Collection risk: ${summarizeSources(sourceDescriptors, (source) => source.collectionRisk)}`
+	);
+	lines.push(
+		`- Reviewer action lanes: ${summarizeSources(sourceDescriptors, (source) => source.actionLane)}`
+	);
+	lines.push(
+		`- Confidence tiers: ${summarizeSources(sourceDescriptors, (source) => source.confidenceTier)}`
+	);
+	lines.push(
+		`- Source health: ${summarizeSources(sourceDescriptors, (source) => source.sourceHealth)}`
+	);
 	lines.push(
 		`- Result total fields: ${summarizeSources(sourceDescriptors, (source) => source.resultTotalField)}`
 	);
@@ -101,19 +113,37 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 	lines.push('');
 
 	lines.push('## Reviewer action lanes', '');
-	lines.push('- `primary-release-evidence`: review first; can support alpha positioning after linked results are opened and sampled.');
-	lines.push('- `supporting-release-evidence`: use for package/discovery/support-burden context, not as standalone quality proof.');
-	lines.push('- `qualitative-context`: quote language themes only; do not convert fragile forum counts into release claims.');
-	lines.push('- `manual-claim-check`: open manually before relying on host-configuration or deployment claims.');
-	lines.push('- Confidence markers: `high-public-index`, `medium-public-sample`, `low-fragile-sample`, and `manual-unverified`.');
+	lines.push(
+		'- `primary-release-evidence`: review first; can support alpha positioning after linked results are opened and sampled.'
+	);
+	lines.push(
+		'- `supporting-release-evidence`: use for package/discovery/support-burden context, not as standalone quality proof.'
+	);
+	lines.push(
+		'- `qualitative-context`: quote language themes only; do not convert fragile forum counts into release claims.'
+	);
+	lines.push(
+		'- `manual-claim-check`: open manually before relying on host-configuration or deployment claims.'
+	);
+	lines.push(
+		'- Confidence markers: `high-public-index`, `medium-public-sample`, `low-fragile-sample`, and `manual-unverified`.'
+	);
 	lines.push('');
 
 	lines.push('## Required alpha evidence linkage', '');
 	lines.push('- Contract markers: `requiredEvidence`, `required-alpha-evidence`.');
-	lines.push('- Graphic proof: `alpha-readiness-report-graphics` via `/alpha-readiness/community-source-map.svg` and `report/alpha-community-source-map.svg`.');
-	lines.push('- Keyword proof: `community-keyword-search-graph` via `keywordSearchGraph`, `source-to-keyword-edge`, and spreadsheet CSV rows.');
-	lines.push('- Source proof: `alpha-community-source-evidence-checklist` via per-source checklist, source-health classification, release-use, and blocked-outcome policy fields.');
-	lines.push('- Freshness proof: `community-analytics-freshness-contract` via `collectedAt`, `maxAgeHours`, source coverage, `directional-community-signal` trust metadata, and `no-live-community-api-runtime-boundary` runtime separation.');
+	lines.push(
+		'- Graphic proof: `alpha-readiness-report-graphics` via `/alpha-readiness/community-source-map.svg` and `report/alpha-community-source-map.svg`.'
+	);
+	lines.push(
+		'- Keyword proof: `community-keyword-search-graph` via `keywordSearchGraph`, `source-to-keyword-edge`, and spreadsheet CSV rows.'
+	);
+	lines.push(
+		'- Source proof: `alpha-community-source-evidence-checklist` via per-source checklist, source-health classification, release-use, and blocked-outcome policy fields.'
+	);
+	lines.push(
+		'- Freshness proof: `community-analytics-freshness-contract` via `collectedAt`, `maxAgeHours`, source coverage, `directional-community-signal` trust metadata, and `no-live-community-api-runtime-boundary` runtime separation.'
+	);
 	for (const marker of requiredAlphaEvidence) {
 		lines.push(`- Required marker: \`${marker}\`.`);
 	}
@@ -127,9 +157,13 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 		lines.push(`- Failed sources: ${analytics.summary?.failedSources ?? 0}`);
 		lines.push(`- Blocked sources: ${analytics.summary?.blockedSources ?? 0}`);
 		lines.push(`- Skipped sources: ${analytics.summary?.skippedSources ?? 0}`);
-		lines.push(`- Manual-review-required sources: ${analytics.summary?.manualReviewRequiredSources ?? 0}`);
+		lines.push(
+			`- Manual-review-required sources: ${analytics.summary?.manualReviewRequiredSources ?? 0}`
+		);
 		lines.push(`- Average demand score: ${analytics.summary?.averageDemandScore ?? 0}/100`);
-		lines.push('- Freshness contract: `community-analytics-freshness-contract` requires `collectedAt`, source coverage summaries, and successful source counts to be reviewed before release.');
+		lines.push(
+			'- Freshness contract: `community-analytics-freshness-contract` requires `collectedAt`, source coverage summaries, and successful source counts to be reviewed before release.'
+		);
 		if (analytics.note) {
 			lines.push(`- Note: ${analytics.note}`);
 		}
@@ -147,7 +181,9 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 
 	lines.push('## Keyword research map', '');
 	for (const signal of report.communitySignals) {
-		const collected = analytics?.queries?.find((query) => (query.signalId ?? query.keyword) === signal.id || query.keyword === signal.keyword);
+		const collected = analytics?.queries?.find(
+			(query) => (query.signalId ?? query.keyword) === signal.id || query.keyword === signal.keyword
+		);
 
 		lines.push(`### ${signal.keyword}`, '');
 		lines.push(`- Intent: ${signal.intent}`);
@@ -215,10 +251,14 @@ export function renderAlphaCommunityAnalyticsMarkdown(
 	}
 
 	lines.push('## Limitations', '');
-	for (const limitation of report.limitations.filter((limitation) => limitation.includes('Community analytics'))) {
+	for (const limitation of report.limitations.filter((limitation) =>
+		limitation.includes('Community analytics')
+	)) {
 		lines.push(`- ${limitation}`);
 	}
-	lines.push('- Runtime endpoints do not call public community APIs; collection stays an explicit local/CI command. Marker: `no-live-community-api-runtime-boundary`.');
+	lines.push(
+		'- Runtime endpoints do not call public community APIs; collection stays an explicit local/CI command. Marker: `no-live-community-api-runtime-boundary`.'
+	);
 	lines.push('');
 
 	return lines.join('\n');

@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { AdapterMode, AdapterOptions } from '../types.js';
 
+// eslint-disable-next-line no-control-regex -- Reject literal and decoded control bytes in public adapter options.
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/;
 const VALID_MODES: readonly AdapterMode[] = ['php-static', 'js-ssr'];
 const VALID_BASE_MODES = ['fixed', 'auto'] as const;
@@ -20,7 +21,10 @@ function decodeForValidation(value: string, label: string): string {
 }
 
 function assertNoControlCharacters(value: string, label: string): void {
-	if (CONTROL_CHARACTERS.test(value) || CONTROL_CHARACTERS.test(decodeForValidation(value, label))) {
+	if (
+		CONTROL_CHARACTERS.test(value) ||
+		CONTROL_CHARACTERS.test(decodeForValidation(value, label))
+	) {
 		throw new Error(`sveltekit-php: ${label} must not contain control characters.`);
 	}
 }
@@ -42,10 +46,14 @@ export function normalizeBasePathOption(value: string | undefined): string | und
 	if (value === '' || value === '/') return '';
 	assertNoControlCharacters(value, 'basePath');
 	if (!value.startsWith('/') || value.endsWith('/')) {
-		throw new Error('sveltekit-php: basePath must be empty or start with one slash and omit the trailing slash.');
+		throw new Error(
+			'sveltekit-php: basePath must be empty or start with one slash and omit the trailing slash.'
+		);
 	}
 	if (value.includes('\\') || value.includes('?') || value.includes('#') || value.includes('//')) {
-		throw new Error('sveltekit-php: basePath must be a normalized URL path without backslashes, queries, fragments, or empty segments.');
+		throw new Error(
+			'sveltekit-php: basePath must be a normalized URL path without backslashes, queries, fragments, or empty segments.'
+		);
 	}
 	const decoded = decodeForValidation(value, 'basePath');
 	if (
@@ -54,11 +62,15 @@ export function normalizeBasePathOption(value: string | undefined): string | und
 		decoded.includes('#') ||
 		decoded.split('/').length !== value.split('/').length
 	) {
-		throw new Error('sveltekit-php: basePath must not contain encoded URL separators or reserved characters.');
+		throw new Error(
+			'sveltekit-php: basePath must not contain encoded URL separators or reserved characters.'
+		);
 	}
 	const segments = decoded.slice(1).split('/');
 	if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-		throw new Error('sveltekit-php: basePath must not contain empty, current-directory, or parent-directory segments.');
+		throw new Error(
+			'sveltekit-php: basePath must not contain empty, current-directory, or parent-directory segments.'
+		);
 	}
 	return value;
 }
@@ -81,7 +93,9 @@ export function normalizeFallbackOption(value: AdapterOptions['fallback']): bool
 		path.win32.isAbsolute(value) ||
 		/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(value)
 	) {
-		throw new Error('sveltekit-php: fallback must be a relative URL path without a scheme, drive, query, fragment, or backslash.');
+		throw new Error(
+			'sveltekit-php: fallback must be a relative URL path without a scheme, drive, query, fragment, or backslash.'
+		);
 	}
 	const decoded = decodeForValidation(value, 'fallback');
 	if (
@@ -92,16 +106,24 @@ export function normalizeFallbackOption(value: AdapterOptions['fallback']): bool
 		path.posix.isAbsolute(decoded) ||
 		path.win32.isAbsolute(decoded)
 	) {
-		throw new Error('sveltekit-php: fallback must not contain encoded separators or reserved characters.');
+		throw new Error(
+			'sveltekit-php: fallback must not contain encoded separators or reserved characters.'
+		);
 	}
 	const segments = decoded.split('/');
 	if (segments.some((segment) => segment === '' || segment === '.' || segment === '..')) {
-		throw new Error('sveltekit-php: fallback must not contain empty, current-directory, or parent-directory segments.');
+		throw new Error(
+			'sveltekit-php: fallback must not contain empty, current-directory, or parent-directory segments.'
+		);
 	}
 	return value;
 }
 
-export function resolveContainedOutputPath(root: string, relativePath: string, label: string): string {
+export function resolveContainedOutputPath(
+	root: string,
+	relativePath: string,
+	label: string
+): string {
 	const resolvedRoot = path.resolve(root);
 	const resolvedTarget = path.resolve(resolvedRoot, relativePath);
 	const relative = path.relative(resolvedRoot, resolvedTarget);

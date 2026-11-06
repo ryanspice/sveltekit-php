@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import os from 'node:os';
 import glob from 'tiny-glob';
 import { readFile, writeFile, rename, stat, readdir } from 'node:fs/promises';
 import {
@@ -52,7 +51,11 @@ import type { ResolvedBuildIdentityContract } from './utils/guards.js';
 
 const ADAPTER_VERSION = '1.1.0-alpha.0';
 
-function buildStamp(mode: AdapterMode, basePath: string, buildIdentity: ResolvedBuildIdentityContract | null) {
+function buildStamp(
+	mode: AdapterMode,
+	basePath: string,
+	buildIdentity: ResolvedBuildIdentityContract | null
+) {
 	return {
 		mode,
 		basePath: basePath || '',
@@ -167,9 +170,9 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 			const assetsDir = assetsIsUrl ? outDir : path.resolve(assets);
 			const privateServerDir = `${outDir}-server`;
 			const tmpDir = builder.getBuildDirectory('sveltekit-php');
-			const configuredBasePath = normalizeBasePathOption(
-				configuredBasePathOption ?? builder.config.kit.paths.base ?? ''
-			) ?? '';
+			const configuredBasePath =
+				normalizeBasePathOption(configuredBasePathOption ?? builder.config.kit.paths.base ?? '') ??
+				'';
 			const basePath = baseMode === 'fixed' ? configuredBasePath : '';
 			const routesBasePath = path.resolve(builder.config.kit.files.routes);
 			const trailingSlash = (await readTrailingSlashFromRoute('/', routesBasePath)) ?? 'ignore';
@@ -208,7 +211,10 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				if (!assetsIsUrl) {
 					const overlaps = (parent: string, child: string) => {
 						const rel = path.relative(parent, child);
-						return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel));
+						return (
+							rel === '' ||
+							(!rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel))
+						);
 					};
 					if (overlaps(assetsDir, privateServerDir) || overlaps(privateServerDir, assetsDir)) {
 						throw new Error('sveltekit-php: private server output must not overlap public assets');
@@ -263,7 +269,11 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				await builder.generateFallback(fallbackSrc);
 
 				// Manually copy fallback file to outDir as it might not be in builder.prerendered.pages
-				const fallbackDest = resolveContainedOutputPath(outDir, fallbackFile, 'fallback destination');
+				const fallbackDest = resolveContainedOutputPath(
+					outDir,
+					fallbackFile,
+					'fallback destination'
+				);
 				await builder.copy(fallbackSrc, fallbackDest);
 			}
 
@@ -596,16 +606,18 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				buildTimeBase && (navPath === buildTimeBase || navPath.startsWith(buildTimeBase + '/'))
 					? navPath.slice(buildTimeBase.length) || '/'
 					: navPath;
-			const prerenderedAssets = (builder.prerendered as typeof builder.prerendered & {
-				assets?: Map<string, { type: string }>;
-			}).assets;
+			const prerenderedAssets = (
+				builder.prerendered as typeof builder.prerendered & {
+					assets?: Map<string, { type: string }>;
+				}
+			).assets;
 			for (const [navPath] of prerenderedAssets ?? []) {
 				const localPath = localPrerenderPath(navPath);
 				const route = findRouteForNavPath(builder, localPath);
 				if (
 					route &&
-					await isEndpointOnlyRoute(route) &&
-					await isFile(path.join(prerenderedRoot, stripLeadingSlash(localPath)))
+					(await isEndpointOnlyRoute(route)) &&
+					(await isFile(path.join(prerenderedRoot, stripLeadingSlash(localPath))))
 				) {
 					prerenderedEndpointRoutes.add(route.id);
 				}
@@ -953,8 +965,6 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				// requirePrefix is always empty now because data is alongside index.php
 				requirePrefix = '';
 
-
-
 				await writeFile(path.join(dataDir, '__data.php'), dataPhp, 'utf8');
 				await writeFile(path.join(dataDir, '__action.php'), actionPhp, 'utf8');
 
@@ -1063,7 +1073,10 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				// Only outDir is a public document root. The sidecar is a separate deployment tree.
 				const serverDir = privateServerDir;
 				builder.mkdirp(serverDir);
-				await writeFile(path.join(serverDir, '.sveltekit-php-server'), 'sveltekit-php private server output\n');
+				await writeFile(
+					path.join(serverDir, '.sveltekit-php-server'),
+					'sveltekit-php private server output\n'
+				);
 				builder.writeServer(serverDir);
 
 				// Kit 3 generates a server instance; Kit 2 retains the manifest/class API.
@@ -1074,7 +1087,10 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 					});
 				} else {
 					const manifest = builder.generateManifest({ relativePath: '.' });
-					await writeFile(path.join(serverDir, 'manifest.js'), `export const manifest = ${manifest};\n`);
+					await writeFile(
+						path.join(serverDir, 'manifest.js'),
+						`export const manifest = ${manifest};\n`
+					);
 				}
 
 				// Generate Handler
@@ -1085,7 +1101,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 						outputDirectory: serverDir,
 						serverDirectory: serverDir
 					});
-					if (!builder.instrument) throw new Error('sveltekit-php: builder cannot instrument the JavaScript sidecar');
+					if (!builder.instrument)
+						throw new Error('sveltekit-php: builder cannot instrument the JavaScript sidecar');
 					builder.instrument({
 						entrypoint: path.join(serverDir, 'handler.mjs'),
 						instrumentation: path.join(serverDir, 'instrumentation.server.js'),
@@ -1458,7 +1475,6 @@ if (sk_prefers_html($accept)) {
 }
 ?>`;
 
-
 								await writeFile(indexPhp, negotiationPhp, 'utf8');
 							} else {
 								// No collision, just write index.php
@@ -1755,8 +1771,6 @@ if (is_file($fallback_200)) {
 					const pagePrefix = pageDep ? fnPrefixMap.get(pageDep) : null;
 					const actionPhp = getActionPhp(includes, routeId, pagePrefix ?? null, compatRel);
 
-
-
 					await writeFile(path.join(outDirForRoute, '__data.php'), dataPhp, 'utf8');
 					await writeFile(path.join(outDirForRoute, '__action.php'), actionPhp, 'utf8');
 				}
@@ -1918,7 +1932,6 @@ if (sk_prefers_html($accept)) {
     require __DIR__ . '/_server_dispatch.php';
 }
 ?>`;
-
 
 							await writeFile(indexPhp, negotiationPhp, 'utf8');
 						} else {
@@ -2120,7 +2133,6 @@ if (sk_prefers_html($accept)) {
 }
 ?>`;
 
-
 							await writeFile(indexPhp, negotiationPhp, 'utf8');
 						} else {
 							// No collision, just write index.php
@@ -2265,4 +2277,3 @@ if (sk_prefers_html($accept)) {
 		}
 	};
 }
-

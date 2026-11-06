@@ -25,7 +25,8 @@
 			<li><a href={resolve('/actions/multipart')}>Multipart Form Actions</a></li>
 			<li><a href={resolve('/client-side')}>Client-Side Rendering (Hydration)</a></li>
 			<li>
-				<a href={resolve('/preload')} data-sveltekit-preload-data="hover">Preload Data (Hover me)</a>
+				<a href={resolve('/preload')} data-sveltekit-preload-data="hover">Preload Data (Hover me)</a
+				>
 			</li>
 			<li><a href={resolve('/api/ping')} target="_blank">API Ping (JSON)</a></li>
 			<li><a href={resolve('/redirect-me')}>Redirect Test</a></li>

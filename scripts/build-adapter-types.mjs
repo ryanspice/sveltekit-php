@@ -6,7 +6,10 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const declarations = path.join(repoRoot, 'adapter', 'declarations');
 const expected = path.resolve(repoRoot, 'adapter', 'declarations');
-if (path.resolve(declarations) !== expected || !declarations.startsWith(path.join(repoRoot, 'adapter'))) {
+if (
+	path.resolve(declarations) !== expected ||
+	!declarations.startsWith(path.join(repoRoot, 'adapter'))
+) {
 	throw new Error(`Refusing to clean unexpected declarations path: ${declarations}`);
 }
 rmSync(declarations, { recursive: true, force: true });

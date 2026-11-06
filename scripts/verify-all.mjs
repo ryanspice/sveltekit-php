@@ -161,7 +161,11 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 
 		// Start Node Sidecar if needed
 		if (mode === 'js-ssr') {
-			const nodeEnv = { ...env, PORT: ports.nodePort, SK_ORIGIN: `http://127.0.0.1:${ports.phpPort}` };
+			const nodeEnv = {
+				...env,
+				PORT: ports.nodePort,
+				SK_ORIGIN: `http://127.0.0.1:${ports.phpPort}`
+			};
 			const node = spawn('node', [`${outDir}-server/handler.mjs`], { stdio: 'pipe', env: nodeEnv });
 			spawned.add(node);
 			procs.push(node);

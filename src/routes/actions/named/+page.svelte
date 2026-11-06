@@ -66,11 +66,7 @@
 			>
 				Validate Only
 			</button>
-			<button
-				onclick={selectSave}
-				class:active={activeAction === 'save'}
-				formaction="?/save"
-			>
+			<button onclick={selectSave} class:active={activeAction === 'save'} formaction="?/save">
 				Save Data
 			</button>
 		</div>

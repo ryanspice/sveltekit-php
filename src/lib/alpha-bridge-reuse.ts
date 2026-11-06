@@ -98,7 +98,8 @@ export function buildBridgeReuseInventory(report: AlphaReadinessReport) {
 				},
 				{
 					sourceFile: 'src-tauri/capabilities/default.json',
-					permission: 'core:window:allow-is-maximized + core:window:allow-maximize + core:window:allow-unmaximize + core:window:allow-toggle-maximize',
+					permission:
+						'core:window:allow-is-maximized + core:window:allow-maximize + core:window:allow-unmaximize + core:window:allow-toggle-maximize',
 					adapterActions: ['toggle-maximize'],
 					desktopShellUiHelpers: ['toggleWindowMaximize'],
 					proves:
@@ -237,15 +238,15 @@ export function buildBridgeReuseInventory(report: AlphaReadinessReport) {
 					'The native host binding guide maps the adapter controller shape to the reusable UltraGear desktop-shell helpers instead of only copying visual vocabulary.'
 			},
 			{
-					source: 'packages/ultragear-widget-ui/src/app.ts',
-					cues: [
+				source: 'packages/ultragear-widget-ui/src/app.ts',
+				cues: [
 					'features.micaSupported',
 					'windowChromeState',
 					'mica-active',
 					'mica-inactive',
 					'plain',
 					'webview.setBackgroundColor([0, 0, 0, 0])',
-						'enableMicaWindowChrome(win)',
+					'enableMicaWindowChrome(win)',
 					'windowMicaActive',
 					'syncTaskbarProgress(win, { saveInFlight, refreshInFlight, hasQueuedSave })',
 					'toggleDesktopWindowMaximize(win)',
@@ -402,11 +403,11 @@ export function buildBridgeReuseInventory(report: AlphaReadinessReport) {
 						'Reusable Tauri helpers are referenced as the optional desktop host implementation path while the PHP adapter package keeps native APIs out of its runtime.'
 				},
 				{
-				sourceFile: 'src/app.ts',
-				sourceCues: [
-					'applyWindowChrome',
-					'Effect.Mica',
-					'win.setEffects',
+					sourceFile: 'src/app.ts',
+					sourceCues: [
+						'applyWindowChrome',
+						'Effect.Mica',
+						'win.setEffects',
 						'syncWindowProgress',
 						'win.setProgressBar',
 						'ProgressBarStatus.Indeterminate',
@@ -791,7 +792,8 @@ export function buildBridgeReuseInventory(report: AlphaReadinessReport) {
 			{
 				file: 'src/lib/components/native-shell/NativeWindowShell.svelte',
 				cues: ['data-window-effect', 'data-window-focused', 'window-frame--maximized'],
-				proves: 'The adapter shell exposes browser-safe Mica/focus/maximized states equivalent to the UltraGear shell state contract.'
+				proves:
+					'The adapter shell exposes browser-safe Mica/focus/maximized states equivalent to the UltraGear shell state contract.'
 			},
 			{
 				file: 'src/lib/components/native-shell/NativeTitlebar.svelte',
@@ -899,7 +901,7 @@ export const alphaBridgeChromeStateReuseEvidence = {
 		'mica-active',
 		'mica-inactive',
 		'plain',
-		'webview.setBackgroundColor([0, 0, 0, 0])',
+		'webview.setBackgroundColor([0, 0, 0, 0])'
 	],
 	adapterEvidence: [
 		'src/lib/alpha-readiness-html.ts data-window-chrome-state',
@@ -907,8 +909,8 @@ export const alphaBridgeChromeStateReuseEvidence = {
 		'src/lib/alpha-readiness-html.ts data-transparent-webview-material-boundary',
 		'src/lib/alpha-readiness-html.ts data-transparent-webview-material-boundary="host-owned"',
 		'src/lib/alpha-readiness-svg.ts data-window-chrome-state',
-		'src/lib/alpha-readiness-svg.ts transparent-webview-material-boundary',
+		'src/lib/alpha-readiness-svg.ts transparent-webview-material-boundary'
 	],
 	boundary:
-		'Chrome-state reuse is a compatibility signal only; PHP adapter output cannot claim OS-native material effects without the desktop host proving the transparent webview and window effect path.',
+		'Chrome-state reuse is a compatibility signal only; PHP adapter output cannot claim OS-native material effects without the desktop host proving the transparent webview and window effect path.'
 } as const;

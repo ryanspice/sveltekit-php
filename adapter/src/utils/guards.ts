@@ -4,7 +4,13 @@ import { readdir, stat, readFile } from 'node:fs/promises';
 import type { AdapterOptions, Builder, BuildIdentityContract } from '../types.js';
 
 export const DEFAULT_BUILD_IDENTITY_EXTENSIONS = ['.php', '.html', '.json'];
-export const RESERVED_ROUTE_SEGMENTS = new Set(['_app', '_runtime', '_protected', 'adapter', 'server']);
+export const RESERVED_ROUTE_SEGMENTS = new Set([
+	'_app',
+	'_runtime',
+	'_protected',
+	'adapter',
+	'server'
+]);
 export const RESERVED_ROUTE_FILES = new Set([
 	'__data',
 	'__action',
@@ -79,9 +85,7 @@ export async function assertRemoteFunctionsUnsupported(builder: Builder) {
 			].filter(Boolean)
 		)
 	);
-	const remoteFiles = (
-		await Promise.all(roots.map((root) => collectRemoteFunctionFiles(root)))
-	)
+	const remoteFiles = (await Promise.all(roots.map((root) => collectRemoteFunctionFiles(root))))
 		.flat()
 		.map((file) => path.relative(cwd, file).replaceAll(path.sep, '/'))
 		.sort();
@@ -250,7 +254,11 @@ export function isRouteParamSegment(segment: string): boolean {
 	return segment.startsWith('[') && segment.endsWith(']');
 }
 
-export function validateReservedRouteIds(routes: Builder['routes'], strict: boolean, builder: Builder) {
+export function validateReservedRouteIds(
+	routes: Builder['routes'],
+	strict: boolean,
+	builder: Builder
+) {
 	const conflicts = routes
 		.map((route) => route.id)
 		.filter(Boolean)
@@ -335,9 +343,7 @@ export function assertSafeBuildTarget(target: string, label: string, routesRoot:
 		...(process.platform === 'win32'
 			? [
 					path.resolve(process.env.SystemRoot || 'C:\\Windows'),
-					path.resolve(
-						path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
-					)
+					path.resolve(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32'))
 				]
 			: ['/etc', '/usr', '/var', '/opt', '/boot', '/dev', '/proc', '/sys']),
 		path.join(home, 'Documents'),

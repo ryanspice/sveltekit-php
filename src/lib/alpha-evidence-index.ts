@@ -573,7 +573,8 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: '/alpha-readiness/no-hydration',
 				mediaType: 'text/html',
-				purpose: 'Prerendered csr=false fixture proving stable SSR theme HTML without client hydration scripts.',
+				purpose:
+					'Prerendered csr=false fixture proving stable SSR theme HTML without client hydration scripts.',
 				artifact: null
 			},
 			{
@@ -603,7 +604,8 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: '/alpha-readiness/release-checklist.md',
 				mediaType: 'text/markdown',
-				purpose: 'Human alpha release checklist for project policy, native shell mapping, community analytics linkage, runtime safety, and hosted proof.',
+				purpose:
+					'Human alpha release checklist for project policy, native shell mapping, community analytics linkage, runtime safety, and hosted proof.',
 				artifact: 'report/alpha-release-checklist.md'
 			},
 			{
@@ -615,7 +617,8 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: '/alpha-readiness/community-source-map.svg',
 				mediaType: 'image/svg+xml',
-				purpose: 'Portable graphic mapping community keywords to supported API and manual research source lanes.',
+				purpose:
+					'Portable graphic mapping community keywords to supported API and manual research source lanes.',
 				artifact: 'report/alpha-community-source-map.svg'
 			},
 			{
@@ -633,7 +636,8 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: '/alpha-readiness/evidence-index.json',
 				mediaType: 'application/json',
-				purpose: 'Self-describing index of alpha report endpoints, generated artifacts, and quality bars.',
+				purpose:
+					'Self-describing index of alpha report endpoints, generated artifacts, and quality bars.',
 				artifact: 'report/alpha-evidence-index.json'
 			},
 			{
@@ -645,19 +649,22 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: '/alpha-readiness/native-host-contract.json',
 				mediaType: 'application/json',
-				purpose: 'Native host seam for Mica, macOS chrome rhythm, report handoff, and no-Tauri adapter boundaries.',
+				purpose:
+					'Native host seam for Mica, macOS chrome rhythm, report handoff, and no-Tauri adapter boundaries.',
 				artifact: 'report/alpha-native-host-contract.json'
 			},
 			{
 				path: '/alpha-readiness/native-host-guide.md',
 				mediaType: 'text/markdown',
-				purpose: 'Desktop-wrapper binding guide for native-window-action handlers, Mica effect, progress, report-ready handoff, and fallback history.',
+				purpose:
+					'Desktop-wrapper binding guide for native-window-action handlers, Mica effect, progress, report-ready handoff, and fallback history.',
 				artifact: 'report/alpha-native-host-guide.md'
 			},
 			{
 				path: '/alpha-readiness/native-host-wrapper-smoke.json',
 				mediaType: 'application/json',
-				purpose: 'Deterministic wrapper smoke contract for LG UltraGear helper mapping and taskbar progress translation.',
+				purpose:
+					'Deterministic wrapper smoke contract for LG UltraGear helper mapping and taskbar progress translation.',
 				artifact: 'report/alpha-native-host-wrapper-smoke.json'
 			},
 			{
@@ -675,7 +682,8 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: '/alpha-readiness/review-index.md',
 				mediaType: 'text/markdown',
-				purpose: 'Human reviewer index mapping the alpha objective to runtime links, generated artifacts, and remaining gates.',
+				purpose:
+					'Human reviewer index mapping the alpha objective to runtime links, generated artifacts, and remaining gates.',
 				artifact: 'report/alpha-review-index.md'
 			},
 			{
@@ -687,13 +695,15 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: '/alpha-readiness/community-analytics.md',
 				mediaType: 'text/markdown',
-				purpose: 'Markdown community analytics handoff with collection commands, source coverage plan, keyword map, reviewer actions, and optional collected source counts.',
+				purpose:
+					'Markdown community analytics handoff with collection commands, source coverage plan, keyword map, reviewer actions, and optional collected source counts.',
 				artifact: 'report/alpha-community-analytics.md'
 			},
 			{
 				path: '/alpha-readiness/community-research-pack.json',
 				mediaType: 'application/json',
-				purpose: 'Community research pack grouped by supported API/manual mode with provider coverage, evidence kind, collection risk, priority, proof use, and reviewer actions.',
+				purpose:
+					'Community research pack grouped by supported API/manual mode with provider coverage, evidence kind, collection risk, priority, proof use, and reviewer actions.',
 				artifact: 'report/alpha-community-research-pack.json'
 			},
 			{
@@ -711,7 +721,8 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: '/alpha-readiness/community-sources.csv',
 				mediaType: 'text/csv',
-				purpose: 'Spreadsheet-ready community source inventory with provider, source host, source mode, evidence kind, collection risk, priority, endpoint, proof use, reviewer action, and result/top-result/sample-review field contracts.',
+				purpose:
+					'Spreadsheet-ready community source inventory with provider, source host, source mode, evidence kind, collection risk, priority, endpoint, proof use, reviewer action, and result/top-result/sample-review field contracts.',
 				artifact: 'report/alpha-community-sources.csv'
 			}
 		],
@@ -719,7 +730,8 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 			{
 				path: 'docs/ALPHA-RELEASE-CHECKLIST.md',
 				mediaType: 'text/markdown',
-				purpose: 'Human alpha release checklist for project policy, native shell mapping, community analytics linkage, runtime safety, and hosted proof.',
+				purpose:
+					'Human alpha release checklist for project policy, native shell mapping, community analytics linkage, runtime safety, and hosted proof.',
 				proofStage: 'release-checklist-documentation',
 				trustLevel: 'deterministic-local-check'
 			},
@@ -782,4 +794,3 @@ export function buildAlphaEvidenceIndex(report: AlphaReadinessReport) {
 		]
 	};
 }
-

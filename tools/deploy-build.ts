@@ -99,7 +99,12 @@ function env(name: string): string | undefined {
 
 function must(v: string | undefined, name: string): string {
 	const value = typeof v === 'string' ? v.trim() : '';
-	if (!value || /^(<.*>|\$\{.*\}|changeme|change_me|change-me|todo|tbd|placeholder|example|example\..*|your_.+|undefined|null)$/i.test(value)) {
+	if (
+		!value ||
+		/^(<.*>|\$\{.*\}|changeme|change_me|change-me|todo|tbd|placeholder|example|example\..*|your_.+|undefined|null)$/i.test(
+			value
+		)
+	) {
 		console.error(`Missing required "${name}". Set via --${name} or DEPLOY_${name.toUpperCase()}.`);
 		process.exit(2);
 	}
@@ -677,13 +682,7 @@ echo "[runner] end $(ts)" >> "$LOG"
 		: `echo "Cleanup disabled."`;
 
 	const extractCmd = `tar -xzf "${remoteTgzQ}" -C "${remoteBaseQ}" && rm -f "${remoteTgzQ}" && ${runCleanup}`;
-	code = await run('ssh', [
-		...sshIdentityArgs(o),
-		'-p',
-		String(o.port),
-		sshTarget(o),
-		extractCmd
-	]);
+	code = await run('ssh', [...sshIdentityArgs(o), '-p', String(o.port), sshTarget(o), extractCmd]);
 	if (code !== 0) process.exit(code);
 
 	await fs.rm(archiveLocal, { force: true });
@@ -781,15 +780,22 @@ async function main() {
 
 	const profile = String(a.profile ?? env('DEPLOY_PROFILE') ?? DEFAULTS.profile);
 
-	const host = must(a.host === true ? undefined : (a.host as string | undefined) ?? env('DEPLOY_HOST'), 'host');
-	const user = must(a.user === true ? undefined : (a.user as string | undefined) ?? env('DEPLOY_USER'), 'user');
-	const remote = must(a.remote === true ? undefined : (a.remote as string | undefined) ?? env('DEPLOY_REMOTE'), 'remote');
+	const host = must(
+		a.host === true ? undefined : ((a.host as string | undefined) ?? env('DEPLOY_HOST')),
+		'host'
+	);
+	const user = must(
+		a.user === true ? undefined : ((a.user as string | undefined) ?? env('DEPLOY_USER')),
+		'user'
+	);
+	const remote = must(
+		a.remote === true ? undefined : ((a.remote as string | undefined) ?? env('DEPLOY_REMOTE')),
+		'remote'
+	);
 
 	const port = parseNum(a.port ?? env('DEPLOY_PORT'), DEFAULTS.port);
 	const local = String(a.local ?? env('DEPLOY_LOCAL') ?? DEFAULTS.local);
-	const identityFileRaw = String(
-		a['identity-file'] ?? env('DEPLOY_IDENTITY_FILE') ?? ''
-	).trim();
+	const identityFileRaw = String(a['identity-file'] ?? env('DEPLOY_IDENTITY_FILE') ?? '').trim();
 	const identityFile = identityFileRaw ? path.resolve(expandHome(identityFileRaw)) : undefined;
 
 	const thresholdFiles = parseNum(

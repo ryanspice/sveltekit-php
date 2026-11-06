@@ -193,7 +193,9 @@ function validateSafeCommittedValue(key, value) {
 
 	if (['ADAPTER_OUT', 'ADAPTER_ASSETS', 'DEPLOY_LOCAL', 'ALPHA_SMOKE_REPORT_PATH'].includes(key)) {
 		if (path.isAbsolute(value) || /^[A-Z]:\\/i.test(value) || value.includes('..')) {
-			throw new Error(`${key} must not use an absolute or parent-relative path in committed env files.`);
+			throw new Error(
+				`${key} must not use an absolute or parent-relative path in committed env files.`
+			);
 		}
 	}
 }
@@ -205,7 +207,9 @@ async function verifyEnvFiles() {
 		throw new Error('.env.example is required for alpha release prep.');
 	}
 	if (!gitignoreText) {
-		throw new Error('.gitignore is required so runtime-local env files stay out of release artifacts.');
+		throw new Error(
+			'.gitignore is required so runtime-local env files stay out of release artifacts.'
+		);
 	}
 
 	const exampleEntries = parseEnvFile(exampleText);
@@ -222,12 +226,20 @@ async function verifyEnvFiles() {
 		.split(/\r?\n/)
 		.map((line) => line.trim())
 		.filter((line) => line && !line.startsWith('#'));
-	if (!gitignoreLines.includes('.env') || !gitignoreLines.includes('.env.*') || !gitignoreLines.includes('!.env.example')) {
+	if (
+		!gitignoreLines.includes('.env') ||
+		!gitignoreLines.includes('.env.*') ||
+		!gitignoreLines.includes('!.env.example')
+	) {
 		throw new Error('.gitignore must keep .env and .env.* ignored while allowing .env.example.');
 	}
 
-	console.log('PASS env-safety: release-prep checks .env.example and .gitignore without reading runtime-local .env.');
-	console.log(`PASS env-example: .env.example defines ${requiredEnvKeys.length} release-prep keys.`);
+	console.log(
+		'PASS env-safety: release-prep checks .env.example and .gitignore without reading runtime-local .env.'
+	);
+	console.log(
+		`PASS env-example: .env.example defines ${requiredEnvKeys.length} release-prep keys.`
+	);
 }
 
 async function verifyPackageMetadata() {
@@ -253,7 +265,9 @@ async function verifyPackageMetadata() {
 	}
 
 	if (packageJson.publishConfig?.tag !== 'alpha') {
-		throw new Error('package.json publishConfig.tag must stay alpha; do not publish alpha evidence as latest, rc, or stable.');
+		throw new Error(
+			'package.json publishConfig.tag must stay alpha; do not publish alpha evidence as latest, rc, or stable.'
+		);
 	}
 
 	if (
@@ -280,22 +294,38 @@ async function verifyPackageMetadata() {
 		!(releasePolicy?.disallowedDistTags ?? []).includes('rc') ||
 		!(releasePolicy?.disallowedDistTags ?? []).includes('stable')
 	) {
-		throw new Error('package.json must carry the alpha-over-rc release policy and disallow latest, rc, and stable dist-tags.');
+		throw new Error(
+			'package.json must carry the alpha-over-rc release policy and disallow latest, rc, and stable dist-tags.'
+		);
 	}
 
 	if (!Array.isArray(releasePolicy.requiredEvidence)) {
 		throw new Error('package.json sveltekitPhpReleasePolicy.requiredEvidence must be an array.');
 	}
 
-	const missingRequiredEvidence = requiredAlphaEvidence.filter((marker) => !releasePolicy.requiredEvidence.includes(marker));
-	const unexpectedRequiredEvidence = releasePolicy.requiredEvidence.filter((marker) => !requiredAlphaEvidence.includes(marker));
-	const reorderedRequiredEvidence = requiredAlphaEvidence.filter((marker, index) => releasePolicy.requiredEvidence[index] !== marker);
+	const missingRequiredEvidence = requiredAlphaEvidence.filter(
+		(marker) => !releasePolicy.requiredEvidence.includes(marker)
+	);
+	const unexpectedRequiredEvidence = releasePolicy.requiredEvidence.filter(
+		(marker) => !requiredAlphaEvidence.includes(marker)
+	);
+	const reorderedRequiredEvidence = requiredAlphaEvidence.filter(
+		(marker, index) => releasePolicy.requiredEvidence[index] !== marker
+	);
 
-	if (missingRequiredEvidence.length > 0 || unexpectedRequiredEvidence.length > 0 || reorderedRequiredEvidence.length > 0) {
+	if (
+		missingRequiredEvidence.length > 0 ||
+		unexpectedRequiredEvidence.length > 0 ||
+		reorderedRequiredEvidence.length > 0
+	) {
 		const details = [
 			missingRequiredEvidence.length > 0 ? `missing: ${missingRequiredEvidence.join(', ')}` : '',
-			unexpectedRequiredEvidence.length > 0 ? `unexpected: ${unexpectedRequiredEvidence.join(', ')}` : '',
-			reorderedRequiredEvidence.length > 0 ? `out-of-order: ${reorderedRequiredEvidence.join(', ')}` : ''
+			unexpectedRequiredEvidence.length > 0
+				? `unexpected: ${unexpectedRequiredEvidence.join(', ')}`
+				: '',
+			reorderedRequiredEvidence.length > 0
+				? `out-of-order: ${reorderedRequiredEvidence.join(', ')}`
+				: ''
 		].filter(Boolean);
 
 		throw new Error(
@@ -368,7 +398,9 @@ async function verifyPackageMetadata() {
 		throw new Error('package.json v1:gate:local must include alpha:latest-vite-major:smoke.');
 	}
 	if (!packageJson.scripts?.['v1:gate:hosted']?.includes('--skip-local')) {
-		throw new Error('package.json v1:gate:hosted must skip the local gate because v1:gate already runs v1:gate:local first.');
+		throw new Error(
+			'package.json v1:gate:hosted must skip the local gate because v1:gate already runs v1:gate:local first.'
+		);
 	}
 	if (
 		!packageJson.scripts?.['v1:gate']?.includes('v1:gate:local') ||
@@ -377,17 +409,22 @@ async function verifyPackageMetadata() {
 		throw new Error('package.json v1:gate must compose v1:gate:local and v1:gate:hosted.');
 	}
 
-	console.log(`PASS package-alpha: ${packageJson.name}@${packageJson.version} is publish-shaped with ${requiredAlphaEvidence.length} required evidence markers.`);
+	console.log(
+		`PASS package-alpha: ${packageJson.name}@${packageJson.version} is publish-shaped with ${requiredAlphaEvidence.length} required evidence markers.`
+	);
 }
 
 async function verifyAlphaReleaseChecklistDoc() {
-	const checklist = await readFile(path.join(repoRoot, 'docs', 'ALPHA-RELEASE-CHECKLIST.md'), 'utf8');
+	const checklist = await readFile(
+		path.join(repoRoot, 'docs', 'ALPHA-RELEASE-CHECKLIST.md'),
+		'utf8'
+	);
 	const requiredMarkers = [
 		'1.0.2-alpha release checklist',
 		'alpha-over-rc-release-policy',
 		'desktop-shell-ui-command-mapping',
-			'data-window-chrome-state',
-			'transparent-webview-material-boundary',
+		'data-window-chrome-state',
+		'transparent-webview-material-boundary',
 		'csr-disabled-prerender-contract',
 		'community-analytics-csv-linkage',
 		'result-total-field-contract',
@@ -433,10 +470,14 @@ async function verifyAlphaReleaseChecklistDoc() {
 	const missingMarkers = requiredMarkers.filter((marker) => !checklist.includes(marker));
 
 	if (missingMarkers.length > 0) {
-		throw new Error(`docs/ALPHA-RELEASE-CHECKLIST.md is missing required markers: ${missingMarkers.join(', ')}`);
+		throw new Error(
+			`docs/ALPHA-RELEASE-CHECKLIST.md is missing required markers: ${missingMarkers.join(', ')}`
+		);
 	}
 
-	console.log('PASS alpha-release-checklist: human alpha release checklist covers policy, native mapping, CSV linkage, runtime safety, and hosted proof.');
+	console.log(
+		'PASS alpha-release-checklist: human alpha release checklist covers policy, native mapping, CSV linkage, runtime safety, and hosted proof.'
+	);
 }
 
 async function verifyAlphaReleaseChecklistRuntimeContract() {
@@ -444,21 +485,54 @@ async function verifyAlphaReleaseChecklistRuntimeContract() {
 		path.join(repoRoot, 'src', 'lib', 'alpha-hard-proof-blockers.ts'),
 		'utf8'
 	);
-	const releaseChecklistSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-checklist.ts'), 'utf8');
+	const releaseChecklistSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-release-checklist.ts'),
+		'utf8'
+	);
 	const releaseChecklistEndpoint = await readFile(
 		path.join(repoRoot, 'src', 'routes', 'alpha-readiness', 'release-checklist.md', '+server.ts'),
 		'utf8'
 	);
-	const exportPipeline = await readFile(path.join(repoRoot, 'scripts', 'export-alpha-readiness.mjs'), 'utf8');
-	const manifestSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'), 'utf8');
-	const evidenceIndexSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-evidence-index.ts'), 'utf8');
-	const gateMatrixSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-gate-matrix.ts'), 'utf8');
-	const hostedChecklistSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-hosted-smoke-checklist.ts'), 'utf8');
-	const reviewIndexSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-review-index.ts'), 'utf8');
-	const packageContractSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-package-contract.ts'), 'utf8');
-	const bridgeReuseSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-bridge-reuse.ts'), 'utf8');
-	const nativeHostContractSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-native-host-contract.ts'), 'utf8');
-	const nativeHostGuideSource = await readFile(path.join(repoRoot, 'src', 'lib', 'alpha-native-host-guide.ts'), 'utf8');
+	const exportPipeline = await readFile(
+		path.join(repoRoot, 'scripts', 'export-alpha-readiness.mjs'),
+		'utf8'
+	);
+	const manifestSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'),
+		'utf8'
+	);
+	const evidenceIndexSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-evidence-index.ts'),
+		'utf8'
+	);
+	const gateMatrixSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-gate-matrix.ts'),
+		'utf8'
+	);
+	const hostedChecklistSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-hosted-smoke-checklist.ts'),
+		'utf8'
+	);
+	const reviewIndexSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-review-index.ts'),
+		'utf8'
+	);
+	const packageContractSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-package-contract.ts'),
+		'utf8'
+	);
+	const bridgeReuseSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-bridge-reuse.ts'),
+		'utf8'
+	);
+	const nativeHostContractSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-native-host-contract.ts'),
+		'utf8'
+	);
+	const nativeHostGuideSource = await readFile(
+		path.join(repoRoot, 'src', 'lib', 'alpha-native-host-guide.ts'),
+		'utf8'
+	);
 	const nativeHostWrapperSmokeSource = await readFile(
 		path.join(repoRoot, 'src', 'lib', 'alpha-native-host-wrapper-smoke.ts'),
 		'utf8'
@@ -484,8 +558,8 @@ async function verifyAlphaReleaseChecklistRuntimeContract() {
 		'1.0.2-alpha release checklist',
 		'alpha-over-rc-release-policy',
 		'desktop-shell-ui-command-mapping',
-			'data-window-chrome-state',
-			'transparent-webview-material-boundary',
+		'data-window-chrome-state',
+		'transparent-webview-material-boundary',
 		'csr-disabled-prerender-contract',
 		'community-analytics-csv-linkage',
 		'result-total-field-contract',
@@ -573,10 +647,14 @@ async function verifyAlphaReleaseChecklistRuntimeContract() {
 	const missingMarkers = requiredMarkers.filter((marker) => !joined.includes(marker));
 
 	if (missingMarkers.length > 0) {
-		throw new Error(`Alpha release checklist runtime contract is missing required markers: ${missingMarkers.join(', ')}`);
+		throw new Error(
+			`Alpha release checklist runtime contract is missing required markers: ${missingMarkers.join(', ')}`
+		);
 	}
 
-	console.log('PASS alpha-release-checklist-runtime: release checklist is source-rendered, exported, manifested, indexed, and smoke-covered.');
+	console.log(
+		'PASS alpha-release-checklist-runtime: release checklist is source-rendered, exported, manifested, indexed, and smoke-covered.'
+	);
 }
 
 async function verifyNoLeftoverTarballs() {
@@ -584,34 +662,48 @@ async function verifyNoLeftoverTarballs() {
 	const leftoverTarballs = entries.filter((entry) => /^sveltekit-php-\d.+\.tgz$/.test(entry));
 
 	if (leftoverTarballs.length > 0) {
-		throw new Error(`Remove leftover package tarballs before release prep: ${leftoverTarballs.join(', ')}`);
+		throw new Error(
+			`Remove leftover package tarballs before release prep: ${leftoverTarballs.join(', ')}`
+		);
 	}
 
 	console.log('PASS package-cleanup: no leftover root package tarballs.');
 }
 
 async function verifyCiWorkflow() {
-	const workflow = await readFile(path.join(repoRoot, '.github', 'workflows', 'alpha-gate.yml'), 'utf8');
-	const ciWorkflow = await readFile(path.join(repoRoot, '.github', 'workflows', 'playwright.yml'), 'utf8');
+	const workflow = await readFile(
+		path.join(repoRoot, '.github', 'workflows', 'alpha-gate.yml'),
+		'utf8'
+	);
+	const ciWorkflow = await readFile(
+		path.join(repoRoot, '.github', 'workflows', 'playwright.yml'),
+		'utf8'
+	);
 	const requiredMarkers = [
-		'name: Alpha Gate',
+		'name: Manual Alpha Gate',
+		'workflow_dispatch:',
 		'bun run alpha:gate',
 		'bun run alpha:gate:hosted',
 		'ALPHA_SMOKE_BASE_URL',
 		'shivammathur/setup-php@v2',
 		'bunx playwright install --with-deps',
-		'path: report/'
+		'.ai/evidence/alpha/reports/',
+		'include-hidden-files: true'
 	];
 	const requiredCiMarkers = [
 		'name: CI',
 		'bun run build:adapter',
 		'bun run verify:artifacts -- --strict',
-		'bun run verify:latest-sveltekit-audit',
-		'bun run alpha:latest-same-major:smoke',
+		'bun run check:runtime',
+		'bun run lint',
+		'bun run check',
+		'bun run test:kit-compatibility',
 		'bun run verify:release-prep',
 		'bun run test:unit',
-		'bun scripts/verify-all.mjs --mode=php-static --skipBuild',
-		'bun scripts/verify-all.mjs --mode=all --skipBuild'
+		'bun scripts/verify-all.mjs --mode=all --skipBuild --skipUnit --skipE2E',
+		'bun run test:e2e',
+		'bun run test:e2e:kit3',
+		'git diff --exit-code -- adapter/index.js adapter/declarations'
 	];
 	const missingMarkers = [
 		...requiredMarkers.filter((marker) => !workflow.includes(marker)),
@@ -622,17 +714,30 @@ async function verifyCiWorkflow() {
 		throw new Error(`CI workflows are missing required markers: ${missingMarkers.join(', ')}`);
 	}
 
-	console.log('PASS ci-alpha: CI workflows cover local/hosted alpha gates, strict artifact sync, and release-prep checks.');
+	if (/^\s{2}(?:push|pull_request|schedule):/m.test(workflow)) {
+		throw new Error('Alpha analytics and hosted probes must remain manually dispatched.');
+	}
+	if (/npm publish|alpha:deploy|alpha:gate:hosted|alpha:analytics/.test(ciWorkflow)) {
+		throw new Error('Automatic tool CI must not deploy, publish, or run hosted/community probes.');
+	}
+	console.log(
+		'PASS ci-alpha: Automatic CI covers source, packed consumers and local HTTP/browser contracts; hosted release evidence is manual.'
+	);
 }
 
 async function verifyHostedGateWrapper() {
-	const wrapper = await readFile(path.join(repoRoot, 'scripts', 'run-hosted-alpha-gate.mjs'), 'utf8');
+	const wrapper = await readFile(
+		path.join(repoRoot, 'scripts', 'run-hosted-alpha-gate.mjs'),
+		'utf8'
+	);
 	const remoteSmokeIndex = wrapper.indexOf("args: ['run', 'alpha:remote:smoke']");
 	const reportIndex = wrapper.indexOf("args: ['run', 'alpha:report']");
 	const verifyIndex = wrapper.indexOf("args: ['run', 'verify:alpha']");
 
 	if (remoteSmokeIndex === -1 || reportIndex === -1 || verifyIndex === -1) {
-		throw new Error('Hosted alpha gate must run remote smoke, alpha report export, and verify:alpha.');
+		throw new Error(
+			'Hosted alpha gate must run remote smoke, alpha report export, and verify:alpha.'
+		);
 	}
 
 	if (!(remoteSmokeIndex < reportIndex && reportIndex < verifyIndex)) {
@@ -903,7 +1008,7 @@ async function verifyRemoteSmokeCoverage() {
 		"path: 'alpha-readiness/native-host-wrapper-smoke.json'",
 		'deterministic-host-wrapper-handoff',
 		'noNativeApiBoundary',
-			'desktop-shell-ui-command-mapping',
+		'desktop-shell-ui-command-mapping',
 		'csr-disabled-prerender-contract',
 		'windows-11-mica-browser-safe-shell',
 		'macos-style-native-titlebar-rhythm',
@@ -950,7 +1055,7 @@ async function verifyRemoteSmokeCoverage() {
 		'requiredEvidence',
 		'native-host-binding-guide',
 		'real-host-permission-checklist',
-			'desktop-shell-ui-command-mapping',
+		'desktop-shell-ui-command-mapping',
 		'csr-disabled-prerender-contract',
 		'windows-11-mica-browser-safe-shell',
 		'macos-style-native-titlebar-rhythm',
@@ -1053,10 +1158,14 @@ async function verifyRemoteSmokeCoverage() {
 	const missingMarkers = requiredMarkers.filter((marker) => !smoke.includes(marker));
 
 	if (missingMarkers.length > 0) {
-		throw new Error(`Remote alpha smoke is missing required coverage markers: ${missingMarkers.join(', ')}`);
+		throw new Error(
+			`Remote alpha smoke is missing required coverage markers: ${missingMarkers.join(', ')}`
+		);
 	}
 
-	console.log('PASS remote-smoke-contract: Hosted smoke covers JSON, SVG, form action, content types, and leak guards.');
+	console.log(
+		'PASS remote-smoke-contract: Hosted smoke covers JSON, SVG, form action, content types, and leak guards.'
+	);
 }
 
 async function verifyLocalReportPipeline() {
@@ -1065,11 +1174,15 @@ async function verifyLocalReportPipeline() {
 	const placeholder = packageJson.scripts?.['alpha:remote:placeholder'] ?? '';
 
 	if (!placeholder.includes('smoke-remote-alpha.mjs --skip')) {
-		throw new Error('alpha:remote:placeholder must record skipped hosted evidence deterministically.');
+		throw new Error(
+			'alpha:remote:placeholder must record skipped hosted evidence deterministically.'
+		);
 	}
 
 	if (!reportFull.includes('alpha:remote:placeholder') || !reportFull.includes('alpha:report')) {
-		throw new Error('alpha:report:full must write hosted placeholder evidence before exporting reports.');
+		throw new Error(
+			'alpha:report:full must write hosted placeholder evidence before exporting reports.'
+		);
 	}
 
 	if (!(reportFull.indexOf('alpha:remote:placeholder') < reportFull.indexOf('alpha:report'))) {
@@ -1089,16 +1202,23 @@ async function verifyAlphaGateArtifactSyncIsStrict() {
 	}
 
 	if (artifactStepIndex > strictArgsIndex) {
-		throw new Error('Alpha release gate strict artifact sync args must belong to the artifact verification step.');
+		throw new Error(
+			'Alpha release gate strict artifact sync args must belong to the artifact verification step.'
+		);
 	}
 
-	console.log('PASS alpha-gate-artifact-sync: Alpha gate fails on stale generated adapter artifacts.');
+	console.log(
+		'PASS alpha-gate-artifact-sync: Alpha gate fails on stale generated adapter artifacts.'
+	);
 }
 
 async function verifyDeployPrecheckContract() {
 	const config = await readFile(path.join(repoRoot, 'scripts', 'utils', 'config.mjs'), 'utf8');
 	const precheck = await readFile(path.join(repoRoot, 'scripts', 'deploy-precheck.mjs'), 'utf8');
-	const hostedGate = await readFile(path.join(repoRoot, 'scripts', 'run-hosted-alpha-gate.mjs'), 'utf8');
+	const hostedGate = await readFile(
+		path.join(repoRoot, 'scripts', 'run-hosted-alpha-gate.mjs'),
+		'utf8'
+	);
 	const deployBuild = await readFile(path.join(repoRoot, 'tools', 'deploy-build.ts'), 'utf8');
 	const requiredMarkers = [
 		'assertDeployEnv',
@@ -1121,41 +1241,52 @@ async function verifyDeployPrecheckContract() {
 		'a.host === true ? undefined',
 		'a.user === true ? undefined',
 		'a.remote === true ? undefined',
-		'a[\'identity-file\'] ?? env(\'DEPLOY_IDENTITY_FILE\')'
+		"a['identity-file'] ?? env('DEPLOY_IDENTITY_FILE')"
 	];
 	const joined = `${config}\n${precheck}\n${hostedGate}\n${deployBuild}`;
 	const missingMarkers = requiredMarkers.filter((marker) => !joined.includes(marker));
 
 	if (missingMarkers.length > 0) {
-		throw new Error(`Deploy precheck contract is missing required markers: ${missingMarkers.join(', ')}`);
+		throw new Error(
+			`Deploy precheck contract is missing required markers: ${missingMarkers.join(', ')}`
+		);
 	}
 
-	console.log('PASS deploy-precheck-contract: Deploy commands reject missing, placeholder, and unsafe env values.');
+	console.log(
+		'PASS deploy-precheck-contract: Deploy commands reject missing, placeholder, and unsafe env values.'
+	);
 }
 
 async function verifyArtifactSyncContract() {
-	const artifactSync = await readFile(path.join(repoRoot, 'scripts', 'verify-artifact-sync.mjs'), 'utf8');
+	const artifactSync = await readFile(
+		path.join(repoRoot, 'scripts', 'verify-artifact-sync.mjs'),
+		'utf8'
+	);
 	const requiredMarkers = [
 		'adapter/src/index.ts',
 		'adapter/index.js',
 		'mkdtempSync',
-		"runBun(artifact.build(tempFile))",
+		'runBun(artifact.build(tempFile))',
 		'normalizeBuiltArtifact',
 		'requiredMarkers',
 		"preg_match('/[\\\\\\\\x00-\\\\\\\\x1f\\\\\\\\x7f]/', $decoded)",
 		"$segment === '..' || $segment === '.'",
-		"preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)",
-		"preg_quote($base, '#') . '/_protected(?:/|$)#'",
+		"preg_match('#(^|/)_protected(?:/|$)#i', $uri_raw)",
+		"preg_quote($base, '#') . '/_protected(?:/|$)#i'",
 		'--strict',
 		'process.env.CI'
 	];
 	const missingMarkers = requiredMarkers.filter((marker) => !artifactSync.includes(marker));
 
 	if (missingMarkers.length > 0) {
-		throw new Error(`Artifact sync verifier is missing required markers: ${missingMarkers.join(', ')}`);
+		throw new Error(
+			`Artifact sync verifier is missing required markers: ${missingMarkers.join(', ')}`
+		);
 	}
 
-	console.log('PASS artifact-sync-contract: Adapter bundle sync is checked from source via a temporary build.');
+	console.log(
+		'PASS artifact-sync-contract: Adapter bundle sync is checked from source via a temporary build.'
+	);
 }
 
 async function verifyRootRouterParityContract() {
@@ -1178,7 +1309,7 @@ async function verifyRootRouterParityContract() {
 	]);
 	const packageJson = JSON.parse(packageJsonText);
 	const requiredMarkers = [
-		"return require $router_real",
+		'return require $router_real',
 		'createFixtures',
 		'encoded-traversal',
 		'double-encoded-traversal',
@@ -1196,7 +1327,9 @@ async function verifyRootRouterParityContract() {
 		throw new Error(`Root router parity contract missing markers: ${missingMarkers.join(', ')}`);
 	}
 
-	if (!packageJson.scripts?.['verify:root-router-parity']?.includes('verify-root-router-parity.mjs')) {
+	if (
+		!packageJson.scripts?.['verify:root-router-parity']?.includes('verify-root-router-parity.mjs')
+	) {
 		throw new Error('package.json must expose verify:root-router-parity.');
 	}
 
@@ -1217,7 +1350,9 @@ async function verifyRootRouterParityContract() {
 		!hostingContract.includes('Root compatibility router') ||
 		!hostingContract.includes('return require $router_real')
 	) {
-		throw new Error('Checklist, packaged docs, and release plan must document root/generated router parity proof.');
+		throw new Error(
+			'Checklist, packaged docs, and release plan must document root/generated router parity proof.'
+		);
 	}
 
 	console.log(
@@ -1275,11 +1410,19 @@ async function verifyPublicContractDocs() {
 		'PHP-FPM package mode',
 		'adapter-owned auth/roles'
 	];
-	const missingHostingMarkers = requiredHostingMarkers.filter((marker) => !hostingContract.includes(marker));
+	const missingHostingMarkers = requiredHostingMarkers.filter(
+		(marker) => !hostingContract.includes(marker)
+	);
 	const missingReadmeMarkers = requiredReadmeMarkers.filter((marker) => !readme.includes(marker));
-	const missingAlphaMarkers = requiredAlphaReadinessMarkers.filter((marker) => !alphaReadiness.includes(marker));
+	const missingAlphaMarkers = requiredAlphaReadinessMarkers.filter(
+		(marker) => !alphaReadiness.includes(marker)
+	);
 
-	if (missingHostingMarkers.length > 0 || missingReadmeMarkers.length > 0 || missingAlphaMarkers.length > 0) {
+	if (
+		missingHostingMarkers.length > 0 ||
+		missingReadmeMarkers.length > 0 ||
+		missingAlphaMarkers.length > 0
+	) {
 		throw new Error(
 			[
 				missingHostingMarkers.length > 0
@@ -1322,10 +1465,14 @@ async function verifyAdapterPlatformEmulationContract() {
 	const missingMarkers = requiredMarkers.filter((marker) => !adapterSource.includes(marker));
 
 	if (missingMarkers.length > 0) {
-		throw new Error(`Adapter platform emulation contract is missing required markers: ${missingMarkers.join(', ')}`);
+		throw new Error(
+			`Adapter platform emulation contract is missing required markers: ${missingMarkers.join(', ')}`
+		);
 	}
 
-	console.log('PASS adapter-platform-emulation: Adapter exposes a non-secret event.platform.php contract for dev, build, and preview.');
+	console.log(
+		'PASS adapter-platform-emulation: Adapter exposes a non-secret event.platform.php contract for dev, build, and preview.'
+	);
 }
 
 async function verifyLatestSvelteKitCompatibilityAudit() {
@@ -1337,16 +1484,15 @@ async function verifyLatestSvelteKitCompatibilityAudit() {
 		latestVerifierSource,
 		sameMajorSmokeSource,
 		viteMajorSmokeSource
-	] =
-		await Promise.all([
-			readFile(path.join(repoRoot, 'docs', 'ALPHA-LATEST-SVELTEKIT-AUDIT.md'), 'utf8'),
-			readFile(path.join(repoRoot, 'package.json'), 'utf8'),
-			readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8'),
-			readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'), 'utf8'),
-			readFile(path.join(repoRoot, 'scripts', 'verify-latest-sveltekit-audit.mjs'), 'utf8'),
-			readFile(path.join(repoRoot, 'scripts', 'smoke-latest-same-major.mjs'), 'utf8'),
-			readFile(path.join(repoRoot, 'scripts', 'smoke-latest-vite-major.mjs'), 'utf8')
-		]);
+	] = await Promise.all([
+		readFile(path.join(repoRoot, 'docs', 'ALPHA-LATEST-SVELTEKIT-AUDIT.md'), 'utf8'),
+		readFile(path.join(repoRoot, 'package.json'), 'utf8'),
+		readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8'),
+		readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'), 'utf8'),
+		readFile(path.join(repoRoot, 'scripts', 'verify-latest-sveltekit-audit.mjs'), 'utf8'),
+		readFile(path.join(repoRoot, 'scripts', 'smoke-latest-same-major.mjs'), 'utf8'),
+		readFile(path.join(repoRoot, 'scripts', 'smoke-latest-vite-major.mjs'), 'utf8')
+	]);
 	const packageJson = JSON.parse(packageJsonText);
 	const requiredMarkers = [
 		'latest-sveltekit-compatibility-audit',
@@ -1423,15 +1569,21 @@ async function verifyLatestSvelteKitCompatibilityAudit() {
 }
 
 async function verifyRemoteFunctionsAlphaPolicy() {
-	const [policyDoc, packageJsonText, adapterSource, guardsSource, verifierSource, releaseManifestSource] =
-		await Promise.all([
-			readFile(path.join(repoRoot, 'docs', 'REMOTE-FUNCTIONS-ALPHA-POLICY.md'), 'utf8'),
-			readFile(path.join(repoRoot, 'package.json'), 'utf8'),
-			readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8'),
-			readFile(path.join(repoRoot, 'adapter', 'src', 'utils', 'guards.ts'), 'utf8'),
-			readFile(path.join(repoRoot, 'scripts', 'verify-remote-functions-policy.mjs'), 'utf8'),
-			readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'), 'utf8')
-		]);
+	const [
+		policyDoc,
+		packageJsonText,
+		adapterSource,
+		guardsSource,
+		verifierSource,
+		releaseManifestSource
+	] = await Promise.all([
+		readFile(path.join(repoRoot, 'docs', 'REMOTE-FUNCTIONS-ALPHA-POLICY.md'), 'utf8'),
+		readFile(path.join(repoRoot, 'package.json'), 'utf8'),
+		readFile(path.join(repoRoot, 'adapter', 'src', 'index.ts'), 'utf8'),
+		readFile(path.join(repoRoot, 'adapter', 'src', 'utils', 'guards.ts'), 'utf8'),
+		readFile(path.join(repoRoot, 'scripts', 'verify-remote-functions-policy.mjs'), 'utf8'),
+		readFile(path.join(repoRoot, 'src', 'lib', 'alpha-release-manifest.ts'), 'utf8')
+	]);
 	const packageJson = JSON.parse(packageJsonText);
 	const requiredMarkers = [
 		'remote-functions-alpha-policy',
@@ -1501,14 +1653,17 @@ async function verifyNpmSnapshotConsistency() {
 		const accessor = name.includes('/')
 			? `npmLatestSnapshot.packages['${name}'].latest`
 			: `npmLatestSnapshot.packages.${name}.latest`;
-		if (!alphaReadinessText.includes(accessor)) drift.push(`${name} accessor missing from alpha-readiness.ts`);
+		if (!alphaReadinessText.includes(accessor))
+			drift.push(`${name} accessor missing from alpha-readiness.ts`);
 	}
 
 	if (drift.length > 0) {
 		throw new Error(`npm-latest snapshot drift: ${drift.join('; ')}`);
 	}
 
-	console.log('PASS npm-snapshot-consistency: snapshot matches audit doc and alpha-readiness source.');
+	console.log(
+		'PASS npm-snapshot-consistency: snapshot matches audit doc and alpha-readiness source.'
+	);
 }
 
 async function verifyVersionDrift() {
@@ -1529,7 +1684,9 @@ async function verifyVersionDrift() {
 		throw new Error(`Hardcoded alpha version literals in scripts: ${offenders.join(', ')}`);
 	}
 
-	console.log('PASS version-snapshot: scripts reference PACKAGE_VERSION; no hardcoded alpha version literals.');
+	console.log(
+		'PASS version-snapshot: scripts reference PACKAGE_VERSION; no hardcoded alpha version literals.'
+	);
 }
 
 async function main() {
@@ -1575,4 +1732,3 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
-

@@ -15,6 +15,7 @@ export default defineConfig(
 			'build/**',
 			'.svelte-kit/**',
 			'adapter/index.js',
+			'adapter/declarations/**',
 			'adapter/src/runtime/php-templates.ts',
 			'docs/**/*.md'
 		]
@@ -43,6 +44,15 @@ export default defineConfig(
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser,
 				svelteConfig: {}
+			}
+		}
+	},
+	{
+		files: ['tests/fixtures/**/*.svelte'],
+		languageOptions: {
+			parserOptions: {
+				// Fixture apps have separate generated projects; keep syntax and rule checks here.
+				projectService: false
 			}
 		}
 	},

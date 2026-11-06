@@ -41,30 +41,6 @@ import {
 	renderReadinessCsv
 } from '../../src/lib/alpha-readiness-csv';
 
-const generatedArtifact = (path: string) => ({
-	path,
-	proofStage: 'generated-from-source',
-	trustLevel: 'deterministic-local-artifact'
-});
-
-const collectedArtifact = (path: string) => ({
-	path,
-	proofStage: 'collected-public-source-data',
-	trustLevel: 'directional-community-signal'
-});
-
-const hostedArtifact = (path: string) => ({
-	path,
-	proofStage: 'hosted-smoke-or-placeholder',
-	trustLevel: 'requires-alpha-smoke-base-url-for-pass-evidence'
-});
-
-const runtimeEndpoint = (path: string) => ({
-	path,
-	proofStage: 'runtime-source-endpoint',
-	trustLevel: 'deterministic-runtime-evidence'
-});
-
 function readRepoText(relativePath: string) {
 	return readFileSync(path.resolve(relativePath), 'utf8');
 }
@@ -105,9 +81,12 @@ function buildCompleteGeneratedEvidence() {
 					evidenceKind: 'repository-index',
 					collectionRisk: 'medium',
 					collectionPriority: 1,
-					proofUse: 'Comparable adapter/project discovery, maintenance signals, stars, and implementation patterns.',
-					reviewerAction: 'Review top repositories for active maintenance, adapter shape, and deployment claims.',
-					collectorNote: 'Uses unauthenticated GitHub Search API unless GITHUB_TOKEN or GH_TOKEN is present.'
+					proofUse:
+						'Comparable adapter/project discovery, maintenance signals, stars, and implementation patterns.',
+					reviewerAction:
+						'Review top repositories for active maintenance, adapter shape, and deployment claims.',
+					collectorNote:
+						'Uses unauthenticated GitHub Search API unless GITHUB_TOKEN or GH_TOKEN is present.'
 				}
 			]
 		}))
@@ -168,12 +147,18 @@ function buildCompleteGeneratedEvidence() {
 			noHydrationConfigSource: readRepoText('src/routes/alpha-readiness/no-hydration/+page.ts'),
 			noHydrationPageSource: readRepoText('src/routes/alpha-readiness/no-hydration/+page.svelte'),
 			alphaPage: readRepoText('src/routes/alpha-readiness/+page.svelte'),
-			nativeWindowShellSource: readRepoText('src/lib/components/native-shell/NativeWindowShell.svelte'),
+			nativeWindowShellSource: readRepoText(
+				'src/lib/components/native-shell/NativeWindowShell.svelte'
+			),
 			nativeTitlebarSource: readRepoText('src/lib/components/native-shell/NativeTitlebar.svelte'),
-			nativeHostBridgeStatusSource: readRepoText('src/lib/components/native-shell/NativeHostBridgeStatus.svelte'),
+			nativeHostBridgeStatusSource: readRepoText(
+				'src/lib/components/native-shell/NativeHostBridgeStatus.svelte'
+			),
 			nativeHostBridgeSource: readRepoText('src/lib/native-shell/native-host-event-bridge.ts'),
 			releaseChecklistSource: readRepoText('src/lib/alpha-release-checklist.ts'),
-			releaseChecklistEndpointSource: readRepoText('src/routes/alpha-readiness/release-checklist.md/+server.ts')
+			releaseChecklistEndpointSource: readRepoText(
+				'src/routes/alpha-readiness/release-checklist.md/+server.ts'
+			)
 		}
 	};
 }
@@ -194,7 +179,9 @@ describe('alpha readiness report', () => {
 		for (const signal of report.communitySignals) {
 			expect(signal.keyword).toContain('Svelte');
 			expect(signal.communities.length).toBeGreaterThanOrEqual(2);
-			expect(signal.communities.every((community) => community.href.startsWith('https://'))).toBe(true);
+			expect(signal.communities.every((community) => community.href.startsWith('https://'))).toBe(
+				true
+			);
 		}
 	});
 
@@ -238,8 +225,12 @@ describe('alpha readiness report', () => {
 
 		expect(report.bridgeSource).toContain('lg-ultragear-bridge');
 		expect(report.bridgePatterns.some((pattern) => pattern.label.includes('Mica'))).toBe(true);
-		expect(report.bridgePatterns.some((pattern) => pattern.label.includes('Structured'))).toBe(true);
-		expect(report.limitations.some((limitation) => limitation.includes('not computed telemetry'))).toBe(true);
+		expect(report.bridgePatterns.some((pattern) => pattern.label.includes('Structured'))).toBe(
+			true
+		);
+		expect(
+			report.limitations.some((limitation) => limitation.includes('not computed telemetry'))
+		).toBe(true);
 		expect(report.analyticsRows.map((row) => row.label)).toEqual([
 			'Runtime',
 			'Security',
@@ -250,46 +241,51 @@ describe('alpha readiness report', () => {
 	});
 
 	it('maps report community links to collector providers when possible', () => {
-		expect(classifyCommunitySource({ label: 'GitHub repos', href: 'https://github.com/search?q=x' })).toBe(
-			'github-repositories'
-		);
-		expect(classifyCommunitySource({ label: 'GitHub issues', href: 'https://github.com/search?q=x' })).toBe(
-			'github-issues'
-		);
-		expect(classifyCommunitySource({ label: 'npm packages', href: 'https://www.npmjs.com/search?q=x' })).toBe(
-			'npm'
-		);
-		expect(classifyCommunitySource({ label: 'Packagist', href: 'https://packagist.org/search/?q=x' })).toBe(
-			'packagist'
-		);
-		expect(classifyCommunitySource({ label: 'Stack Overflow', href: 'https://stackoverflow.com/search?q=x' })).toBe(
-			'stackoverflow'
-		);
-		expect(classifyCommunitySource({ label: 'Reddit', href: 'https://www.reddit.com/search/?q=x' })).toBe(
-			'reddit'
-		);
+		expect(
+			classifyCommunitySource({ label: 'GitHub repos', href: 'https://github.com/search?q=x' })
+		).toBe('github-repositories');
+		expect(
+			classifyCommunitySource({ label: 'GitHub issues', href: 'https://github.com/search?q=x' })
+		).toBe('github-issues');
+		expect(
+			classifyCommunitySource({ label: 'npm packages', href: 'https://www.npmjs.com/search?q=x' })
+		).toBe('npm');
+		expect(
+			classifyCommunitySource({ label: 'Packagist', href: 'https://packagist.org/search/?q=x' })
+		).toBe('packagist');
+		expect(
+			classifyCommunitySource({
+				label: 'Stack Overflow',
+				href: 'https://stackoverflow.com/search?q=x'
+			})
+		).toBe('stackoverflow');
+		expect(
+			classifyCommunitySource({ label: 'Reddit', href: 'https://www.reddit.com/search/?q=x' })
+		).toBe('reddit');
 	});
 
 	it('builds public JSON endpoints for supported analytics providers', () => {
-		expect(buildCommunityEndpoint('github-repositories', 'SvelteKit PHP adapter', 'GitHub repos')).toContain(
-			'api.github.com/search/repositories'
-		);
-		expect(buildCommunityEndpoint('github-issues', 'SvelteKit PHP adapter', 'GitHub issues')).toContain(
-			'api.github.com/search/issues'
-		);
+		expect(
+			buildCommunityEndpoint('github-repositories', 'SvelteKit PHP adapter', 'GitHub repos')
+		).toContain('api.github.com/search/repositories');
+		expect(
+			buildCommunityEndpoint('github-issues', 'SvelteKit PHP adapter', 'GitHub issues')
+		).toContain('api.github.com/search/issues');
 		expect(buildCommunityEndpoint('npm', 'SvelteKit PHP adapter', 'npm packages')).toContain(
 			'registry.npmjs.org/-/v1/search'
 		);
 		expect(buildCommunityEndpoint('packagist', 'SvelteKit PHP adapter', 'Packagist')).toContain(
 			'packagist.org/search.json'
 		);
-		expect(buildCommunityEndpoint('stackoverflow', 'SvelteKit PHP adapter', 'Stack Overflow')).toContain(
-			'api.stackexchange.com/2.3/search/advanced'
-		);
+		expect(
+			buildCommunityEndpoint('stackoverflow', 'SvelteKit PHP adapter', 'Stack Overflow')
+		).toContain('api.stackexchange.com/2.3/search/advanced');
 		expect(buildCommunityEndpoint('reddit', 'SvelteKit PHP adapter', 'Reddit')).toContain(
 			'reddit.com/search.json'
 		);
-		expect(buildCommunityEndpoint('search-link-only', 'SvelteKit PHP adapter', 'Apache docs search')).toBeNull();
+		expect(
+			buildCommunityEndpoint('search-link-only', 'SvelteKit PHP adapter', 'Apache docs search')
+		).toBeNull();
 	});
 
 	it('describes community research sources with auditable public API endpoints', () => {
@@ -334,13 +330,27 @@ describe('alpha readiness report', () => {
 		const contract = buildAlphaNativeHostContract(buildAlphaReadinessReport());
 
 		expect(contract.adapterBoundary.tauriImportsAllowed).toBe(false);
-		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain('data-native-shell-theme');
-		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain('data-native-window-frame');
-		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain('data-native-titlebar');
-		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain('data-native-platform');
-		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain('data-window-drag');
-		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain('data-no-window-drag');
-		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain('data-window-control');
+		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain(
+			'data-native-shell-theme'
+		);
+		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain(
+			'data-native-window-frame'
+		);
+		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain(
+			'data-native-titlebar'
+		);
+		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain(
+			'data-native-platform'
+		);
+		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain(
+			'data-window-drag'
+		);
+		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain(
+			'data-no-window-drag'
+		);
+		expect(contract.requiredDomMarkers.map((marker) => marker.marker)).toContain(
+			'data-window-control'
+		);
 		expect(contract.nativeShellThemes.some((theme) => theme.name === 'theme-ultragear')).toBe(true);
 		expect(
 			contract.hostEvents.some(
@@ -350,9 +360,15 @@ describe('alpha readiness report', () => {
 					event.actions.includes('toggle-maximize')
 			)
 		).toBe(true);
-		expect(contract.hostResponsibilities.some((item) => item.capability.includes('Windows 11 Mica'))).toBe(true);
-		expect(contract.hostResponsibilities.some((item) => item.capability.includes('Caption controls'))).toBe(true);
-		expect(contract.hostResponsibilities.some((item) => item.capability.includes('macOS traffic-light'))).toBe(true);
+		expect(
+			contract.hostResponsibilities.some((item) => item.capability.includes('Windows 11 Mica'))
+		).toBe(true);
+		expect(
+			contract.hostResponsibilities.some((item) => item.capability.includes('Caption controls'))
+		).toBe(true);
+		expect(
+			contract.hostResponsibilities.some((item) => item.capability.includes('macOS traffic-light'))
+		).toBe(true);
 		expect(contract.reportEvidence).toContain('/alpha-readiness/community-source-map.svg');
 	});
 
@@ -360,7 +376,9 @@ describe('alpha readiness report', () => {
 		const { report, packageJson, gitignore, generated } = buildCompleteGeneratedEvidence();
 		const checks = checkAlphaReadinessContract({ report, packageJson, gitignore, generated });
 
-		expect(checks.filter((check) => !check.ok).map((check) => `${check.id}: ${check.message}`)).toEqual([]);
+		expect(
+			checks.filter((check) => !check.ok).map((check) => `${check.id}: ${check.message}`)
+		).toEqual([]);
 		expect(summarizeChecks(checks)).toMatchObject({
 			ok: true,
 			failed: 0
@@ -468,7 +486,9 @@ describe('alpha readiness report', () => {
 					target: '1.0.0-alpha.0',
 					bridgeSource: 'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge',
 					patterns: [{ label: 'Mica material shell' }],
-					implementationFiles: [{ path: 'src/lib/components/native-shell/NativeWindowShell.svelte' }],
+					implementationFiles: [
+						{ path: 'src/lib/components/native-shell/NativeWindowShell.svelte' }
+					],
 					sourceCues: [
 						{ cues: ['Effect.Mica'] },
 						{ cues: [':root[data-window-effect="mica"]'] },
@@ -585,8 +605,7 @@ describe('alpha readiness report', () => {
 					securityProbes: ['%2e%2e/.env'],
 					proofArtifact: 'report/alpha-remote-smoke.json'
 				},
-				html:
-					'<h1>Native-styled release report</h1><h2>Community keyword signals</h2><h2>Community source map</h2><a href="alpha-community-source-map.svg">community-source-map.svg</a><h2>Hosted deployment smoke</h2>',
+				html: '<h1>Native-styled release report</h1><h2>Community keyword signals</h2><h2>Community source map</h2><a href="alpha-community-source-map.svg">community-source-map.svg</a><h2>Hosted deployment smoke</h2>',
 				markdown:
 					'# Report\n\n## UltraGear bridge reuse map\n\n## Report graphics\n\ncommunity-source-map.svg\n\n## Collected community analytics\n\n## Hosted deployment smoke',
 				communityAnalyticsMarkdown:

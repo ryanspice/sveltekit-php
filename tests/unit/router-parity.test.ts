@@ -51,9 +51,9 @@ describe('router parity and hardening', () => {
 		const shared = getRouterSharedPhp('/base');
 		const phpStatic = getRouterPhpStaticPhp(false);
 
-		expect(shared).toContain("echo \"404 Not Found\"");
+		expect(shared).toContain('echo "404 Not Found"');
 		expect(shared).toContain("$uri !== $base && strpos($uri, $base . '/') !== 0");
-		expect(phpStatic).toContain("echo \"404 Not Found\"");
+		expect(phpStatic).toContain('echo "404 Not Found"');
 	});
 
 	it.each(maliciousPathFixtures)('keeps fixture guard for malicious path $path', ({ guard }) => {

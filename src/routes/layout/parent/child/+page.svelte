@@ -6,8 +6,8 @@
 <section class="layout-page">
 	<h2>Child route content</h2>
 	<p>
-		This page makes the child layout route a real prerender target while preserving
-		the inherited parent and child layout chrome.
+		This page makes the child layout route a real prerender target while preserving the inherited
+		parent and child layout chrome.
 	</p>
 </section>
 

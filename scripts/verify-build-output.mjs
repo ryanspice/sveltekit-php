@@ -106,7 +106,8 @@ async function run() {
 		log('Skipping shim checks for js-ssr mode', COLORS.yellow);
 		const handler = path.join(`${path.resolve(OUT_DIR)}-server`, 'handler.mjs');
 		if (!fs.existsSync(handler)) fail('Missing private sidecar handler');
-		if (fs.existsSync(path.join(OUT_DIR, 'server'))) fail('Private server tree leaked into public output');
+		if (fs.existsSync(path.join(OUT_DIR, 'server')))
+			fail('Private server tree leaked into public output');
 		pass('Private sidecar handler is outside public output');
 	}
 

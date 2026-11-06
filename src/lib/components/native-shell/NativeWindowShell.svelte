@@ -62,8 +62,8 @@
 
 	.native-shell-surface {
 		--font-ui: 'Segoe UI Variable', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-		--font-display: 'Segoe UI Variable Display', 'Segoe UI', -apple-system, BlinkMacSystemFont,
-			sans-serif;
+		--font-display:
+			'Segoe UI Variable Display', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 		--radius-sm: 14px;
 		--radius-md: 18px;
 		--radius-lg: 22px;
@@ -75,16 +75,8 @@
 			radial-gradient(circle at 14% 12%, rgba(0, 177, 255, 0.22), transparent 28rem),
 			radial-gradient(circle at 86% 16%, rgba(255, 45, 122, 0.2), transparent 26rem),
 			linear-gradient(135deg, #edf4ff 0%, #e7ebf7 42%, #f3e9f1 100%);
-		--window-bg-plain: linear-gradient(
-			180deg,
-			rgba(255, 255, 255, 0.52),
-			rgba(255, 255, 255, 0.3)
-		);
-		--window-bg-mica: linear-gradient(
-			180deg,
-			rgba(255, 255, 255, 0.54),
-			rgba(255, 255, 255, 0.28)
-		);
+		--window-bg-plain: linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0.3));
+		--window-bg-mica: linear-gradient(180deg, rgba(255, 255, 255, 0.54), rgba(255, 255, 255, 0.28));
 		--window-bg-inactive:
 			linear-gradient(180deg, rgba(247, 250, 255, 0.54), rgba(229, 236, 248, 0.3)),
 			linear-gradient(180deg, rgba(104, 116, 146, 0.035), rgba(104, 116, 146, 0.015));
@@ -175,10 +167,15 @@
 		border-radius: var(--radius-xl);
 		overflow: hidden;
 		background: var(--window-bg-plain), var(--window-surface);
-		box-shadow: var(--shadow-deep), inset 0 1px 0 rgba(255, 255, 255, 0.74);
+		box-shadow:
+			var(--shadow-deep),
+			inset 0 1px 0 rgba(255, 255, 255, 0.74);
 		backdrop-filter: var(--blur-mica);
 		-webkit-backdrop-filter: var(--blur-mica);
-		transition: border-radius 160ms ease, background 160ms ease, box-shadow 160ms ease;
+		transition:
+			border-radius 160ms ease,
+			background 160ms ease,
+			box-shadow 160ms ease;
 	}
 
 	.window-frame::after {
@@ -189,7 +186,9 @@
 		background: linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.007));
 		opacity: 0;
 		pointer-events: none;
-		transition: opacity 160ms ease, background 160ms ease;
+		transition:
+			opacity 160ms ease,
+			background 160ms ease;
 	}
 
 	.window-frame--maximized {
@@ -208,10 +207,13 @@
 
 	.native-shell-surface[data-window-effect='mica'][data-window-focused='false'] .window-frame {
 		background: var(--window-bg-inactive), var(--window-surface);
-		box-shadow: 0 18px 46px rgba(33, 42, 70, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.62);
+		box-shadow:
+			0 18px 46px rgba(33, 42, 70, 0.12),
+			inset 0 1px 0 rgba(255, 255, 255, 0.62);
 	}
 
-	.native-shell-surface[data-window-effect='mica'][data-window-focused='false'] .window-frame::after {
+	.native-shell-surface[data-window-effect='mica'][data-window-focused='false']
+		.window-frame::after {
 		background: var(--window-wash-inactive);
 		opacity: 0.96;
 	}
@@ -227,7 +229,9 @@
 		z-index: -1;
 		background: var(--window-wash);
 		opacity: 0.9;
-		transition: opacity 160ms ease, filter 160ms ease;
+		transition:
+			opacity 160ms ease,
+			filter 160ms ease;
 	}
 
 	.native-shell-surface[data-window-focused='false'] .mica-wash {

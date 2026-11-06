@@ -29,15 +29,6 @@ import { renderAlphaReadinessSvg } from '../src/lib/alpha-readiness-svg.ts';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = path.resolve(repoRoot, 'report');
 
-function escapeHtml(value) {
-	return String(value)
-		.replaceAll('&', '&amp;')
-		.replaceAll('<', '&lt;')
-		.replaceAll('>', '&gt;')
-		.replaceAll('"', '&quot;')
-		.replaceAll("'", '&#39;');
-}
-
 async function loadCommunityAnalytics() {
 	try {
 		const analyticsPath = path.join(outputDir, 'alpha-community-analytics.json');
@@ -111,7 +102,11 @@ async function main() {
 			)}\n`,
 			'utf8'
 		),
-		writeFile(mdPath, renderAlphaReadinessMarkdown(report, communityAnalytics, remoteSmoke), 'utf8'),
+		writeFile(
+			mdPath,
+			renderAlphaReadinessMarkdown(report, communityAnalytics, remoteSmoke),
+			'utf8'
+		),
 		writeFile(
 			htmlPath,
 			renderAlphaReadinessHtml(report, communityAnalytics, remoteSmoke, {
@@ -122,9 +117,17 @@ async function main() {
 			'utf8'
 		),
 		writeFile(svgPath, renderSvg(report, communityAnalytics, remoteSmoke), 'utf8'),
-		writeFile(communitySourceMapSvgPath, renderAlphaCommunitySourceMapSvg(report, communityAnalytics), 'utf8'),
+		writeFile(
+			communitySourceMapSvgPath,
+			renderAlphaCommunitySourceMapSvg(report, communityAnalytics),
+			'utf8'
+		),
 		writeFile(readinessCsvPath, renderReadinessCsv(report), 'utf8'),
-		writeFile(communitySignalsCsvPath, renderCommunitySignalsCsv(report, communityAnalytics), 'utf8'),
+		writeFile(
+			communitySignalsCsvPath,
+			renderCommunitySignalsCsv(report, communityAnalytics),
+			'utf8'
+		),
 		writeFile(communitySourcesCsvPath, renderCommunitySourcesCsv(report), 'utf8'),
 		writeFile(
 			communityAnalyticsMarkdownPath,
@@ -136,13 +139,25 @@ async function main() {
 			`${JSON.stringify(buildCommunityResearchPack(report, communityAnalytics), null, 2)}\n`,
 			'utf8'
 		),
-		writeFile(bridgeReusePath, `${JSON.stringify(buildBridgeReuseInventory(report), null, 2)}\n`, 'utf8'),
+		writeFile(
+			bridgeReusePath,
+			`${JSON.stringify(buildBridgeReuseInventory(report), null, 2)}\n`,
+			'utf8'
+		),
 		writeFile(reviewIndexPath, renderAlphaReviewIndexMarkdown(report), 'utf8'),
 		writeFile(releaseChecklistPath, renderAlphaReleaseChecklistMarkdown(), 'utf8'),
 		writeFile(releaseNotesPath, renderAlphaReleaseNotes(report, manifest), 'utf8'),
 		writeFile(gateMatrixPath, `${JSON.stringify(buildAlphaGateMatrix(report), null, 2)}\n`, 'utf8'),
-		writeFile(evidenceIndexPath, `${JSON.stringify(buildAlphaEvidenceIndex(report), null, 2)}\n`, 'utf8'),
-		writeFile(packageContractPath, `${JSON.stringify(buildAlphaPackageContract(report), null, 2)}\n`, 'utf8'),
+		writeFile(
+			evidenceIndexPath,
+			`${JSON.stringify(buildAlphaEvidenceIndex(report), null, 2)}\n`,
+			'utf8'
+		),
+		writeFile(
+			packageContractPath,
+			`${JSON.stringify(buildAlphaPackageContract(report), null, 2)}\n`,
+			'utf8'
+		),
 		writeFile(
 			nativeHostContractPath,
 			`${JSON.stringify(buildAlphaNativeHostContract(report), null, 2)}\n`,
@@ -159,11 +174,7 @@ async function main() {
 			`${JSON.stringify(buildHostedSmokeChecklist(report), null, 2)}\n`,
 			'utf8'
 		),
-		writeFile(
-			manifestPath,
-			`${JSON.stringify(manifest, null, 2)}\n`,
-			'utf8'
-		)
+		writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
 	]);
 
 	console.log(`Alpha readiness report written to ${path.relative(repoRoot, outputDir)}`);
@@ -191,10 +202,14 @@ async function main() {
 	console.log(`- ${path.relative(repoRoot, hostedSmokeChecklistPath)}`);
 	console.log(`- ${path.relative(repoRoot, manifestPath)}`);
 	if (!communityAnalytics) {
-		console.log('No alpha-community-analytics.json found; run bun run alpha:analytics to embed collected counts.');
+		console.log(
+			'No alpha-community-analytics.json found; run bun run alpha:analytics to embed collected counts.'
+		);
 	}
 	if (!remoteSmoke) {
-		console.log('No alpha-remote-smoke.json found; run bun run alpha:remote:smoke after deployment to embed hosted evidence.');
+		console.log(
+			'No alpha-remote-smoke.json found; run bun run alpha:remote:smoke after deployment to embed hosted evidence.'
+		);
 	}
 }
 

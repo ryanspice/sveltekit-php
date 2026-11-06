@@ -13,7 +13,9 @@ export function GET() {
 			bridgeSource: report.bridgeSource,
 			communitySignals: report.communitySignals,
 			analyticsRows: report.analyticsRows,
-			limitations: report.limitations.filter((limitation) => limitation.includes('Community analytics'))
+			limitations: report.limitations.filter((limitation) =>
+				limitation.includes('Community analytics')
+			)
 		},
 		{
 			headers: {

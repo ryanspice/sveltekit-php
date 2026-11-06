@@ -56,7 +56,9 @@ function validateNativeHostWrapperSmoke(smoke) {
 	}
 
 	if (smoke.hostPermissionContract?.marker !== 'lg-ultragear-host-permission-checklist') {
-		failures.push('host permission contract must include lg-ultragear-host-permission-checklist marker');
+		failures.push(
+			'host permission contract must include lg-ultragear-host-permission-checklist marker'
+		);
 	}
 
 	if ((smoke.summary?.missingRequiredHostPermissions ?? []).length > 0) {
@@ -66,7 +68,9 @@ function validateNativeHostWrapperSmoke(smoke) {
 	}
 
 	if (replayTranscript.length !== smoke.summary.eventReplayExpectationCount) {
-		failures.push('event replay transcript count does not match summary.eventReplayExpectationCount');
+		failures.push(
+			'event replay transcript count does not match summary.eventReplayExpectationCount'
+		);
 	}
 
 	for (const entry of replayTranscript) {
@@ -74,19 +78,31 @@ function validateNativeHostWrapperSmoke(smoke) {
 			failures.push(`event replay entry ${entry.order ?? 'unknown'} is missing replay-step marker`);
 		}
 
-		if (entry.expectedHistoryResult?.handled !== true || entry.expectedHistoryResult?.mode !== 'native-host') {
-			failures.push(`event replay entry ${entry.action ?? entry.order} must expect handled native-host history`);
+		if (
+			entry.expectedHistoryResult?.handled !== true ||
+			entry.expectedHistoryResult?.mode !== 'native-host'
+		) {
+			failures.push(
+				`event replay entry ${entry.action ?? entry.order} must expect handled native-host history`
+			);
 		}
 
 		if (
 			entry.expectedDesktopShellUiHelper &&
 			entry.expectedHistoryResult?.desktopShellUiHelper !== entry.expectedDesktopShellUiHelper
 		) {
-			failures.push(`event replay entry ${entry.action ?? entry.order} helper does not match expected history`);
+			failures.push(
+				`event replay entry ${entry.action ?? entry.order} helper does not match expected history`
+			);
 		}
 
-		if (!entry.requiredHostPermission || entry.expectedHistoryResult?.requiredHostPermission !== entry.requiredHostPermission) {
-			failures.push(`event replay entry ${entry.action ?? entry.order} must carry requiredHostPermission`);
+		if (
+			!entry.requiredHostPermission ||
+			entry.expectedHistoryResult?.requiredHostPermission !== entry.requiredHostPermission
+		) {
+			failures.push(
+				`event replay entry ${entry.action ?? entry.order} must carry requiredHostPermission`
+			);
 		}
 	}
 

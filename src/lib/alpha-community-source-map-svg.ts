@@ -26,7 +26,9 @@ type CommunityAnalyticsArtifact = {
 		};
 	}[];
 } | null;
-type CommunityAnalyticsQuery = NonNullable<NonNullable<CommunityAnalyticsArtifact>['queries']>[number];
+type CommunityAnalyticsQuery = NonNullable<
+	NonNullable<CommunityAnalyticsArtifact>['queries']
+>[number];
 
 function escapeSvg(value: unknown) {
 	return String(value)
@@ -55,7 +57,9 @@ export function renderAlphaCommunitySourceMapSvg(
 	const hosts = Array.from(new Set(sources.map((source) => source.sourceHost)));
 	const weightedDemandScore = sources.length
 		? Math.round(
-				(sources.reduce((total, source) => total + source.evidenceWeight * 100, 0) / sources.length) * 10
+				(sources.reduce((total, source) => total + source.evidenceWeight * 100, 0) /
+					sources.length) *
+					10
 			) / 10
 		: 0;
 	const analyticsLinkageMarkers = Array.from(
@@ -76,9 +80,9 @@ export function renderAlphaCommunitySourceMapSvg(
 	const confidenceTiers = Array.from(new Set(sources.map((source) => source.confidenceTier))).join(
 		' | '
 	);
-	const resultTotalFields = Array.from(new Set(sources.map((source) => source.resultTotalField))).join(
-		' | '
-	);
+	const resultTotalFields = Array.from(
+		new Set(sources.map((source) => source.resultTotalField))
+	).join(' | ');
 	const topResultFieldCount = Array.from(
 		new Set(sources.flatMap((source) => source.topResultFields))
 	).length;
@@ -121,7 +125,9 @@ export function renderAlphaCommunitySourceMapSvg(
 					const source = describeCommunitySource(community, signal.keyword);
 					const x = 470 + sourceIndex * 266;
 					const nodeClass =
-						source.mode === 'supported-json-api' ? 'source-node source-node--supported' : 'source-node source-node--manual';
+						source.mode === 'supported-json-api'
+							? 'source-node source-node--supported'
+							: 'source-node source-node--manual';
 					const endpointText = source.endpoint
 						? source.endpoint.replace(/^https?:\/\//, '').slice(0, 42)
 						: 'manual research link';

@@ -1388,7 +1388,9 @@ function assertTextIncludes(body, requiredText, checkName) {
 	const lowered = body.toLowerCase();
 	const missing = requiredText.filter((text) => !lowered.includes(text.toLowerCase()));
 	if (missing.length > 0) {
-		throw new Error(`${checkName} response is missing expected text markers: ${missing.join(', ')}`);
+		throw new Error(
+			`${checkName} response is missing expected text markers: ${missing.join(', ')}`
+		);
 	}
 }
 
@@ -1442,7 +1444,9 @@ function assertContentTypeIncludes(contentType, expectedContentType, checkName) 
 	}
 
 	if (!contentType.toLowerCase().includes(expectedContentType.toLowerCase())) {
-		throw new Error(`${checkName} returned content-type ${contentType || 'missing'}, expected ${expectedContentType}.`);
+		throw new Error(
+			`${checkName} returned content-type ${contentType || 'missing'}, expected ${expectedContentType}.`
+		);
 	}
 }
 
@@ -1479,7 +1483,9 @@ async function verifyPage(baseUrl, check) {
 	const searchableBody = searchableResponseText(response.body, response.contentType);
 	assertTextIncludes(searchableBody, check.requiredText, check.name);
 	assertTextExcludes(searchableBody, check.forbiddenText, check.name);
-	console.log(`PASS remote-page: ${check.name} returned HTTP ${response.status} as ${response.contentType || 'unknown content-type'}.`);
+	console.log(
+		`PASS remote-page: ${check.name} returned HTTP ${response.status} as ${response.contentType || 'unknown content-type'}.`
+	);
 	return {
 		kind: 'page',
 		name: check.name,
@@ -1512,7 +1518,9 @@ async function verifyFormAction(baseUrl, check) {
 	assertContentTypeIncludes(response.contentType, check.expectedContentType, check.name);
 	assertNoForbiddenLeaks(response.body, check.name);
 	assertTextIncludes(response.body, check.requiredText, check.name);
-	console.log(`PASS remote-action: ${check.name} returned HTTP ${response.status} as ${response.contentType || 'unknown content-type'}.`);
+	console.log(
+		`PASS remote-action: ${check.name} returned HTTP ${response.status} as ${response.contentType || 'unknown content-type'}.`
+	);
 	return {
 		kind: 'action',
 		name: check.name,
@@ -1563,7 +1571,9 @@ async function verifyAssetFallbackExclusion(baseUrl, probePath) {
 			response.body.includes('no-hydration-fixture'));
 
 	if (looksLikeHtmlFallback) {
-		throw new Error(`${probePath} was served as fallback HTML. Asset-like paths must 404 or return their real MIME type, not route fallback markup.`);
+		throw new Error(
+			`${probePath} was served as fallback HTML. Asset-like paths must 404 or return their real MIME type, not route fallback markup.`
+		);
 	}
 
 	console.log(`PASS remote-asset-fallback: ${probePath} did not receive route fallback HTML.`);
@@ -1589,7 +1599,8 @@ async function main() {
 			target: expectedVersion,
 			status: 'skipped',
 			checkedAt: new Date().toISOString(),
-			reason: 'Remote alpha smoke was intentionally skipped for deterministic local report generation.',
+			reason:
+				'Remote alpha smoke was intentionally skipped for deterministic local report generation.',
 			checks: []
 		});
 		return;
@@ -1661,4 +1672,3 @@ async function main() {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	await main();
 }
-

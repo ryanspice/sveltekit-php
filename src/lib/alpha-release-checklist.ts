@@ -189,4 +189,3 @@ export function renderAlphaReleaseChecklistMarkdown() {
 
 	return lines.join('\n');
 }
-

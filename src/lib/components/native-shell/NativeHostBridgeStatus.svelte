@@ -30,54 +30,57 @@
 
 	function buildHandoffCommands(reportHref: string): HandoffCommand[] {
 		return [
-		{
-			id: 'set-window-effect-mica',
-			action: 'set-window-effect',
-			label: 'Send Mica effect',
-			description: 'Emit the Windows 11 Mica handoff event a desktop host can map to Effect.Mica.',
-			detail: {
-				windowEffect: 'mica'
+			{
+				id: 'set-window-effect-mica',
+				action: 'set-window-effect',
+				label: 'Send Mica effect',
+				description:
+					'Emit the Windows 11 Mica handoff event a desktop host can map to Effect.Mica.',
+				detail: {
+					windowEffect: 'mica'
+				}
+			},
+			{
+				id: 'set-progress-indeterminate',
+				action: 'set-progress',
+				label: 'Send busy progress',
+				description:
+					'Emit the UltraGear-style indeterminate progress cue used while evidence is collecting.',
+				detail: {
+					progressStatus: 'indeterminate'
+				}
+			},
+			{
+				id: 'set-progress-normal',
+				action: 'set-progress',
+				label: 'Send progress 18%',
+				description: 'Emit the UltraGear-style report generation progress cue.',
+				detail: {
+					progress: 18,
+					progressStatus: 'normal'
+				}
+			},
+			{
+				id: 'clear-progress-none',
+				action: 'clear-progress',
+				label: 'Clear progress',
+				description:
+					'Emit the ProgressBarStatus.None cue used when alpha evidence is no longer busy.',
+				detail: {
+					progressStatus: 'none'
+				}
+			},
+			{
+				id: 'report-ready-bundle',
+				action: 'report-ready',
+				label: 'Send report-ready',
+				description: 'Emit the structured report handoff cue with a review bundle link.',
+				detail: {
+					reportHref,
+					reportKind: 'bundle',
+					reportLabel: 'Alpha native evidence bundle'
+				}
 			}
-		},
-		{
-			id: 'set-progress-indeterminate',
-			action: 'set-progress',
-			label: 'Send busy progress',
-			description: 'Emit the UltraGear-style indeterminate progress cue used while evidence is collecting.',
-			detail: {
-				progressStatus: 'indeterminate'
-			}
-		},
-		{
-			id: 'set-progress-normal',
-			action: 'set-progress',
-			label: 'Send progress 18%',
-			description: 'Emit the UltraGear-style report generation progress cue.',
-			detail: {
-				progress: 18,
-				progressStatus: 'normal'
-			}
-		},
-		{
-			id: 'clear-progress-none',
-			action: 'clear-progress',
-			label: 'Clear progress',
-			description: 'Emit the ProgressBarStatus.None cue used when alpha evidence is no longer busy.',
-			detail: {
-				progressStatus: 'none'
-			}
-		},
-		{
-			id: 'report-ready-bundle',
-			action: 'report-ready',
-			label: 'Send report-ready',
-			description: 'Emit the structured report handoff cue with a review bundle link.',
-			detail: {
-				reportHref,
-				reportKind: 'bundle',
-				reportLabel: 'Alpha native evidence bundle'
-			}
-		}
 		];
 	}
 
@@ -146,10 +149,12 @@
 
 		<article>
 			<span>history</span>
-			<strong>{commandHistory.length} recorded command{commandHistory.length === 1 ? '' : 's'}</strong>
+			<strong
+				>{commandHistory.length} recorded command{commandHistory.length === 1 ? '' : 's'}</strong
+			>
 			<p>
-				Recent host bridge results are stored in a bounded browser history for screenshots,
-				hosted smoke review, and wrapper debugging.
+				Recent host bridge results are stored in a bounded browser history for screenshots, hosted
+				smoke review, and wrapper debugging.
 			</p>
 		</article>
 	</div>
@@ -165,8 +170,8 @@
 			<p>
 				These controls send browser-safe <code>native-window-action</code> events for
 				<code>set-window-effect</code>, <code>set-progress</code>, <code>clear-progress</code>, and
-				<code>report-ready</code>. Hosted PHP demos record fallback results; desktop wrappers can bind
-				the same events to <code>setWindowEffect</code>, <code>setProgress</code>,
+				<code>report-ready</code>. Hosted PHP demos record fallback results; desktop wrappers can
+				bind the same events to <code>setWindowEffect</code>, <code>setProgress</code>,
 				<code>clearProgress</code>, and <code>reportReady</code>.
 			</p>
 		</div>
@@ -219,7 +224,9 @@
 		background:
 			linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(238, 248, 251, 0.4)),
 			radial-gradient(circle at 94% 12%, rgba(17, 164, 143, 0.14), transparent 28%);
-		box-shadow: 0 12px 30px rgba(33, 42, 70, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.74);
+		box-shadow:
+			0 12px 30px rgba(33, 42, 70, 0.08),
+			inset 0 1px 0 rgba(255, 255, 255, 0.74);
 	}
 
 	.eyebrow {
@@ -340,7 +347,10 @@
 		font: inherit;
 		text-align: left;
 		cursor: pointer;
-		transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+		transition:
+			transform 140ms ease,
+			box-shadow 140ms ease,
+			background 140ms ease;
 	}
 
 	.handoff-grid button:hover,
@@ -409,7 +419,10 @@
 
 	.status-links a {
 		padding: 0.48rem 0.72rem;
-		transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+		transition:
+			transform 140ms ease,
+			box-shadow 140ms ease,
+			background 140ms ease;
 	}
 
 	.status-links a:hover {
@@ -422,7 +435,9 @@
 		.native-host-status {
 			border-color: rgba(255, 255, 255, 0.08);
 			background: rgba(15, 23, 42, 0.58);
-			box-shadow: 0 24px 70px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+			box-shadow:
+				0 24px 70px rgba(0, 0, 0, 0.26),
+				inset 0 1px 0 rgba(255, 255, 255, 0.05);
 		}
 
 		.status-copy h2,

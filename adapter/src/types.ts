@@ -57,8 +57,17 @@ export interface Builder {
 	generateManifest(options?: { relativePath: string }): string;
 	generateServerInstance?: (dest: string, options?: { serverDirectory: string }) => void;
 	hasServerInstrumentationFile?: () => boolean;
-	createInstrumentationInitializer?: (options: { outputDirectory: string; serverDirectory: string }) => string;
-	instrument?: (options: { entrypoint: string; instrumentation: string; start: string; initializer?: string; module: { exports: string[] } }) => void;
+	createInstrumentationInitializer?: (options: {
+		outputDirectory: string;
+		serverDirectory: string;
+	}) => string;
+	instrument?: (options: {
+		entrypoint: string;
+		instrumentation: string;
+		start: string;
+		initializer?: string;
+		module: { exports: string[] };
+	}) => void;
 	config: {
 		kit: {
 			files: { routes: string };

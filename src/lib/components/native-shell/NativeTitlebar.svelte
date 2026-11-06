@@ -60,7 +60,9 @@
 
 	function hasActiveTextSelection() {
 		const selection = window.getSelection();
-		return Boolean(selection && selection.type === 'Range' && selection.toString().trim().length > 0);
+		return Boolean(
+			selection && selection.type === 'Range' && selection.toString().trim().length > 0
+		);
 	}
 
 	function canStartWindowDrag(target: EventTarget | null) {
@@ -208,7 +210,12 @@
 		</div>
 	</div>
 	<div class="titlebar-drag-strip" aria-hidden="true"></div>
-	<div class="windows-caption-controls" aria-hidden="true" data-no-window-drag data-window-control-group="windows">
+	<div
+		class="windows-caption-controls"
+		aria-hidden="true"
+		data-no-window-drag
+		data-window-control-group="windows"
+	>
 		<span class="caption-button" data-window-control="minimize" data-action="minimize"></span>
 		<span class="caption-button" data-window-control="maximize" data-action="maximize"></span>
 		<span class="caption-button" data-window-control="close" data-action="close"></span>
@@ -263,7 +270,9 @@
 		height: 0.78rem;
 		border-radius: 999px;
 		box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
-		transition: transform 140ms ease, filter 140ms ease;
+		transition:
+			transform 140ms ease,
+			filter 140ms ease;
 	}
 
 	.traffic:hover {
@@ -337,7 +346,10 @@
 		color: #46516a;
 		font-size: 0.75rem;
 		font-weight: 900;
-		transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+		transition:
+			background 120ms ease,
+			color 120ms ease,
+			transform 120ms ease;
 	}
 
 	.windows-caption-controls span:hover {

@@ -1,8 +1,15 @@
-// @ts-nocheck
 import { readFile } from 'node:fs/promises';
 
 const SHA256 = /^[a-f0-9]{64}$/;
 
+/**
+ * @typedef {typeof import('../../release/consumer-profiles/canopy-sites.json')} CommittedProfile
+ * @typedef {CommittedProfile['consumers'][number] & {mirrorUrl?: string}} RcConsumer
+ * @typedef {Omit<CommittedProfile, 'consumers'> & {consumers: RcConsumer[]}} RcProfile
+ * @typedef {{schemaVersion?: number, kind?: string, status?: string, candidate?: {adapterBundleSha256?: string}, run?: {completedAt?: string, expiresAt?: string}, consumers?: {id?: string, status?: string, checks?: {ok: boolean}[]}[]}} RcReceipt
+ */
+
+/** @param {string} value @param {string} label */
 function assertPublicHttpsUrl(value, label) {
 	let parsed;
 	try {
@@ -10,12 +17,19 @@ function assertPublicHttpsUrl(value, label) {
 	} catch {
 		throw new Error(`${label} must be a valid URL.`);
 	}
-	if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
+	if (
+		parsed.protocol !== 'https:' ||
+		parsed.username ||
+		parsed.password ||
+		parsed.search ||
+		parsed.hash
+	) {
 		throw new Error(`${label} must be a public HTTPS URL without credentials, query, or fragment.`);
 	}
 	return parsed;
 }
 
+/** @template {RcProfile} T @param {T} profile @returns {T} */
 export function validateRcConsumerProfile(profile) {
 	if (profile?.schemaVersion !== 1 || profile?.kind !== 'sveltekit-php.rc-consumer-profile') {
 		throw new Error('Unsupported RC consumer profile schema or kind.');
@@ -25,9 +39,11 @@ export function validateRcConsumerProfile(profile) {
 	}
 	const ids = new Set();
 	for (const consumer of profile.consumers) {
-		if (!consumer.id || ids.has(consumer.id)) throw new Error('RC consumer IDs must be non-empty and unique.');
+		if (!consumer.id || ids.has(consumer.id))
+			throw new Error('RC consumer IDs must be non-empty and unique.');
 		ids.add(consumer.id);
-		if (consumer.mode !== 'php-static') throw new Error(`${consumer.id} must declare php-static mode.`);
+		if (consumer.mode !== 'php-static')
+			throw new Error(`${consumer.id} must declare php-static mode.`);
 		if (typeof consumer.identityMarker !== 'string' || consumer.identityMarker.trim().length < 3) {
 			throw new Error(`${consumer.id} must include a stable identity marker.`);
 		}
@@ -43,7 +59,9 @@ export function validateRcConsumerProfile(profile) {
 		if (
 			typeof consumer.provenancePath !== 'string' ||
 			!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(consumer.provenancePath) ||
-			provenanceSegments.some((segment) => !segment || segment === '.' || segment === '..' || segment.startsWith('.'))
+			provenanceSegments.some(
+				(segment) => !segment || segment === '.' || segment === '..' || segment.startsWith('.')
+			)
 		) {
 			throw new Error(`${consumer.id}.provenancePath must be a safe non-dot relative path.`);
 		}
@@ -60,7 +78,8 @@ export function validateRcConsumerProfile(profile) {
 }
 
 /**
- * @param {any} receipt
+ * @template {RcReceipt} T
+ * @param {T} receipt
  * @param {{ now?: Date, requireCurrent?: boolean, expectedConsumerIds?: string[] }} [options]
  */
 export function validateRcConsumerReceipt(receipt, options = {}) {
@@ -71,8 +90,8 @@ export function validateRcConsumerReceipt(receipt, options = {}) {
 	if (!SHA256.test(receipt.candidate?.adapterBundleSha256 ?? '')) {
 		throw new Error('Receipt candidate must include a lowercase SHA-256 adapter hash.');
 	}
-	const completedAt = new Date(receipt.run?.completedAt);
-	const expiresAt = new Date(receipt.run?.expiresAt);
+	const completedAt = new Date(/** @type {string} */ (receipt.run?.completedAt));
+	const expiresAt = new Date(/** @type {string} */ (receipt.run?.expiresAt));
 	if (!Number.isFinite(completedAt.valueOf()) || !Number.isFinite(expiresAt.valueOf())) {
 		throw new Error('Receipt timestamps must be valid ISO dates.');
 	}
@@ -84,7 +103,8 @@ export function validateRcConsumerReceipt(receipt, options = {}) {
 		throw new Error('Receipt must contain consumer results.');
 	}
 	const consumerIds = receipt.consumers.map((consumer) => consumer.id);
-	if (new Set(consumerIds).size !== consumerIds.length) throw new Error('Receipt consumer IDs must be unique.');
+	if (new Set(consumerIds).size !== consumerIds.length)
+		throw new Error('Receipt consumer IDs must be unique.');
 	if (
 		expectedConsumerIds &&
 		JSON.stringify([...consumerIds].sort()) !== JSON.stringify([...expectedConsumerIds].sort())
@@ -101,6 +121,7 @@ export function validateRcConsumerReceipt(receipt, options = {}) {
 	return receipt;
 }
 
+/** @param {string} file @returns {Promise<RcProfile>} */
 export async function readRcConsumerProfile(file) {
 	return validateRcConsumerProfile(JSON.parse(await readFile(file, 'utf8')));
 }

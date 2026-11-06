@@ -13,7 +13,16 @@ const generatedArtifacts = [
 		label: 'adapter bundle',
 		source: 'adapter/src/index.ts',
 		artifact: 'adapter/index.js',
-		build: (outFile) => ['build', 'adapter/src/index.ts', '--outfile', outFile, '--target', 'node', '--format', 'esm'],
+		build: (outFile) => [
+			'build',
+			'adapter/src/index.ts',
+			'--outfile',
+			outFile,
+			'--target',
+			'node',
+			'--format',
+			'esm'
+		],
 		requiredMarkers: [
 			"preg_match('/[\\\\x00-\\\\x1f\\\\x7f]/', $decoded)",
 			"$segment === '..' || $segment === '.'",
@@ -48,7 +57,9 @@ function compareArtifact(artifact) {
 		runBun(artifact.build(tempFile));
 
 		const generated = normalizeBuiltArtifact(readFileSync(tempFile, 'utf8'));
-		const checkedIn = normalizeBuiltArtifact(readFileSync(path.join(repoRoot, artifact.artifact), 'utf8'));
+		const checkedIn = normalizeBuiltArtifact(
+			readFileSync(path.join(repoRoot, artifact.artifact), 'utf8')
+		);
 		const missingMarkers = [];
 
 		for (const marker of artifact.requiredMarkers ?? []) {
@@ -87,7 +98,9 @@ function listFiles(root, current = root) {
 	return readdirSync(current)
 		.flatMap((name) => {
 			const absolute = path.join(current, name);
-			return statSync(absolute).isDirectory() ? listFiles(root, absolute) : path.relative(root, absolute);
+			return statSync(absolute).isDirectory()
+				? listFiles(root, absolute)
+				: path.relative(root, absolute);
 		})
 		.sort();
 }
@@ -100,17 +113,26 @@ function compareDeclarations() {
 		const generatedFiles = listFiles(tempRoot);
 		const checkedFiles = listFiles(checkedRoot);
 		if (JSON.stringify(generatedFiles) !== JSON.stringify(checkedFiles)) {
-			return { ok: false, message: 'adapter/declarations file list is stale. Run `bun run build:adapter:types`.' };
+			return {
+				ok: false,
+				message: 'adapter/declarations file list is stale. Run `bun run build:adapter:types`.'
+			};
 		}
 		for (const relative of generatedFiles) {
 			if (
 				normalizeBuiltArtifact(readFileSync(path.join(tempRoot, relative), 'utf8')) !==
 				normalizeBuiltArtifact(readFileSync(path.join(checkedRoot, relative), 'utf8'))
 			) {
-				return { ok: false, message: `adapter/declarations/${relative.replaceAll('\\', '/')} is stale.` };
+				return {
+					ok: false,
+					message: `adapter/declarations/${relative.replaceAll('\\', '/')} is stale.`
+				};
 			}
 		}
-		return { ok: true, message: `adapter/declarations matches the public TypeScript source (${generatedFiles.length} files).` };
+		return {
+			ok: true,
+			message: `adapter/declarations matches the public TypeScript source (${generatedFiles.length} files).`
+		};
 	} finally {
 		rmSync(tempRoot, { recursive: true, force: true });
 	}
@@ -143,8 +165,9 @@ if (failures.length > 0) {
 		process.exit(1);
 	}
 
-	console.warn('Non-strict artifact sync check is advisory; pass --strict or run in CI to fail on drift.');
+	console.warn(
+		'Non-strict artifact sync check is advisory; pass --strict or run in CI to fail on drift.'
+	);
 } else {
 	console.log(`Generated artifacts are synchronized: ${generatedArtifacts.length + 1} checked.`);
 }
-

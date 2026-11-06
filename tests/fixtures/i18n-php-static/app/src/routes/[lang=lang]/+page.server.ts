@@ -10,4 +10,3 @@ export const load: PageServerLoad = ({ params }) => {
 		title: 'Accueil francais'
 	};
 };
-

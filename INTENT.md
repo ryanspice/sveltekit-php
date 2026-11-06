@@ -26,23 +26,49 @@ This JSON block is the `intent` instance for `repo.schema.json`. The schema also
 
 ```json
 {
-  "schemaVersion": "1.0.0",
-  "kind": "intent",
-  "repository": "ryanspice/sveltekit-php",
-  "reviewedAt": "2026-10-25",
-  "baselineCommit": "dabdfd2972482f22d5a0110450fd60c5e2af8b5a",
-  "status": "alpha",
-  "purpose": "Deploy SvelteKit frontend output to PHP hosting with explicit PHP-static and JavaScript-sidecar modes.",
-  "entrypoints": ["README.md", "AGENTS.md", "docs/HOSTING-CONTRACT.md", "docs/MODERNIZATION.md"],
-  "sourceRoots": ["adapter/src", "src", "scripts", "tests", "docs"],
-  "invariants": ["Distinct php-static and js-ssr modes", "Remote functions fail closed", "Source and generated package parity", "Root and base-path consumer acceptance"],
-  "verificationCommands": ["bun run check", "bun run test:unit", "bun run build:adapter", "bun run verify:artifacts -- --strict", "bun run test:kit-compatibility", "bun run v1:gate:local"],
-  "releaseGates": ["Runtime security fixes", "Current dependency graph", "Kit 2/3 packed consumers", "Independent review", "Current hosted proof", "Owner npm publication authority"],
-  "presentation": {
-    "description": "Deploy SvelteKit to PHP hosting: prerendered pages, PHP data and actions, and an optional JavaScript SSR sidecar.",
-    "topics": ["sveltekit", "sveltekit-adapter", "php", "shared-hosting", "prerender", "typescript"],
-    "profilePitch": "SvelteKit PHP — modern SvelteKit builds for PHP hosting, with explicit deployment modes and packed-consumer verification."
-  }
+	"schemaVersion": "1.0.0",
+	"kind": "intent",
+	"repository": "ryanspice/sveltekit-php",
+	"reviewedAt": "2026-10-25",
+	"baselineCommit": "dabdfd2972482f22d5a0110450fd60c5e2af8b5a",
+	"status": "alpha",
+	"purpose": "Deploy SvelteKit frontend output to PHP hosting with explicit PHP-static and JavaScript-sidecar modes.",
+	"entrypoints": ["README.md", "AGENTS.md", "docs/HOSTING-CONTRACT.md", "docs/MODERNIZATION.md"],
+	"sourceRoots": ["adapter/src", "src", "scripts", "tests", "docs"],
+	"invariants": [
+		"Distinct php-static and js-ssr modes",
+		"Remote functions fail closed",
+		"Source and generated package parity",
+		"Root and base-path consumer acceptance"
+	],
+	"verificationCommands": [
+		"bun run check",
+		"bun run test:unit",
+		"bun run build:adapter",
+		"bun run verify:artifacts -- --strict",
+		"bun run test:kit-compatibility",
+		"bun run v1:gate:local"
+	],
+	"releaseGates": [
+		"Runtime security fixes",
+		"Current dependency graph",
+		"Kit 2/3 packed consumers",
+		"Independent review",
+		"Current hosted proof",
+		"Owner npm publication authority"
+	],
+	"presentation": {
+		"description": "Deploy SvelteKit to PHP hosting: prerendered pages, PHP data and actions, and an optional JavaScript SSR sidecar.",
+		"topics": [
+			"sveltekit",
+			"sveltekit-adapter",
+			"php",
+			"shared-hosting",
+			"prerender",
+			"typescript"
+		],
+		"profilePitch": "SvelteKit PHP — modern SvelteKit builds for PHP hosting, with explicit deployment modes and packed-consumer verification."
+	}
 }
 ```
 

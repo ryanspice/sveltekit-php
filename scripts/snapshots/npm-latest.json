@@ -1,21 +1,21 @@
 {
-  "updated": "2026-08-24",
-  "packages": {
-    "svelte": {
-      "latest": "5.56.10",
-      "stance": "same-major"
-    },
-    "@sveltejs/kit": {
-      "latest": "2.70.3",
-      "stance": "same-major"
-    },
-    "@sveltejs/vite-plugin-svelte": {
-      "latest": "7.3.0",
-      "stance": "latest-major-validation"
-    },
-    "vite": {
-      "latest": "8.2.2",
-      "stance": "latest-major-validation"
-    }
-  }
+	"updated": "2026-08-24",
+	"packages": {
+		"svelte": {
+			"latest": "5.56.10",
+			"stance": "same-major"
+		},
+		"@sveltejs/kit": {
+			"latest": "2.70.3",
+			"stance": "same-major"
+		},
+		"@sveltejs/vite-plugin-svelte": {
+			"latest": "7.3.0",
+			"stance": "latest-major-validation"
+		},
+		"vite": {
+			"latest": "8.2.2",
+			"stance": "latest-major-validation"
+		}
+	}
 }

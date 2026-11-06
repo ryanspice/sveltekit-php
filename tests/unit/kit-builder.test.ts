@@ -19,9 +19,17 @@ describe('Kit builder compatibility', () => {
 		expect(normalizeBuilder(builder)).toBe(builder);
 	});
 	it('normalizes Kit 3 config without mutating its builder or losing method context', () => {
-		const config = Object.freeze({ paths: { base: '/sites/cos' }, files: { routes: 'src/marketing' } });
-		const builder = Object.freeze({ config, getBuildDirectory: () => '.svelte-kit',
-			generateServerInstance() { return this.getBuildDirectory(); } });
+		const config = Object.freeze({
+			paths: { base: '/sites/cos' },
+			files: { routes: 'src/marketing' }
+		});
+		const builder = Object.freeze({
+			config,
+			getBuildDirectory: () => '.svelte-kit',
+			generateServerInstance() {
+				return this.getBuildDirectory();
+			}
+		});
 		const normalized = normalizeBuilder(builder);
 		expect(normalized.config.kit).toBe(config);
 		expect(builder.config).toBe(config);

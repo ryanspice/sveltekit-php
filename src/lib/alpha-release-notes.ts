@@ -1,5 +1,8 @@
 import type { AlphaReadinessReport } from './alpha-readiness';
-import { buildAlphaHardProofBlockers, type AlphaHardProofBlocker } from './alpha-hard-proof-blockers';
+import {
+	buildAlphaHardProofBlockers,
+	type AlphaHardProofBlocker
+} from './alpha-hard-proof-blockers';
 import { requiredAlphaEvidence } from './alpha-required-evidence';
 
 type ManifestLike = {
@@ -26,7 +29,10 @@ type ManifestLike = {
 	hardProofBlockers?: AlphaHardProofBlocker[];
 } | null;
 
-export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: ManifestLike = null) {
+export function renderAlphaReleaseNotes(
+	report: AlphaReadinessReport,
+	manifest: ManifestLike = null
+) {
 	const readyAreas = report.readinessAreas.filter((area) => area.status === 'ready');
 	const watchAreas = report.readinessAreas.filter((area) => area.status === 'watch');
 	const blockedAreas = report.readinessAreas.filter((area) => area.status === 'blocked');
@@ -47,14 +53,23 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		{ path: '/alpha-readiness/release-notes.md', kind: 'release-notes-markdown-endpoint' },
 		{ path: '/alpha-readiness/release-checklist.md', kind: 'release-checklist-markdown-endpoint' },
 		{ path: '/alpha-readiness/report.svg', kind: 'svg-release-graphic-endpoint' },
-		{ path: '/alpha-readiness/community-source-map.svg', kind: 'community-source-map-svg-endpoint' },
+		{
+			path: '/alpha-readiness/community-source-map.svg',
+			kind: 'community-source-map-svg-endpoint'
+		},
 		{ path: '/alpha-readiness/release-manifest.json', kind: 'release-manifest-json-endpoint' },
 		{ path: '/alpha-readiness/gate-matrix.json', kind: 'gate-matrix-json-endpoint' },
 		{ path: '/alpha-readiness/evidence-index.json', kind: 'evidence-index-json-endpoint' },
 		{ path: '/alpha-readiness/package-contract.json', kind: 'package-contract-json-endpoint' },
-		{ path: '/alpha-readiness/native-host-contract.json', kind: 'native-host-contract-json-endpoint' },
+		{
+			path: '/alpha-readiness/native-host-contract.json',
+			kind: 'native-host-contract-json-endpoint'
+		},
 		{ path: '/alpha-readiness/native-host-guide.md', kind: 'native-host-guide-markdown-endpoint' },
-		{ path: '/alpha-readiness/native-host-wrapper-smoke.json', kind: 'native-host-wrapper-smoke-json-endpoint' },
+		{
+			path: '/alpha-readiness/native-host-wrapper-smoke.json',
+			kind: 'native-host-wrapper-smoke-json-endpoint'
+		},
 		{
 			path: '/alpha-readiness/hosted-smoke-checklist.json',
 			kind: 'hosted-smoke-checklist-json-endpoint'
@@ -62,8 +77,14 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		{ path: '/alpha-readiness/bridge-reuse.json', kind: 'bridge-reuse-json-endpoint' },
 		{ path: '/alpha-readiness/review-index.md', kind: 'alpha-review-index-markdown-endpoint' },
 		{ path: '/alpha-readiness/community-signals.json', kind: 'community-signals-json-endpoint' },
-		{ path: '/alpha-readiness/community-analytics.md', kind: 'community-analytics-markdown-endpoint' },
-		{ path: '/alpha-readiness/community-research-pack.json', kind: 'community-research-pack-json-endpoint' },
+		{
+			path: '/alpha-readiness/community-analytics.md',
+			kind: 'community-analytics-markdown-endpoint'
+		},
+		{
+			path: '/alpha-readiness/community-research-pack.json',
+			kind: 'community-research-pack-json-endpoint'
+		},
 		{ path: '/alpha-readiness/readiness.csv', kind: 'readiness-csv-endpoint' },
 		{ path: '/alpha-readiness/community-signals.csv', kind: 'community-signals-csv-endpoint' },
 		{ path: '/alpha-readiness/community-sources.csv', kind: 'community-sources-csv-endpoint' }
@@ -515,4 +536,3 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 	lines.push('');
 	return lines.join('\n');
 }
-

@@ -31,7 +31,8 @@ const collectedArtifact = (path: string, kind: string) => ({
 const hostedArtifact = (path: string, kind: string, remoteSmoke: RemoteSmokeArtifact = null) => ({
 	path,
 	kind,
-	proofStage: remoteSmoke?.status === 'passed' ? 'hosted-smoke-passed' : 'hosted-smoke-or-placeholder',
+	proofStage:
+		remoteSmoke?.status === 'passed' ? 'hosted-smoke-passed' : 'hosted-smoke-or-placeholder',
 	trustLevel:
 		remoteSmoke?.status === 'passed'
 			? 'real-php-host-smoke-evidence'
@@ -68,7 +69,8 @@ export function buildReleaseManifest(
 		releasePolicy: {
 			...report.releasePolicy,
 			requiredEvidence: requiredAlphaEvidence,
-			projectRankPolicy: '1.1.0-alpha is the required pre-stable release track and ranks above any RC for this project.',
+			projectRankPolicy:
+				'1.1.0-alpha is the required pre-stable release track and ranks above any RC for this project.',
 			semverNote:
 				'This is a project release policy marker, not a claim that SemVer prerelease comparison ranks alpha above rc.',
 			disallowedCandidateLabels: ['1.1.0-rc', '1.1.0-rc.0', '1.1.0-rc.1', 'latest', 'stable'],
@@ -734,7 +736,10 @@ export function buildReleaseManifest(
 			}
 		},
 		artifacts: [
-			documentationArtifact('docs/ALPHA-RELEASE-CHECKLIST.md', 'alpha-release-checklist-documentation'),
+			documentationArtifact(
+				'docs/ALPHA-RELEASE-CHECKLIST.md',
+				'alpha-release-checklist-documentation'
+			),
 			generatedArtifact('report/alpha-release-checklist.md', 'alpha-release-checklist-markdown'),
 			generatedArtifact('report/alpha-readiness.json', 'readiness-json'),
 			generatedArtifact('report/alpha-readiness.full.json', 'combined-json'),
@@ -748,14 +753,20 @@ export function buildReleaseManifest(
 			generatedArtifact('report/alpha-package-contract.json', 'package-contract-json'),
 			generatedArtifact('report/alpha-native-host-contract.json', 'native-host-contract-json'),
 			generatedArtifact('report/alpha-native-host-guide.md', 'native-host-guide-markdown'),
-			generatedArtifact('report/alpha-native-host-wrapper-smoke.json', 'native-host-wrapper-smoke-json'),
+			generatedArtifact(
+				'report/alpha-native-host-wrapper-smoke.json',
+				'native-host-wrapper-smoke-json'
+			),
 			generatedArtifact('report/alpha-hosted-smoke-checklist.json', 'hosted-smoke-checklist-json'),
 			generatedArtifact('report/alpha-readiness.csv', 'readiness-csv'),
 			generatedArtifact('report/alpha-bridge-reuse.json', 'bridge-reuse-json'),
 			generatedArtifact('report/alpha-review-index.md', 'alpha-review-index-markdown'),
 			generatedArtifact('report/alpha-community-signals.csv', 'community-signals-csv'),
 			generatedArtifact('report/alpha-community-sources.csv', 'community-sources-csv'),
-			generatedArtifact('report/alpha-community-research-pack.json', 'community-research-pack-json'),
+			generatedArtifact(
+				'report/alpha-community-research-pack.json',
+				'community-research-pack-json'
+			),
 			collectedArtifact('report/alpha-community-analytics.json', 'community-analytics-json'),
 			collectedArtifact('report/alpha-community-analytics.md', 'community-analytics-markdown'),
 			hostedArtifact('report/alpha-remote-smoke.json', 'hosted-smoke-json', remoteSmoke),
@@ -767,23 +778,47 @@ export function buildReleaseManifest(
 			runtimeEndpoint('/alpha-readiness/report.json', 'readiness-json-endpoint'),
 			runtimeEndpoint('/alpha-readiness/report.html', 'html-report-endpoint'),
 			runtimeEndpoint('/alpha-readiness/report.md', 'markdown-report-endpoint'),
-			runtimeEndpoint('/alpha-readiness/release-checklist.md', 'release-checklist-markdown-endpoint'),
+			runtimeEndpoint(
+				'/alpha-readiness/release-checklist.md',
+				'release-checklist-markdown-endpoint'
+			),
 			runtimeEndpoint('/alpha-readiness/release-notes.md', 'release-notes-markdown-endpoint'),
 			runtimeEndpoint('/alpha-readiness/report.svg', 'svg-release-graphic-endpoint'),
-			runtimeEndpoint('/alpha-readiness/community-source-map.svg', 'community-source-map-svg-endpoint'),
+			runtimeEndpoint(
+				'/alpha-readiness/community-source-map.svg',
+				'community-source-map-svg-endpoint'
+			),
 			runtimeEndpoint('/alpha-readiness/release-manifest.json', 'release-manifest-json-endpoint'),
 			runtimeEndpoint('/alpha-readiness/gate-matrix.json', 'gate-matrix-json-endpoint'),
 			runtimeEndpoint('/alpha-readiness/evidence-index.json', 'evidence-index-json-endpoint'),
 			runtimeEndpoint('/alpha-readiness/package-contract.json', 'package-contract-json-endpoint'),
-			runtimeEndpoint('/alpha-readiness/native-host-contract.json', 'native-host-contract-json-endpoint'),
-			runtimeEndpoint('/alpha-readiness/native-host-guide.md', 'native-host-guide-markdown-endpoint'),
-			runtimeEndpoint('/alpha-readiness/native-host-wrapper-smoke.json', 'native-host-wrapper-smoke-json-endpoint'),
-			runtimeEndpoint('/alpha-readiness/hosted-smoke-checklist.json', 'hosted-smoke-checklist-json-endpoint'),
+			runtimeEndpoint(
+				'/alpha-readiness/native-host-contract.json',
+				'native-host-contract-json-endpoint'
+			),
+			runtimeEndpoint(
+				'/alpha-readiness/native-host-guide.md',
+				'native-host-guide-markdown-endpoint'
+			),
+			runtimeEndpoint(
+				'/alpha-readiness/native-host-wrapper-smoke.json',
+				'native-host-wrapper-smoke-json-endpoint'
+			),
+			runtimeEndpoint(
+				'/alpha-readiness/hosted-smoke-checklist.json',
+				'hosted-smoke-checklist-json-endpoint'
+			),
 			runtimeEndpoint('/alpha-readiness/bridge-reuse.json', 'bridge-reuse-json-endpoint'),
 			runtimeEndpoint('/alpha-readiness/review-index.md', 'alpha-review-index-markdown-endpoint'),
 			runtimeEndpoint('/alpha-readiness/community-signals.json', 'community-signals-json-endpoint'),
-			runtimeEndpoint('/alpha-readiness/community-analytics.md', 'community-analytics-markdown-endpoint'),
-			runtimeEndpoint('/alpha-readiness/community-research-pack.json', 'community-research-pack-json-endpoint'),
+			runtimeEndpoint(
+				'/alpha-readiness/community-analytics.md',
+				'community-analytics-markdown-endpoint'
+			),
+			runtimeEndpoint(
+				'/alpha-readiness/community-research-pack.json',
+				'community-research-pack-json-endpoint'
+			),
 			runtimeEndpoint('/alpha-readiness/readiness.csv', 'readiness-csv-endpoint'),
 			runtimeEndpoint('/alpha-readiness/community-signals.csv', 'community-signals-csv-endpoint'),
 			runtimeEndpoint('/alpha-readiness/community-sources.csv', 'community-sources-csv-endpoint')
@@ -822,4 +857,3 @@ export function buildReleaseManifest(
 		limitations: report.limitations
 	};
 }
-

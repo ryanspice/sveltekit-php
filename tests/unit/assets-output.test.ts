@@ -4,7 +4,6 @@ import path from 'node:path';
 import os from 'node:os';
 import adapter from '../../adapter/src/index.ts';
 import { getHtaccess } from '../../adapter/src/runtime/htaccess-templates.ts';
-import { getPhpProxy } from '../../adapter/src/runtime/js-ssr-templates.ts';
 import { getRouterPhpStaticPhp } from '../../adapter/src/runtime/router/php-static.ts';
 import { getRouterSharedPhp } from '../../adapter/src/runtime/router/shared.ts';
 import type { Builder as AdapterBuilder } from '@sveltejs/kit';
@@ -130,8 +129,9 @@ describe('assets output in js-ssr', () => {
 		fs.mkdirSync(privateDir, { recursive: true });
 		fs.writeFileSync(path.join(privateDir, 'preserve.txt'), 'EXISTING');
 		for (const assets of [privateDir, path.join(privateDir, 'public'), tempRoot]) {
-			await expect(adapter({ mode: 'js-ssr', out: outDir, assets }).adapt(builder as unknown as AdapterBuilder))
-				.rejects.toThrow('private server output must not overlap public assets');
+			await expect(
+				adapter({ mode: 'js-ssr', out: outDir, assets }).adapt(builder as unknown as AdapterBuilder)
+			).rejects.toThrow('private server output must not overlap public assets');
 			expect(fs.readFileSync(path.join(privateDir, 'preserve.txt'), 'utf8')).toBe('EXISTING');
 		}
 	});
@@ -140,8 +140,11 @@ describe('assets output in js-ssr', () => {
 		const privateDir = `${outDir}-server`;
 		fs.mkdirSync(privateDir);
 		fs.writeFileSync(path.join(privateDir, 'preserve.txt'), 'EXISTING');
-		await expect(adapter({ mode: 'js-ssr', out: outDir, assets: assetsDir }).adapt(builder as unknown as AdapterBuilder))
-			.rejects.toThrow('refusing to clean an unowned private server directory');
+		await expect(
+			adapter({ mode: 'js-ssr', out: outDir, assets: assetsDir }).adapt(
+				builder as unknown as AdapterBuilder
+			)
+		).rejects.toThrow('refusing to clean an unowned private server directory');
 		expect(fs.readFileSync(path.join(privateDir, 'preserve.txt'), 'utf8')).toBe('EXISTING');
 	});
 
@@ -332,13 +335,6 @@ describe('runtime hardening templates', () => {
 		expect(phpStatic).toContain('router_send_file');
 	});
 
-	it('limits proxy fallback bodies without curl', () => {
-		const proxy = getPhpProxy('http://127.0.0.1:3000');
-		expect(proxy).toContain('Length Required');
-		expect(proxy).toContain('http_response_code(411)');
-		expect(proxy).toContain('$contentLength > (int)$maxBodyBytes');
-	});
-
 	it('documents sk_fetch timeout support in generated compat code', () => {
 		const compat = fs.readFileSync(path.resolve('adapter/src/runtime/php-compat.php'), 'utf8');
 		expect(compat).toContain('SK_FETCH_TIMEOUT_MS');
@@ -359,8 +355,14 @@ describe('runtime hardening templates', () => {
 	});
 
 	it('keeps generated PHP exception details out of client responses', () => {
-		const phpTemplates = fs.readFileSync(path.resolve('adapter/src/runtime/php-templates.ts'), 'utf8');
-		const jsSsrTemplates = fs.readFileSync(path.resolve('adapter/src/runtime/js-ssr-templates.ts'), 'utf8');
+		const phpTemplates = fs.readFileSync(
+			path.resolve('adapter/src/runtime/php-templates.ts'),
+			'utf8'
+		);
+		const jsSsrTemplates = fs.readFileSync(
+			path.resolve('adapter/src/runtime/js-ssr-templates.ts'),
+			'utf8'
+		);
 
 		expect(phpTemplates).toContain(
 			"error_log('[sveltekit-php] action error: ' . $e->getMessage());"

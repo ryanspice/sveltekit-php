@@ -131,7 +131,8 @@ export const desktopShellUiBinding = {
 			handler: 'setWindowEffect',
 			helper: 'enableMicaWindowChrome',
 			upstreamCall: 'enableMicaWindowChrome(win)',
-			evidence: 'desktop-shell-ui enableMicaWindowChrome calls win.setEffects({ effects: [Effect.Mica] })',
+			evidence:
+				'desktop-shell-ui enableMicaWindowChrome calls win.setEffects({ effects: [Effect.Mica] })',
 			requiredHostPermission: 'core:window:allow-set-effects',
 			detailFields: ['windowEffect', 'source']
 		},
@@ -161,7 +162,8 @@ export const desktopShellUiBinding = {
 			handler: 'reportReady',
 			helper: 'host.reportReady',
 			upstreamCall: 'host.reportReady({ reportHref, reportKind, reportLabel })',
-			evidence: 'SvelteKit PHP host-owned report handoff keeps generated alpha evidence links native-safe',
+			evidence:
+				'SvelteKit PHP host-owned report handoff keeps generated alpha evidence links native-safe',
 			requiredHostPermission:
 				'host-owned report reveal only; no native permission is required by the PHP adapter runtime',
 			detailFields: ['reportHref', 'reportKind', 'reportLabel', 'source']
@@ -280,7 +282,8 @@ const SUPPORTED_REPORT_KINDS = new Set<NativeReportKind>([
 
 const fallbackReasons: Record<NativeWindowAction, string> = {
 	'start-dragging': 'No native host drag handler is registered; browser shell remains static',
-	'toggle-maximize': 'No native host maximize handler is registered; browser shell keeps current bounds',
+	'toggle-maximize':
+		'No native host maximize handler is registered; browser shell keeps current bounds',
 	'set-window-effect':
 		'No native host window-effect handler is registered; browser shell keeps CSS Mica fallback',
 	'set-progress':

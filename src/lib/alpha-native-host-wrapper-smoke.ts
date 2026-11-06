@@ -94,7 +94,8 @@ export function buildAlphaNativeHostWrapperSmoke(report: AlphaReadinessReport) {
 		}
 
 		return (
-			matchingStep.expectedTaskbarState.saveInFlight !== expectation.expectedTaskbarState.saveInFlight ||
+			matchingStep.expectedTaskbarState.saveInFlight !==
+				expectation.expectedTaskbarState.saveInFlight ||
 			matchingStep.expectedTaskbarState.refreshInFlight !==
 				expectation.expectedTaskbarState.refreshInFlight ||
 			matchingStep.expectedTaskbarState.hasQueuedSave !==
@@ -147,7 +148,8 @@ export function buildAlphaNativeHostWrapperSmoke(report: AlphaReadinessReport) {
 		hostPermissionContract: {
 			marker: 'lg-ultragear-host-permission-checklist',
 			trustLevel: 'real-host-permission-cue-required',
-			sourceCapability: 'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge/src-tauri/capabilities/default.json',
+			sourceCapability:
+				'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge/src-tauri/capabilities/default.json',
 			requiredCapabilityMarkers: [
 				'src-tauri/capabilities/default.json',
 				'core:window:allow-set-effects',

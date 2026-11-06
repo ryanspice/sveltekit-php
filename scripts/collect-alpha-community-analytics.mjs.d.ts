@@ -74,6 +74,69 @@ export function describeCommunitySource(
 	blockedOutcomePolicy: string;
 };
 
+export type CommunityAnalyticsSource = ReturnType<
+	typeof import('../src/lib/alpha-community-sources').describeCommunitySource
+> & {
+	status: string;
+	url: string;
+	total: number | null;
+	score: number;
+	top: { title?: string; url?: string; score: number }[];
+	error: string | null;
+};
+
+export type CommunityAnalyticsArtifact = {
+	target: string;
+	collectedAt: string;
+	userAgent: string;
+	note: string;
+	freshnessContract: {
+		marker: string;
+		maxAgeHours: number;
+		trustLevel: string;
+		refreshCommand: string;
+		reportCommand: string;
+		requiredSourceFields: string[];
+		reviewerRule: string;
+	};
+	summary: {
+		signals: number;
+		successfulSources: number;
+		failedSources: number;
+		blockedSources: number;
+		skippedSources: number;
+		manualReviewRequiredSources: number;
+		averageDemandScore: number;
+		weightedAverageDemandScore: number;
+		providerCoverage: { value: string | number; count: number }[];
+		evidenceKindCoverage: { value: string | number; count: number }[];
+		collectionRiskCoverage: { value: string | number; count: number }[];
+		collectionMethodCoverage: { value: string | number; count: number }[];
+		trustBoundaryCoverage: { value: string | number; count: number }[];
+		freshnessWindows: { value: string | number; count: number }[];
+		analyticsLinkageMarkers: string[];
+	};
+	queries: {
+		signalId: string;
+		id?: string;
+		keyword: string;
+		intent: string;
+		analyticsLinkageMarker: string;
+		sourceToKeywordEdges: string[];
+		aggregate: {
+			successfulSources: number;
+			failedSources: number;
+			blockedSources: number;
+			skippedSources: number;
+			manualReviewRequiredSources: number;
+			totalMentions: number;
+			demandScore: number;
+			weightedDemandScore: number;
+		};
+		sources: CommunityAnalyticsSource[];
+	}[];
+};
+
 export function collectCommunityAnalytics(options?: {
 	signals?: Array<{
 		id: string;
@@ -82,4 +145,4 @@ export function collectCommunityAnalytics(options?: {
 		communities: CommunitySource[];
 	}>;
 	timeoutMs?: number;
-}): Promise<unknown>;
+}): Promise<CommunityAnalyticsArtifact>;

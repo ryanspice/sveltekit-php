@@ -2,7 +2,9 @@
 
 Date: 2026-08-24
 
-This audit updates the 1.0.2-alpha goal against current official Svelte and SvelteKit guidance plus the current npm latest package surface. It is an alpha evidence artifact, not a dependency-upgrade commit.
+> Historical compatibility snapshot, reconciled November 6, 2026. Package versions, registry observations and live-consumer claims below describe August 24, 2026. Use [INTENT](../INTENT.md), the [modernization plan](MODERNIZATION.md) and its dated implementation/migration receipts for the current candidate and open acceptance gates. No registry, host or compatibility check was rerun for this documentation synthesis.
+
+This audit records the 1.0.2-alpha goal against the official Svelte and SvelteKit guidance and npm package snapshot reviewed on August 24, 2026. It is an alpha evidence artifact, not a dependency-upgrade commit.
 
 ## Sources checked
 

@@ -1,10 +1,12 @@
 # SvelteKit PHP 1.0.2-alpha readiness track
 
-This document defines the current alpha-facing product surface for the adapter.
+This document preserves the July–August 2026 alpha-facing product surface and evidence markers for the adapter's `1.0.2-alpha` track.
 
-## Current position
+> Historical readiness track, reconciled November 6, 2026. Version choices, hosted observations, package snapshots and gate results below describe their recorded checkpoints. Use [INTENT](../INTENT.md) and the [modernization plan](MODERNIZATION.md) for the current candidate and acceptance state, and the [hosting contract](HOSTING-CONTRACT.md) for deployment requirements. Retained evidence markers do not certify a later source or package candidate.
 
-The package metadata is now set to `1.0.2-alpha.0`. Keep it there only while `bun run alpha:gate` remains green from the current checkout and before any publish/tag action.
+## Recorded position
+
+The `1.0.2-alpha.0` checkpoint required `bun run alpha:gate` to remain green before any publish/tag action. That version is retained here for history; use current [package metadata](../package.json) when preparing a release.
 
 SemVer orders `alpha` before `rc`. In this repo, the alpha track is being used as the broader product-hardening milestone: runtime correctness plus operator-facing reporting, native-styled presentation, and community signal mapping.
 

@@ -50,3 +50,9 @@ tools/*.patch
 /playwright/.cache/
 /playwright/.auth/
 .svelte-doctor/*
+
+# Local agent evidence, archived prompts and retired indexes
+.ai/
+.codegraph/
+.hermes-sidecars/
+*.hermes.*

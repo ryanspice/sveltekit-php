@@ -88,7 +88,10 @@ async function main() {
 		'alpha:latest-vite-major:smoke'
 	]);
 
-	if (packageJson.scripts?.['verify:latest-sveltekit-audit'] !== 'bun scripts/verify-latest-sveltekit-audit.mjs') {
+	if (
+		packageJson.scripts?.['verify:latest-sveltekit-audit'] !==
+		'bun scripts/verify-latest-sveltekit-audit.mjs'
+	) {
 		throw new Error('package.json must expose verify:latest-sveltekit-audit.');
 	}
 	if (
@@ -98,10 +101,20 @@ async function main() {
 		throw new Error('package.json must expose alpha:latest-vite-major:smoke.');
 	}
 
-	if (!packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes('latest-sveltekit-compatibility-audit')) {
-		throw new Error('package.json required evidence must include latest-sveltekit-compatibility-audit.');
+	if (
+		!packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes(
+			'latest-sveltekit-compatibility-audit'
+		)
+	) {
+		throw new Error(
+			'package.json required evidence must include latest-sveltekit-compatibility-audit.'
+		);
 	}
-	if (!packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes('latest-vite-major-validation')) {
+	if (
+		!packageJson.sveltekitPhpReleasePolicy?.requiredEvidence?.includes(
+			'latest-vite-major-validation'
+		)
+	) {
 		throw new Error('package.json required evidence must include latest-vite-major-validation.');
 	}
 
@@ -112,7 +125,9 @@ async function main() {
 		const configuredRange = packageJson[item.rangeField]?.[item.name];
 
 		if (!recorded) {
-			throw new Error(`docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md is missing a package row for ${item.name}.`);
+			throw new Error(
+				`docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md is missing a package row for ${item.name}.`
+			);
 		}
 		if (recorded !== latest) {
 			throw new Error(

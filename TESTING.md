@@ -70,7 +70,7 @@ afterward. A skipped PHP or browser phase is a coverage gap, not a successful re
 [CI](.github/workflows/playwright.yml) runs for pushes and PRs to `main`/`master`, plus manual
 dispatch. Jobs use Node 24, Bun 1.2.23, frozen dependency installation and the PHP runtime baseline.
 The source job runs lint, builds the adapter bundle and declarations, checks strict artifact sync
-and committed-artifact parity, then runs typecheck, unit/PHP regressions, remote-function policy
+and committed-artifact parity, then runs typecheck, unit regressions, remote-function policy
 and local release-prep checks.
 
 The runtime job uses a PHP 8.3/8.5 matrix. Each job builds E2E output once, verifies output and

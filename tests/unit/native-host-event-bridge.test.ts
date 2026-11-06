@@ -153,7 +153,10 @@ describe('native host event bridge', () => {
 
 		dispatchNativeWindowAction(eventTarget, { action: 'set-window-effect', windowEffect: 'mica' });
 		dispatchNativeWindowAction(eventTarget, { action: 'set-progress', progress: 18 });
-		dispatchNativeWindowAction(eventTarget, { action: 'report-ready', reportHref: '/alpha-readiness/report.json' });
+		dispatchNativeWindowAction(eventTarget, {
+			action: 'report-ready',
+			reportHref: '/alpha-readiness/report.json'
+		});
 
 		expect(bridge.getHistory().map((result) => result.action)).toEqual([
 			'set-progress',

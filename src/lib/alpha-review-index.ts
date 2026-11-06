@@ -59,7 +59,8 @@ const documentationEvidence = ['docs/ALPHA-RELEASE-CHECKLIST.md'];
 function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 	return [
 		{
-			claim: '1.0.2-alpha is the explicit channel and must not drift into RC or stable release semantics.',
+			claim:
+				'1.0.2-alpha is the explicit channel and must not drift into RC or stable release semantics.',
 			status: 'present',
 			evidence: [
 				'alpha-over-rc-release-policy',
@@ -80,7 +81,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'The alpha release checklist is included in the package and synchronized with generated evidence surfaces.',
+			claim:
+				'The alpha release checklist is included in the package and synchronized with generated evidence surfaces.',
 			status: 'present',
 			evidence: [
 				'docs/ALPHA-RELEASE-CHECKLIST.md',
@@ -99,7 +101,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Required alpha evidence covers native host guide, real host permission checklist, native host compatibility matrix, no-hydration prerender proof, native shell styling, report graphics, community graph, freshness contract, and hosted PHP smoke proof.',
+			claim:
+				'Required alpha evidence covers native host guide, real host permission checklist, native host compatibility matrix, no-hydration prerender proof, native shell styling, report graphics, community graph, freshness contract, and hosted PHP smoke proof.',
 			status: 'present',
 			evidence: [
 				...requiredAlphaEvidence,
@@ -110,7 +113,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Blog/static-theme pages have a no-hydration prerender contract to prevent client repaint after load.',
+			claim:
+				'Blog/static-theme pages have a no-hydration prerender contract to prevent client repaint after load.',
 			status: 'present',
 			evidence: [
 				'/alpha-readiness/no-hydration',
@@ -123,7 +127,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Current Svelte 5/SvelteKit 2 same-major adapter support is separated from Vite 8/plugin 7 validation risk.',
+			claim:
+				'Current Svelte 5/SvelteKit 2 same-major adapter support is separated from Vite 8/plugin 7 validation risk.',
 			status: 'present',
 			evidence: [
 				'latest-sveltekit-compatibility-audit',
@@ -142,7 +147,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'blog.ryanspice.com is live consumer evidence for static/no-hydration behavior and SEO health, but not a replacement for the hosted adapter fixture.',
+			claim:
+				'blog.ryanspice.com is live consumer evidence for static/no-hydration behavior and SEO health, but not a replacement for the hosted adapter fixture.',
 			status: 'requires-hosted-proof',
 			evidence: [
 				'live-blog-consumer-evidence',
@@ -163,7 +169,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Native wrapper replay is deterministic handoff evidence, not real OS-native proof yet.',
+			claim:
+				'Native wrapper replay is deterministic handoff evidence, not real OS-native proof yet.',
 			status: 'present',
 			evidence: [
 				'/alpha-readiness/native-host-wrapper-smoke.json',
@@ -183,10 +190,14 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 		{
 			claim: '1.0.2-alpha package track is explicit and reviewable.',
 			status: 'present',
-			evidence: [`package.json version should match ${report.target}`, '/alpha-readiness/report.json']
+			evidence: [
+				`package.json version should match ${report.target}`,
+				'/alpha-readiness/report.json'
+			]
 		},
 		{
-			claim: 'Windows 11 Mica, macOS-style chrome rhythm, and source-observed macOS material host policy are represented without importing Tauri into the PHP adapter runtime.',
+			claim:
+				'Windows 11 Mica, macOS-style chrome rhythm, and source-observed macOS material host policy are represented without importing Tauri into the PHP adapter runtime.',
 			status: 'present',
 			evidence: [
 				'/alpha-readiness',
@@ -279,7 +290,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Source-observed native host compatibility is mapped without becoming real OS-native proof yet.',
+			claim:
+				'Source-observed native host compatibility is mapped without becoming real OS-native proof yet.',
 			status: 'present',
 			evidence: [
 				'native-host-compatibility-matrix',
@@ -355,7 +367,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Full report outputs exist for browser review, PR handoff, release notes, and graphics.',
+			claim:
+				'Full report outputs exist for browser review, PR handoff, release notes, and graphics.',
 			status: 'present',
 			evidence: [
 				'/alpha-readiness/report.html',
@@ -368,7 +381,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Keyword searches and open-source community analytics are linked to auditable sources.',
+			claim:
+				'Keyword searches and open-source community analytics are linked to auditable sources.',
 			status: 'present',
 			evidence: [
 				'/alpha-readiness/community-analytics.md',
@@ -406,12 +420,19 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Hosted PHP deployment evidence is defined but not complete until the remote smoke gate runs.',
+			claim:
+				'Hosted PHP deployment evidence is defined but not complete until the remote smoke gate runs.',
 			status: 'requires-hosted-proof',
-			evidence: ['ALPHA_SMOKE_BASE_URL', 'bun run alpha:gate:hosted', '/alpha-readiness/hosted-smoke-checklist.json', 'report/alpha-remote-smoke.json']
+			evidence: [
+				'ALPHA_SMOKE_BASE_URL',
+				'bun run alpha:gate:hosted',
+				'/alpha-readiness/hosted-smoke-checklist.json',
+				'report/alpha-remote-smoke.json'
+			]
 		},
 		{
-			claim: 'Hard proof blockers are centralized so stable promotion gaps cannot drift across report surfaces.',
+			claim:
+				'Hard proof blockers are centralized so stable promotion gaps cannot drift across report surfaces.',
 			status: 'present',
 			evidence: [
 				'hard-proof-blocker-ledger',
@@ -427,7 +448,8 @@ function reviewCoverage(report: AlphaReadinessReport): ReviewEvidence[] {
 			]
 		},
 		{
-			claim: 'Alpha proof ledger separates alpha-ready evidence from local and hosted proof still required before stable.',
+			claim:
+				'Alpha proof ledger separates alpha-ready evidence from local and hosted proof still required before stable.',
 			status: 'present',
 			evidence: [
 				'Alpha proof ledger',
@@ -520,4 +542,3 @@ export function renderAlphaReviewIndexMarkdown(report: AlphaReadinessReport) {
 
 	return lines.join('\n');
 }
-

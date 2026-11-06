@@ -1,4 +1,7 @@
-import { buildAlphaHardProofBlockers, type AlphaHardProofBlocker } from './alpha-hard-proof-blockers';
+import {
+	buildAlphaHardProofBlockers,
+	type AlphaHardProofBlocker
+} from './alpha-hard-proof-blockers';
 import { requiredAlphaEvidence } from './alpha-required-evidence';
 import npmLatestSnapshot from '../../scripts/snapshots/npm-latest.json';
 
@@ -142,21 +145,24 @@ export const latestPackageSnapshot: AlphaLatestPackageSnapshotItem[] = [
 		latest: npmLatestSnapshot.packages['@sveltejs/kit'].latest,
 		currentRange: '^2.49.1',
 		support: 'green',
-		stance: 'Same-major alpha gate target; latest SvelteKit 2 is covered by adapter shape and packed fixture smoke.'
+		stance:
+			'Same-major alpha gate target; latest SvelteKit 2 is covered by adapter shape and packed fixture smoke.'
 	},
 	{
 		packageName: '@sveltejs/vite-plugin-svelte',
 		latest: npmLatestSnapshot.packages['@sveltejs/vite-plugin-svelte'].latest,
 		currentRange: '^6.2.1',
 		support: 'yellow',
-		stance: 'Latest major is covered by the isolated Vite 8/plugin 7 fixture smoke; do not raise the repo floor without a separate dependency-floor upgrade.'
+		stance:
+			'Latest major is covered by the isolated Vite 8/plugin 7 fixture smoke; do not raise the repo floor without a separate dependency-floor upgrade.'
 	},
 	{
 		packageName: 'vite',
 		latest: npmLatestSnapshot.packages.vite.latest,
 		currentRange: '^7.2.6',
 		support: 'yellow',
-		stance: 'Latest major is covered by the isolated Vite 8/plugin 7 fixture smoke; keep the current Vite 7 floor until an intentional floor upgrade is scoped.'
+		stance:
+			'Latest major is covered by the isolated Vite 8/plugin 7 fixture smoke; keep the current Vite 7 floor until an intentional floor upgrade is scoped.'
 	}
 ];
 
@@ -165,37 +171,43 @@ export const officialAdapterSnapshot: AlphaOfficialAdapterSnapshotItem[] = [
 		packageName: '@sveltejs/adapter-node',
 		latest: '5.5.7',
 		support: 'yellow',
-		parityUse: 'Origin, proxy header, client address, body-size, and lifecycle guards remain the Node-style runtime parity backlog.'
+		parityUse:
+			'Origin, proxy header, client address, body-size, and lifecycle guards remain the Node-style runtime parity backlog.'
 	},
 	{
 		packageName: '@sveltejs/adapter-static',
 		latest: '3.0.10',
 		support: 'green',
-		parityUse: 'Prerendered static output, strict/fallback posture, trailing slash, and no-hydration fixture expectations shape php-static.'
+		parityUse:
+			'Prerendered static output, strict/fallback posture, trailing slash, and no-hydration fixture expectations shape php-static.'
 	},
 	{
 		packageName: '@sveltejs/adapter-cloudflare',
 		latest: '7.2.9',
 		support: 'yellow',
-		parityUse: 'Platform context and static/header boundary ideas inform event.platform.php and host contract docs.'
+		parityUse:
+			'Platform context and static/header boundary ideas inform event.platform.php and host contract docs.'
 	},
 	{
 		packageName: '@sveltejs/adapter-netlify',
 		latest: '6.0.4',
 		support: 'yellow',
-		parityUse: 'Forms, serverless/edge split, and platform context stay comparison inputs, not PHP runtime claims.'
+		parityUse:
+			'Forms, serverless/edge split, and platform context stay comparison inputs, not PHP runtime claims.'
 	},
 	{
 		packageName: '@sveltejs/adapter-vercel',
 		latest: '6.3.4',
 		support: 'yellow',
-		parityUse: 'Deployment skew, per-route deployment policy, ISR, and image optimization remain deferred or documentation-only.'
+		parityUse:
+			'Deployment skew, per-route deployment policy, ISR, and image optimization remain deferred or documentation-only.'
 	},
 	{
 		packageName: '@sveltejs/adapter-auto',
 		latest: '7.0.1',
 		support: 'yellow',
-		parityUse: 'Zero-config platform detection is not a PHP shared-hosting goal; package metadata should make the explicit adapter choice easy.'
+		parityUse:
+			'Zero-config platform detection is not a PHP shared-hosting goal; package metadata should make the explicit adapter choice easy.'
 	}
 ];
 
@@ -258,7 +270,8 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		id: 'alpha-channel-policy',
 		marker: 'alpha-over-rc-release-policy',
 		status: 'alpha-ready',
-		proves: 'The requested release track is 1.1.0-alpha and is explicitly separated from RC, stable, and latest channels.',
+		proves:
+			'The requested release track is 1.1.0-alpha and is explicitly separated from RC, stable, and latest channels.',
 		evidence: [
 			'package.json version',
 			'/alpha-readiness/report.json releasePolicy',
@@ -273,7 +286,8 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		id: 'ultragear-native-visual-provenance',
 		marker: 'native-visual-matrix',
 		status: 'alpha-ready',
-		proves: 'Windows Mica, macOS traffic-light rhythm, macOS host-material policy boundaries, caption controls, and browser fallback styling are traceable to the UltraGear bridge source seams without claiming unverified macOS vibrancy.',
+		proves:
+			'Windows Mica, macOS traffic-light rhythm, macOS host-material policy boundaries, caption controls, and browser fallback styling are traceable to the UltraGear bridge source seams without claiming unverified macOS vibrancy.',
 		evidence: [
 			'src/app.ts applyWindowChrome / Effect.Mica / syncWindowProgress',
 			'src-tauri/src/lib.rs MacosLauncher::LaunchAgent',
@@ -325,7 +339,8 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		id: 'community-keyword-analytics-linkage',
 		marker: 'analytics-linked-keyword-graph',
 		status: 'alpha-ready',
-		proves: 'Keyword searches, public source descriptors, curated signal scores, collected demand-score fields, CSVs, Markdown, and graphics are linked for reviewer audit.',
+		proves:
+			'Keyword searches, public source descriptors, curated signal scores, collected demand-score fields, CSVs, Markdown, and graphics are linked for reviewer audit.',
 		evidence: [
 			'/alpha-readiness/community-research-pack.json keywordSearchGraph',
 			'/alpha-readiness/community-source-map.svg source-to-keyword-edge',
@@ -340,7 +355,8 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		id: 'adapter-platform-emulation',
 		marker: 'adapter-platform-emulation',
 		status: 'alpha-ready',
-		proves: 'The adapter exposes a non-secret event.platform.php contract through SvelteKit emulate().platform for dev, build, and preview.',
+		proves:
+			'The adapter exposes a non-secret event.platform.php contract through SvelteKit emulate().platform for dev, build, and preview.',
 		evidence: [
 			'adapter/src/index.ts emulate().platform',
 			'adapter/index.js generated bundle',
@@ -391,7 +407,8 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 		id: 'php-runtime-release-gates',
 		marker: 'alpha-runtime-gate-ledger',
 		status: 'needs-local-gate-proof',
-		proves: 'Runtime route correctness, handler compatibility, path safety, deploy prechecks, artifact sync, unit checks, and consumer smoke have explicit gates.',
+		proves:
+			'Runtime route correctness, handler compatibility, path safety, deploy prechecks, artifact sync, unit checks, and consumer smoke have explicit gates.',
 		evidence: [
 			'bun run verify:alpha',
 			'bun run verify:release-prep',
@@ -399,14 +416,14 @@ export const alphaProofLedger: AlphaProofLedgerItem[] = [
 			'bun run alpha:gate',
 			'bun run alpha:consumer:smoke'
 		],
-		stableBlocker:
-			'This thread has not run the full local alpha gate in the current working tree.'
+		stableBlocker: 'This thread has not run the full local alpha gate in the current working tree.'
 	},
 	{
 		id: 'hosted-php-smoke-proof',
 		marker: 'hosted-php-smoke-proof-required',
 		status: 'needs-hosted-proof',
-		proves: 'A deployed PHP host can serve runtime evidence endpoints, form actions, content types, and traversal probes.',
+		proves:
+			'A deployed PHP host can serve runtime evidence endpoints, form actions, content types, and traversal probes.',
 		evidence: [
 			'ALPHA_SMOKE_BASE_URL',
 			'bun run alpha:remote:smoke',
@@ -475,7 +492,8 @@ export const bridgePatterns: AlphaBridgePattern[] = [
 	},
 	{
 		label: 'Structured validation export',
-		source: 'lg-ultragear-bridge/src/lib/bridge-ui/pages/ValidationView.svelte report JSON download pattern',
+		source:
+			'lg-ultragear-bridge/src/lib/bridge-ui/pages/ValidationView.svelte report JSON download pattern',
 		adopted: 'Deterministic alpha readiness JSON report with gaps, signals, and next gates',
 		status: 'adopted'
 	}
@@ -485,7 +503,8 @@ export const readinessAreas: AlphaReadinessArea[] = [
 	{
 		id: 'runtime-correctness',
 		title: 'Runtime correctness',
-		description: 'PHP handler discovery, route conversion, base-path behavior, and endpoint dispatch.',
+		description:
+			'PHP handler discovery, route conversion, base-path behavior, and endpoint dispatch.',
 		score: 86,
 		status: 'ready',
 		evidence: [
@@ -522,7 +541,8 @@ export const readinessAreas: AlphaReadinessArea[] = [
 	{
 		id: 'native-shell-ux',
 		title: 'Native shell UX',
-		description: 'Windows 11 Mica, macOS-style chrome rhythm, and source-observed host-material policy for reports and operator surfaces.',
+		description:
+			'Windows 11 Mica, macOS-style chrome rhythm, and source-observed host-material policy for reports and operator surfaces.',
 		score: 64,
 		status: 'watch',
 		evidence: [
@@ -540,7 +560,8 @@ export const readinessAreas: AlphaReadinessArea[] = [
 	{
 		id: 'community-analytics',
 		title: 'Community analytics',
-		description: 'Searchable external signals for demand, support burden, and competing adapter patterns.',
+		description:
+			'Searchable external signals for demand, support burden, and competing adapter patterns.',
 		score: 68,
 		status: 'watch',
 		evidence: [
@@ -611,14 +632,18 @@ export const communitySignals: AlphaCommunitySignal[] = [
 	{
 		id: 'form-actions',
 		keyword: 'SvelteKit form actions PHP backend',
-		intent: 'Validate whether PHP-backed form actions are a real adoption path or only a demo novelty.',
+		intent:
+			'Validate whether PHP-backed form actions are a real adoption path or only a demo novelty.',
 		metric: 64,
 		communities: [
 			{
 				label: 'GitHub issues',
 				href: 'https://github.com/search?q=SvelteKit+form+actions+PHP+backend&type=issues'
 			},
-			{ label: 'Stack Overflow', href: 'https://stackoverflow.com/search?q=sveltekit+form+actions+php' },
+			{
+				label: 'Stack Overflow',
+				href: 'https://stackoverflow.com/search?q=sveltekit+form+actions+php'
+			},
 			{ label: 'Reddit', href: 'https://www.reddit.com/search/?q=SvelteKit%20PHP%20form%20actions' }
 		]
 	},
@@ -706,4 +731,3 @@ export function buildAlphaReadinessReport(): AlphaReadinessReport {
 		limitations: alphaLimitations
 	};
 }
-

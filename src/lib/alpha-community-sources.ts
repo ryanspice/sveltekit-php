@@ -173,7 +173,11 @@ export function getResearchCollectionRisk(provider: CommunityProvider): Research
 		return 'high';
 	}
 
-	if (provider === 'github-repositories' || provider === 'github-issues' || provider === 'stackoverflow') {
+	if (
+		provider === 'github-repositories' ||
+		provider === 'github-issues' ||
+		provider === 'stackoverflow'
+	) {
 		return 'medium';
 	}
 
@@ -510,7 +514,11 @@ export function getResearchTopResultFields(provider: CommunityProvider): string[
 	}
 
 	if (provider === 'reddit') {
-		return ['data.children[].data.title', 'data.children[].data.permalink', 'data.children[].data.score'];
+		return [
+			'data.children[].data.title',
+			'data.children[].data.permalink',
+			'data.children[].data.score'
+		];
 	}
 
 	return ['manual-search-result.title', 'manual-search-result.url', 'manual-review-note'];

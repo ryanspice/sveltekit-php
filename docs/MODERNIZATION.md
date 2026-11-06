@@ -2,9 +2,11 @@
 
 Reviewed October 23, 2026. Original baseline: `main`, `202e692676f40495c58980f72832720ac0b4fc36`, local version `1.1.0-alpha.0`. Scope: adapter/runtime source, prior reviews, upstream security changes, agent workflow and GitHub presentation. The first local fix wave is implemented on `codex/security-hardening-20261023`; see the [implementation receipt](security/implementation-20261023.md). Deployment and publication remain open.
 
-## Original review evidence and current graph
+For the current candidate and acceptance boundaries, start with [INTENT](../INTENT.md), the [hosting contract](HOSTING-CONTRACT.md), and the dated [implementation](security/implementation-20261023.md) and [migration](security/kit3-migration-20261025.md) receipts. The older release plans and audits below retain their original version, registry, authentication and gate-count observations; those observations do not establish current release readiness.
 
-- Preserve existing changes to `adapter/index.js`, `adapter/src/runtime/router/shared.ts`, RC consumer docs/profile/scripts/tests, and all pre-existing untracked `.ai`, `.codegraph`, `.hermes-sidecars` and `*.hermes.*` material.
+## October 23 review and implementation evidence
+
+- At the October 23 review, existing changes to `adapter/index.js`, `adapter/src/runtime/router/shared.ts`, RC consumer docs/profile/scripts/tests, and untracked agent material were protected. The November 6 artifact cleanup preserved historical reports, prompts and guides in `.ai/archive/`; it removed only verified-empty sidecars and inactive project-local Codegraph residue. Exact paths and hashes are recorded in `.ai/evidence/integration-20261106/artifact-cleanup.json`.
 - Original dirty bundle SHA-256: `49744F5084AD7C8713757023C5EE8CC6B52AF48EF39516B295676F2BA6D4C110`. The October 6 compatibility receipt describes a different bundle; it is historical evidence. The implementation receipt binds the fresh packed-consumer result to the current bundle.
 - Review-baseline lockfile: Kit **2.49.2**, Svelte **5.46.1**, Vite **7.3.0**, plugin **6.2.1**, devalue **5.6.1**. The implementation resolves Kit **2.70.3**, Svelte **5.57.2**, Vite **7.3.7**, plugin **6.2.1**, devalue **5.9.4**. The peer range permits Kit 2/3; consumer graphs still need their own updates.
 - `bun run check`: **PASS**, 0 errors/0 warnings, October 23. The old October 6 note about a dirty-test type error does not describe this current check result.
@@ -51,13 +53,28 @@ Runtime paths abbreviated in A-01–A-03 are beneath `adapter/src/`. A-01 throug
 | `docs/AUDIT-2026-01-15.md` | Early headers/cookies audit; old PHP floor/coverage claims are historical. |
 | `docs/AUDIT-2026-01-19.md`, `AUDIT-2026-01-20.md`, related EXECUTE docs | Early app/dev reviews and execution plans; revalidate against current source. |
 | `docs/AUDIT-2026-01-23-ROUTING.md`, related CHAT synthesis | Routing mismatch history; later mode contracts supersede it as implementation truth. |
-| `.ai/runs/20260805-005751/final/AUDIT-2026-08-05.md` | Five attempted lanes, three usable reports, two explicit summarization gaps. Not five-reviewer consensus. Local private audit material is not automatically public documentation. |
-| `.ai/runs/20260805-014805/final/SUMMARY.md`, [PR #1](https://github.com/ryanspice/sveltekit-php/pull/1) | Follow-up fixes and conditional review disposition, historical deterministic gates, npm/host limits. Reconcile final merged source rather than reapplying the initial audit list. |
+| `.ai/archive/legacy-20260805/runs/20260805-005751/final/AUDIT-2026-08-05.md` | Five attempted lanes, three usable reports, two explicit summarization gaps. Not five-reviewer consensus. Local private audit material is not automatically public documentation. |
+| `.ai/archive/legacy-20260805/runs/20260805-014805/final/SUMMARY.md`, [PR #1](https://github.com/ryanspice/sveltekit-php/pull/1) | Follow-up fixes and conditional review disposition, historical deterministic gates, npm/host limits. Reconcile final merged source rather than reapplying the initial audit list. |
+| `.ai/archive/hermes-sidecars-20261106/` | July document proposals and their prompts, preserved with original relative paths. Root-router, contract, mode-choice, dev-boundary and release-plan recommendations are represented in maintained docs; their old version/authentication observations remain historical. |
+| `.ai/archive/legacy-20260805/skills/sveltekit-php-adapter/SKILL.md` | Historical local guide. Its `svelte.config.js` entrypoint and future-platform-emulation note are superseded by the current repository instructions and development/hosting contracts. |
 | `docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md`, Aug 24 | Useful adapter landscape and latest-major synthesis; stale as a current version snapshot. |
 | `docs/SVELTEKIT-3-COMPATIBILITY.md`, `report/kit-compatibility.json`, Oct 6 | Pinned Kit 2/3 historical package/build/PHP/HTTP proof with exact bundle hash and exclusions; not acceptance for the current dirty candidate. |
 | `docs/HOSTING-CONTRACT.md`, RC/remote-functions policy docs | Hosting contract updated with the implemented origin/proxy/body controls; unrelated dirty RC consumer work is preserved. Ordinary FPM hosting is distinct from the explicitly excluded special PHP-FPM package mode. |
 
 Preserve existing nowdoc emission, safe build-root guards, Windows sensitive-root denial, strict prepack artifact sync, cookie/header forwarding and remote-function rejection. The pre-existing dirty case-insensitive `_protected` denial and regression test are already present; this review does not claim them as newly implemented.
+
+## August residuals reconciled on November 6, 2026
+
+The follow-up merge commit `363df54871fe4fe9692b0d16cab46bcc088a5758` is an ancestor of the inspected checkout. Its original findings are historical inputs, not a fresh fix list. The following dispositions come from current source inspection only; no build, runtime, hosted or publication acceptance was run for this documentation synthesis.
+
+| Recorded residual | Current disposition |
+| --- | --- |
+| `js-ssr` sibling-collision cleanup may leave a public duplicate. | Still requires focused verification. In `adapter/src/index.ts`, the public prerender copy precedes collision handling, while the sibling branch removes `pageFile` from `prerenderedRoot`. The later private `<out>-server/` isolation addresses server-source exposure, not this output-copy question. A generated-output and HTTP fixture must establish closure. |
+| `prepack` requires Bun. | Retained tooling requirement: `package.json` invokes `bun run verify:artifacts -- --strict`. Preserve strict artifact verification and supply the required tool in packaging environments. |
+| `verifyVersionDrift` excludes prose. | Retained check boundary: `scripts/verify-alpha-release-prep.mjs` scans `.mjs` files under `scripts/`. Its pass result does not certify release-version prose; the historical banners in the older documents make that distinction explicit. |
+| The example redirect cookie derives `Secure` from the request protocol. | Still present in `src/hooks.server.js`. The hosting contract now requires explicit canonical-origin/proxy configuration; actual TLS/proxy behavior remains a host acceptance gate. |
+
+Preimages, source hashes, document destinations and unresolved items are recorded in `.ai/evidence/integration-20261106/history-synthesis.json`. The archived originals remain available; synthesis does not authorize their deletion.
 
 ## Agents, sequence and commit slices
 

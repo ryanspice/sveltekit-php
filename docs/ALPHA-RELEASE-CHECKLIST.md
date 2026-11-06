@@ -1,8 +1,10 @@
 # SvelteKit PHP 1.0.2-alpha release checklist
 
-Candidate: `1.0.2-alpha.0`
+Historical candidate: `1.0.2-alpha.0`
 
-This checklist defines the project-specific `1.0.2-alpha` bar. In this repo, `1.0.2-alpha` is the required pre-stable release track and is treated as above any RC label for project planning. This is a project policy, not generic SemVer prerelease ordering.
+> Historical release checklist, reconciled November 6, 2026. The July–August 2026 candidate, npm authentication observations and gate results below are retained as evidence history. Use [INTENT](../INTENT.md) and the [modernization plan](MODERNIZATION.md) for the current candidate and open gates, and the [hosting contract](HOSTING-CONTRACT.md) for deployment requirements. These recorded results do not establish current release readiness.
+
+This checklist records the project-specific `1.0.2-alpha` bar. At that checkpoint, `1.0.2-alpha` was the required pre-stable release track and was treated as above any RC label for project planning. This records project policy for that track, not generic SemVer prerelease ordering.
 
 ## Required evidence markers
 
@@ -90,7 +92,7 @@ These `hardProofBlockers` rows are the `hard-proof-blocker-ledger` and feed `sta
 - Required environment: npm maintainer credentials
 - Required artifacts: authenticated `npm whoami` output before `npm publish --tag alpha`
 - Blocks: `alpha-publish`, `rc-publish`, `stable-1.0.2`
-- Reviewer action: `npm whoami` currently returns `E401`; configure maintainer npm authentication before `npm publish --tag alpha` or `npm run alpha:published:smoke` can produce pass evidence.
+- Reviewer action: `npm whoami` returned `E401` at the July 2, 2026 checkpoint. Recheck maintainer npm authentication before any authorized `npm publish --tag alpha` or `npm run alpha:published:smoke`; this document does not establish the current account state.
 
 ### strict-artifact-sync-proof
 

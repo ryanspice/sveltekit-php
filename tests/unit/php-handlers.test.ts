@@ -100,7 +100,11 @@ function sk_old_layout_layout_server_load($event) { return ['section' => 'old'];
 function GET($event) { return ['body' => 'ok']; }
 `;
 
-		const normalized = normalizePhpHandlerSource(src, '/api/ping/+server.php', 'sk_api_ping_server');
+		const normalized = normalizePhpHandlerSource(
+			src,
+			'/api/ping/+server.php',
+			'sk_api_ping_server'
+		);
 
 		expect(normalized).toContain('function sk_api_ping_server_GET(');
 	});
@@ -110,7 +114,11 @@ function GET($event) { return ['body' => 'ok']; }
 function sk_old_api_server_GET($event) { return ['body' => 'ok']; }
 `;
 
-		const normalized = normalizePhpHandlerSource(src, '/api/ping/+server.php', 'sk_api_ping_server');
+		const normalized = normalizePhpHandlerSource(
+			src,
+			'/api/ping/+server.php',
+			'sk_api_ping_server'
+		);
 
 		expect(normalized).toContain('function sk_api_ping_server_GET(');
 	});
@@ -134,7 +142,11 @@ function actionDefault($event) { return []; }
 		for (const file of handlers) {
 			const rel = posixify(path.relative(routesRoot, file));
 			const prefix = fnPrefixForServerFile(rel);
-			const normalized = normalizePhpHandlerSource(fs.readFileSync(file, 'utf8'), `/${rel}`, prefix);
+			const normalized = normalizePhpHandlerSource(
+				fs.readFileSync(file, 'utf8'),
+				`/${rel}`,
+				prefix
+			);
 
 			expect(normalized, rel).toMatch(new RegExp(`function\\s+${prefix}_`));
 		}

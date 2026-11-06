@@ -1,22 +1,57 @@
-name: RC Consumer Proof
+name: Manual RC Consumer Proof
 
+# Reads deployed consumers. This is deliberately separate from local candidate CI.
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-rc-consumer-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CI: 'true'
+  TMPDIR: ${{ github.workspace }}/.ai/evidence/rc-consumer/tmp
+  TEMP: ${{ github.workspace }}/.ai/evidence/rc-consumer/tmp
+  TMP: ${{ github.workspace }}/.ai/evidence/rc-consumer/tmp
+
 jobs:
   canopy-consumers:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare project-local evidence
+        run: mkdir -p "$TMPDIR"
+        shell: bash
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.23'
       - run: bun install --frozen-lockfile
       - run: bun run build:adapter
       - run: bun run verify:rc-consumer-profile
       - run: bun run rc:consumer:smoke
+      - name: Preserve the hosted consumer receipt
+        if: always()
+        shell: bash
+        run: |
+          if [ -f report/rc-consumer-evidence.json ]; then
+            cp report/rc-consumer-evidence.json .ai/evidence/rc-consumer/receipt.json
+            cmp report/rc-consumer-evidence.json .ai/evidence/rc-consumer/receipt.json
+          fi
       - name: Upload proof receipt
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: rc-consumer-proof
-          path: report/rc-consumer-evidence.json
+          path: .ai/evidence/rc-consumer/receipt.json
           if-no-files-found: warn
+          retention-days: 7
+          include-hidden-files: true

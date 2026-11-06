@@ -81,7 +81,8 @@ export function getEnvForMode(mode, base = null) {
 	};
 }
 
-const PLACEHOLDER_RE = /^(|<.*>|\$\{.*\}|changeme|change_me|change-me|todo|tbd|placeholder|example|example\..*|your_.+|undefined|null)$/i;
+const PLACEHOLDER_RE =
+	/^(|<.*>|\$\{.*\}|changeme|change_me|change-me|todo|tbd|placeholder|example|example\..*|your_.+|undefined|null)$/i;
 
 /**
  * @param {string[]} keys
@@ -140,7 +141,11 @@ export function isConcreteEnvValue(value) {
  */
 export function assertDeployEnv(label = 'Deploy environment', env = process.env) {
 	assertRequiredEnv(['DEPLOY_HOST', 'DEPLOY_USER', 'DEPLOY_REMOTE', 'DEPLOY_LOCAL'], label, env);
-	assertOptionalEnvIsConcrete(['DEPLOY_PROFILE', 'DEPLOY_IDENTITY_FILE', 'ALPHA_SMOKE_BASE_URL'], label, env);
+	assertOptionalEnvIsConcrete(
+		['DEPLOY_PROFILE', 'DEPLOY_IDENTITY_FILE', 'ALPHA_SMOKE_BASE_URL'],
+		label,
+		env
+	);
 
 	const port = env.DEPLOY_PORT;
 	if (isConcreteEnvValue(port)) {
@@ -167,7 +172,9 @@ export function assertDeployEnv(label = 'Deploy environment', env = process.env)
 		}
 
 		if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search) {
-			throw new Error(`${label} requires ALPHA_SMOKE_BASE_URL to omit credentials and query tokens.`);
+			throw new Error(
+				`${label} requires ALPHA_SMOKE_BASE_URL to omit credentials and query tokens.`
+			);
 		}
 	}
 }
@@ -210,7 +217,8 @@ export function assertHostedSmokeEnv(label = 'Hosted smoke environment', env = p
 
 	const reportPath = env.ALPHA_SMOKE_REPORT_PATH?.trim();
 	if (reportPath && isConcreteEnvValue(reportPath) && /(^|[\\/])\.\.([\\/]|$)/.test(reportPath)) {
-		throw new Error(`${label}: ALPHA_SMOKE_REPORT_PATH must not contain parent-directory segments.`);
+		throw new Error(
+			`${label}: ALPHA_SMOKE_REPORT_PATH must not contain parent-directory segments.`
+		);
 	}
 }
-

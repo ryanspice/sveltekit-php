@@ -28,7 +28,9 @@ type CommunityAnalyticsArtifact = {
 		};
 	}[];
 } | null;
-type CommunityAnalyticsQuery = NonNullable<NonNullable<CommunityAnalyticsArtifact>['queries']>[number];
+type CommunityAnalyticsQuery = NonNullable<
+	NonNullable<CommunityAnalyticsArtifact>['queries']
+>[number];
 
 function countByValue(
 	sources: CommunitySourceDescriptor[],
@@ -83,14 +85,20 @@ export function buildCommunityResearchPack(
 		};
 	});
 
-	const supportedSourceCount = queries.reduce((total, query) => total + query.supportedSources.length, 0);
+	const supportedSourceCount = queries.reduce(
+		(total, query) => total + query.supportedSources.length,
+		0
+	);
 	const manualSourceCount = queries.reduce((total, query) => total + query.manualSources.length, 0);
 	const sourceDescriptors = queries.flatMap((query) => [
 		...query.supportedSources,
 		...query.manualSources
 	]);
 	const collectionPlan = [...sourceDescriptors]
-		.sort((left, right) => left.collectionPriority - right.collectionPriority || left.label.localeCompare(right.label))
+		.sort(
+			(left, right) =>
+				left.collectionPriority - right.collectionPriority || left.label.localeCompare(right.label)
+		)
 		.map((source) => ({
 			label: source.label,
 			sourceHost: source.sourceHost,
@@ -148,8 +156,7 @@ export function buildCommunityResearchPack(
 			collectedAt: analytics?.collectedAt ?? null,
 			collectedSummaryField: 'collectedCommunityAnalytics.summary',
 			curatedSignalScoreField: 'keywordSearchGraph.nodes[].curatedScore',
-			collectedDemandScoreField:
-				'collectedCommunityAnalytics.queries[].aggregate.demandScore',
+			collectedDemandScoreField: 'collectedCommunityAnalytics.queries[].aggregate.demandScore',
 			weightedDemandScoreField:
 				'collectedCommunityAnalytics.queries[].aggregate.weightedDemandScore',
 			sourceToKeywordEdgeField: 'keywordSearchGraph.edges[].sourceToKeywordEdge',
@@ -384,7 +391,10 @@ export function buildCommunityResearchPack(
 			providerCoverage: countByValue(sourceDescriptors, (source) => source.provider),
 			evidenceKindCoverage: countByValue(sourceDescriptors, (source) => source.evidenceKind),
 			collectionRiskCoverage: countByValue(sourceDescriptors, (source) => source.collectionRisk),
-			collectionMethodCoverage: countByValue(sourceDescriptors, (source) => source.collectionMethod),
+			collectionMethodCoverage: countByValue(
+				sourceDescriptors,
+				(source) => source.collectionMethod
+			),
 			sourceHealthCoverage: countByValue(sourceDescriptors, (source) => source.sourceHealth),
 			trustBoundaryCoverage: countByValue(sourceDescriptors, (source) => source.trustBoundary),
 			freshnessWindowCoverage: countByValue(sourceDescriptors, (source) =>
@@ -409,6 +419,8 @@ export function buildCommunityResearchPack(
 		keywordSearchGraph,
 		collectionPlan,
 		queries,
-		limitations: report.limitations.filter((limitation) => limitation.includes('Community analytics'))
+		limitations: report.limitations.filter((limitation) =>
+			limitation.includes('Community analytics')
+		)
 	};
 }

@@ -21,9 +21,7 @@ function actionName(name: string, prefix: string, kind: PhpHandlerKind) {
 	const expected = name.match(new RegExp(`^${escapeRegExp(prefix)}_action_([A-Za-z0-9_]+)$`));
 	if (expected) return expected[1];
 
-	const legacy = name.match(
-		new RegExp(`^sk_[A-Za-z0-9_]+_${kind}_server_action_([A-Za-z0-9_]+)$`)
-	);
+	const legacy = name.match(new RegExp(`^sk_[A-Za-z0-9_]+_${kind}_server_action_([A-Za-z0-9_]+)$`));
 	return legacy?.[1] ?? null;
 }
 
@@ -38,9 +36,7 @@ function loadTarget(name: string, prefix: string, kind: PhpHandlerKind) {
 function endpointTarget(name: string, prefix: string) {
 	if ((HTTP_METHODS as readonly string[]).includes(name)) return `${prefix}_${name}`;
 
-	const expected = name.match(
-		new RegExp(`^${escapeRegExp(prefix)}_(${HTTP_METHODS.join('|')})$`)
-	);
+	const expected = name.match(new RegExp(`^${escapeRegExp(prefix)}_(${HTTP_METHODS.join('|')})$`));
 	if (expected) return `${prefix}_${expected[1]}`;
 
 	const legacy = name.match(new RegExp(`^sk_[A-Za-z0-9_]+_server_(${HTTP_METHODS.join('|')})$`));
@@ -107,15 +103,17 @@ export function normalizePhpHandlerSource(source: string, rel: string, prefix: s
 		throw new Error(errors.join('\n'));
 	}
 
-	let normalized = source.replace(PHP_FUNCTION_RE, (full, byRef: string | undefined, name: string) => {
-		const target = renames.get(name);
-		return target ? full.replace(name, target) : full;
-	});
+	let normalized = source.replace(
+		PHP_FUNCTION_RE,
+		(full, byRef: string | undefined, name: string) => {
+			const target = renames.get(name);
+			return target ? full.replace(name, target) : full;
+		}
+	);
 
 	for (const [from, to] of referenceRenames) {
-		normalized = normalized.replace(
-			new RegExp(`\\b${escapeRegExp(from)}\\s*\\(`, 'g'),
-			(call) => call.replace(from, to)
+		normalized = normalized.replace(new RegExp(`\\b${escapeRegExp(from)}\\s*\\(`, 'g'), (call) =>
+			call.replace(from, to)
 		);
 	}
 

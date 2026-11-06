@@ -50,7 +50,8 @@ function sk_client_address(): string {
 function sk_read_limited_body(): string {
     static $body = null;
     if ($body !== null) return $body;
-    $limit = getenv('SK_BODY_SIZE_LIMIT') ?: '10485760';
+    $limit = getenv('SK_BODY_SIZE_LIMIT');
+    if ($limit === false || $limit === '') $limit = '10485760';
     if (!ctype_digit($limit) || (int)$limit < 1 || (int)$limit >= PHP_INT_MAX) {
         http_response_code(500);
         exit('Invalid SK_BODY_SIZE_LIMIT');

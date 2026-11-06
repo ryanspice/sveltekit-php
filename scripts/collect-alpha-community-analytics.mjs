@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -8,7 +7,11 @@ import {
 	classifyCommunitySource,
 	describeCommunitySource
 } from '../src/lib/alpha-community-sources.ts';
-import { alphaTarget, buildAlphaReadinessReport, communitySignals } from '../src/lib/alpha-readiness.ts';
+import {
+	alphaTarget,
+	buildAlphaReadinessReport,
+	communitySignals
+} from '../src/lib/alpha-readiness.ts';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputDir = path.resolve(repoRoot, 'report');
@@ -16,6 +19,15 @@ const userAgent = 'sveltekit-php-alpha-readiness/1.0';
 
 export { buildCommunityEndpoint, classifyCommunitySource, describeCommunitySource };
 
+/**
+ * Expected public-provider JSON fields. Providers use separate branches below; optional
+ * fields retain the existing fallback behavior for incomplete responses.
+ * @typedef {{full_name?: string, title?: string, name?: string, html_url?: string, link?: string, url?: string, stargazers_count?: number, comments?: number, score?: number, downloads?: number, package?: {name?: string, links?: {npm?: string}}}} ProviderItem
+ * @typedef {{total_count?: number, total?: number, items?: ProviderItem[], objects?: (Omit<ProviderItem, 'score'> & {score?: {final?: number}})[], results?: ProviderItem[], data?: {dist?: number, children?: {data?: {title?: string, permalink?: string, score?: number}}[]}}} ProviderResponse
+ * @typedef {ReturnType<typeof describeCommunitySource> & {status: string, total: number | null, score: number, error: string | null}} CollectedSource
+ */
+
+/** @param {number} total */
 function scoreFromTotal(total) {
 	if (!Number.isFinite(total) || total <= 0) {
 		return 0;
@@ -24,6 +36,7 @@ function scoreFromTotal(total) {
 	return Math.min(100, Math.round(Math.log10(total + 1) * 25));
 }
 
+/** @param {import('../src/lib/alpha-community-sources.ts').CommunityProvider} provider @param {ProviderResponse} data */
 function parseProviderResult(provider, data) {
 	if (provider === 'github-repositories') {
 		return {
@@ -95,7 +108,9 @@ function parseProviderResult(provider, data) {
 	return { total: 0, top: [] };
 }
 
+/** @param {CollectedSource[]} sources @param {'provider' | 'evidenceKind' | 'collectionRisk' | 'collectionMethod' | 'trustBoundary' | 'freshnessMaxAgeHours'} field */
 function countSourcesBy(sources, field) {
+	/** @type {Map<string | number, number>} */
 	const counts = new Map();
 
 	for (const source of sources) {
@@ -106,6 +121,7 @@ function countSourcesBy(sources, field) {
 	return Array.from(counts.entries()).map(([value, count]) => ({ value, count }));
 }
 
+/** @param {CollectedSource[]} sources */
 function averageWeightedDemandScore(sources) {
 	const scoredSources = sources.filter((source) => Number.isFinite(source.score));
 	const totalWeight = scoredSources.reduce(
@@ -125,6 +141,7 @@ function averageWeightedDemandScore(sources) {
 	return Math.round(weightedTotal / totalWeight);
 }
 
+/** @param {CollectedSource} source */
 function isBlockedSource(source) {
 	const error = String(source.error ?? '').toLowerCase();
 	return (
@@ -137,7 +154,9 @@ function isBlockedSource(source) {
 	);
 }
 
+/** @param {string} url @param {string} provider @param {number} timeoutMs @returns {Promise<ProviderResponse>} */
 async function fetchJson(url, provider, timeoutMs) {
+	/** @type {Record<string, string>} */
 	const headers = {
 		Accept: 'application/json',
 		'User-Agent': userAgent
@@ -160,6 +179,7 @@ async function fetchJson(url, provider, timeoutMs) {
 	return response.json();
 }
 
+/** @returns {Promise<import('./collect-alpha-community-analytics.mjs.d.ts').CommunityAnalyticsArtifact>} */
 export async function collectCommunityAnalytics({
 	signals = communitySignals,
 	timeoutMs = Number(process.env.ALPHA_ANALYTICS_TIMEOUT_MS || 8000)
@@ -220,7 +240,9 @@ export async function collectCommunityAnalytics({
 		const demandScore =
 			okSources.length === 0
 				? 0
-				: Math.round(okSources.reduce((total, source) => total + source.score, 0) / okSources.length);
+				: Math.round(
+						okSources.reduce((total, source) => total + source.score, 0) / okSources.length
+					);
 		const weightedDemandScore = averageWeightedDemandScore(okSources);
 
 		queries.push({
@@ -248,8 +270,14 @@ export async function collectCommunityAnalytics({
 		0
 	);
 	const failedSources = queries.reduce((total, query) => total + query.aggregate.failedSources, 0);
-	const blockedSources = queries.reduce((total, query) => total + query.aggregate.blockedSources, 0);
-	const skippedSources = queries.reduce((total, query) => total + query.aggregate.skippedSources, 0);
+	const blockedSources = queries.reduce(
+		(total, query) => total + query.aggregate.blockedSources,
+		0
+	);
+	const skippedSources = queries.reduce(
+		(total, query) => total + query.aggregate.skippedSources,
+		0
+	);
 	const manualReviewRequiredSources = queries.reduce(
 		(total, query) => total + query.aggregate.manualReviewRequiredSources,
 		0
@@ -295,8 +323,7 @@ export async function collectCommunityAnalytics({
 			reviewerRule:
 				'Refresh public-source analytics within seven days before alpha release review and treat counts as directional evidence only.'
 		},
-		note:
-			'Public unauthenticated endpoints are rate-limited and incomplete. Treat these as directional alpha research signals, not product telemetry.',
+		note: 'Public unauthenticated endpoints are rate-limited and incomplete. Treat these as directional alpha research signals, not product telemetry.',
 		summary: {
 			signals: queries.length,
 			successfulSources,
