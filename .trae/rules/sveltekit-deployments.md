@@ -1,1 +1,7 @@
-SvelteKit PHP Adapter rules (2026): Output PHP without breaking SvelteKit semantics. Modes: php-static = prerender to path/index.php wrappers + PHP router + **data.json bridge (no on-demand SSR; streaming best-effort). js-ssr = PHP entrypoint serves assets/APIs and proxies page/data/action to a JS sidecar (Node/Bun) for SSR+streaming. Never patch client bundles; always serve/proxy **data.json. Honor kit.paths.base/assets/appDir; avoid root-relative links, use $app/paths. Content negotiation: choose +page vs +server by method+Accept; set Vary: Accept; preserve status/redirects and multi Set-Cookie. Dev: run real PHP backend + Vite HMR with proxy; optional prodlike Apache/Nginx test. Regression: use mark8t fixture routes (ssr-data, layouts, stream, forms/uploads, preload, endpoints, redirects, 404, matrix, negotiate). Touching php-templates/\_\_data/negotiation/sidecar proxy requires new tests.
+# Deployment entry
+
+Follow [AGENTS.md](../../AGENTS.md), [OPERATIONS.md](../../OPERATIONS.md), and the
+[hosting contract](../../docs/HOSTING-CONTRACT.md). Use the shared
+[project invariants](../../POLICIES.md) for mode, data, negotiation, base-path, and proxy rules.
+Deployment recipes require the established task authority and verified build/target evidence.
+Check the documented missing build helpers before using the dev-host deployment wrapper.
