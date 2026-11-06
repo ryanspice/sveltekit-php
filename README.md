@@ -12,10 +12,10 @@ The interesting engineering work lives at the boundary: matching routes, protect
 
 ## Choose the host you actually need
 
-| Mode | What runs in production | Good fit | Boundary |
-| --- | --- | --- | --- |
-| `php-static` | Prerendered documents/assets plus PHP data, action, and endpoint handlers | Static sites and PHP-backed interactions on standard PHP hosting | Request-time Svelte document SSR is outside this mode. |
-| `js-ssr` | PHP frontend proxy plus a persistent JavaScript SSR sidecar | Dynamic Svelte documents and streaming where the host can run Node | Requires a Node process, a private server bundle, and proxy/origin hardening. |
+| Mode         | What runs in production                                                   | Good fit                                                           | Boundary                                                                      |
+| ------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `php-static` | Prerendered documents/assets plus PHP data, action, and endpoint handlers | Static sites and PHP-backed interactions on standard PHP hosting   | Request-time Svelte document SSR is outside this mode.                        |
+| `js-ssr`     | PHP frontend proxy plus a persistent JavaScript SSR sidecar               | Dynamic Svelte documents and streaming where the host can run Node | Requires a Node process, a private server bundle, and proxy/origin hardening. |
 
 ```mermaid
 flowchart LR
@@ -47,10 +47,16 @@ For contributors and coding agents, begin with [INTENT.md](INTENT.md) and [AGENT
 <details>
 <summary>Source-candidate setup, configuration, recipes, and full verification guide</summary>
 
-
 This project implements a **SvelteKit adapter for PHP**, allowing you to deploy SvelteKit applications to standard PHP hosting environments (Apache, Nginx, Shared Hosting) while maintaining a modern development experience.
 
 Current package track: `1.1.0-alpha.0`. See [SvelteKit 2/3 compatibility and CoS integration](docs/SVELTEKIT-3-COMPATIBILITY.md).
+
+## Working in this repository
+
+Start with [AGENTS.md](AGENTS.md) for shared contributor instructions. Use
+[OPERATIONS.md](OPERATIONS.md) for setup and build work, [SCRIPTS.md](SCRIPTS.md) for command
+effects, [TESTING.md](TESTING.md) for checks, and [POLICIES.md](POLICIES.md) for project invariants.
+Tool-specific instruction files route to the same guidance.
 
 ## Support Policy
 
@@ -217,6 +223,8 @@ function GET($params) {
 ## ✅ Testing & Verification
 
 The project includes a suite of fixture routes to verify functionality.
+Choose checks by change scope in [TESTING.md](TESTING.md). The release gates below are broader
+evidence workflows; a documentation-only check does not establish their runtime or hosted results.
 
 ### Feature Showcase
 
@@ -236,7 +244,7 @@ bun run verify:release-prep
 
 The alpha surface is expected to prove:
 
-- Windows 11 Mica/macOS-style browser-safe native shell cues reused from `B:\Dev\GPTLIGHTINGSTRENGTHTEST\lg-ultragear-bridge`.
+- Windows 11 Mica/macOS-style browser-safe native shell cues adapted from the UltraGear bridge project.
 - A native-host guide at `/alpha-readiness/native-host-guide.md` and `report/alpha-native-host-guide.md` for optional desktop wrappers.
 - A no-hydration prerender proof at `/alpha-readiness/no-hydration` for blog/static skins that must keep stable SSR theme HTML without client hydration repaint.
 - A deterministic native wrapper smoke contract at `/alpha-readiness/native-host-wrapper-smoke.json` and `report/alpha-native-host-wrapper-smoke.json`, with `realHostVerified: false` until an actual Windows/macOS wrapper supplies proof.
@@ -250,7 +258,7 @@ The alpha surface is expected to prove:
 
 ### Alpha Readiness Surface
 
-The `/alpha-readiness` fixture is the operator-facing report surface for the 1.0.2-alpha track. It adapts the Windows 11 Mica/macOS chrome and structured-report patterns from `B:\Dev\GPTLIGHTINGSTRENGTHTEST\lg-ultragear-bridge` without adding Tauri as a dependency to this PHP adapter demo.
+The `/alpha-readiness` fixture is the operator-facing report surface for the 1.0.2-alpha track. It adapts the Windows 11 Mica/macOS chrome and structured-report patterns from the UltraGear bridge project without adding Tauri as a dependency to this PHP adapter demo.
 
 The page provides:
 
@@ -416,10 +424,14 @@ For host-level routing, MIME, fallback, proxy, and body-size expectations, see [
 To create a deployable PHP application:
 
 ```bash
+bun run build:adapter
 bun run build
 ```
 
 The output will be in the `build/` directory.
+The `build:php` and `build:apache` package scripts currently reference missing post-build
+helpers. The default dev-host deployment wrapper therefore also has a blocked build step;
+see [known command gaps](OPERATIONS.md#known-command-gaps).
 
 ### Running Production Build Locally
 
@@ -442,21 +454,17 @@ The runtime base path is read from `SK_BASE_PATH` first and `DEPLOY_BASE` second
 
 Generated output, caches, private drafts, databases, encrypted files, and other mutable backend state should stay outside source-controlled and cloud-synced project folders. For normal Windows development, prefer a private path such as `%LOCALAPPDATA%\sveltekit-php\sites\<site-id>`. For servers, prefer a host-private path such as `/var/lib/sveltekit-php/sites/<site-id>`.
 
-This checkout also supports an adapter-developer POC lane for `ryanspice.com`: an ignored local config can map the site to `B:\Dev\sveltekit-php\.runtime\sites\ryanspice.com`. That path is acceptable for local adapter work because the adapter developer controls this checkout, but it is not the general recommendation for consumers.
-
-Use `config/site-runtime.example.json` as the committed template and keep real machine-specific overrides in ignored `config/site-runtime.local.json`. Resolve the current site root with:
+Use `config/site-runtime.example.json` as the committed template and keep real machine-specific overrides in ignored `config/site-runtime.local.json`. Adapt its developer-site values to your machine before resolving a configured site root:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\Resolve-SiteRuntime.ps1 -SiteId ryanspice.com -Create
+pwsh -NoProfile -File .\scripts\Resolve-SiteRuntime.ps1 -SiteId 'example.com'
 ```
 
-If a SvelteKit build writes adapter output outside the project or OS temp directory, set `SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS` to the trusted parent root before running `vite build`. The value is a semicolon-separated path list on Windows, for example:
-
-```powershell
-$env:SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS = 'B:\Dev\sveltekit-php\.runtime'
-```
-
-`.runtime\` is ignored and must not contain files intended for Git, OneDrive publishing, or deployment source control.
+Add `-Create` only when you intend to create the configured directory tree. If a SvelteKit
+build writes output outside the project or OS temp directory, set
+`SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS` to a narrow trusted build-output parent. The Windows value
+is a semicolon-separated list. Validate the resolved paths first: builds recursively clean
+output, so persistent site data must use a separate directory. `.runtime/` is ignored.
 
 Before running deploy or publish automation, verify required deploy values:
 
@@ -485,5 +493,3 @@ The source candidate enforces PHP action origins before handler includes, writes
 - `src/lib/server/php-dev.ts`: The bridge connecting Vite to PHP in dev.
 
 </details>
-
-

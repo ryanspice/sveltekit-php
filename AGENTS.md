@@ -1,49 +1,58 @@
-# Working in SvelteKit PHP
+# Repository instructions
 
-## Entry and ownership
+This is the shared instruction entry for contributors and agents. The current task and host
+permissions take priority. Tool-specific files point here and add no separate authority.
 
-Read `INTENT.md`, `docs/MODERNIZATION.md`, the relevant hosting/mode contract, and applicable parent instructions. Inspect HEAD, branch, status and owned paths. Source, generated artifacts, local package, published package and deployed consumer can represent different candidates.
+## Start with the requested work
 
-Use the official Svelte MCP first: `list-sections`, then relevant documentation. Run `svelte-autofixer` before finalizing `.svelte`, `.svelte.ts`, or `.svelte.js` edits. Prefer TypeScript, Svelte 5 runes, lean dependencies and static/prerender delivery unless request-time SSR is needed.
+1. Check the repository root, remote, branch, HEAD, and working tree before editing. Verify that
+   the source and commands named by the task exist in this checkout. A cached remote ref or
+   historical report does not establish current remote or live deployment state.
+2. Read [README.md](README.md) for the adapter contract, then load only the relevant guidance:
+   [operations](OPERATIONS.md), [commands](SCRIPTS.md), [testing](TESTING.md), or
+   [project invariants](POLICIES.md). Read the nearest applicable instructions for touched files.
+3. Treat [package.json](package.json), the selected script implementation, and the active
+   [workflows](.github/workflows) as command evidence. Report missing targets or conflicting
+   documentation; do not substitute an older implementation silently.
 
-The lead owns architecture, file allocation, integration and final acceptance. Workers receive a bounded result, exact file claim and acceptance checks. Record claims through the active harness; one writer owns a path. Overlapping source work needs isolated worktrees or explicit serialized hunks. A new worktree does not include another worker's uncommitted fixes.
+## Work in the right layer
 
-## Packet and lifecycle
+- Author the adapter in `adapter/src/`; regenerate tracked `adapter/index.js` with
+  `bun run build:adapter` when its source changes. Do not patch the generated bundle alone.
+- `src/routes/` contains the demo and behavioral fixtures. Preserve the fixture contracts used
+  by `tests/` and verification scripts.
+- Preserve `php-static` and `js-ssr` boundaries, HTTP behavior, protected paths, and base paths
+  described in [POLICIES.md](POLICIES.md). Production support is defined in
+  [the hosting contract](docs/HOSTING-CONTRACT.md).
+- Historical `docs/AUDIT-*`, `docs/CHAT-*`, and release evidence record earlier observations.
+  Keep those records intact; verify current source before repeating their claims.
 
-Use `repo.schema.json`'s `work_order` fields or equivalent readable text:
+## Ownership and scope
 
-```text
-ROUTE / ROLE: execution owner, exact provider/model/options, tools, cost/data boundary
-TASK: behavior to deliver and why it matters
-BASELINE: repository, HEAD, worktree, relevant dirty paths/hashes
-OWNERSHIP: allowed writes, protected paths, shared test/server owner
-ACCEPTANCE: source/generated/package/HTTP/browser checks for this slice
-BUDGET: finite deadline and inherited child/turn limits; stop conditions
-HANDOFF: patch/commit, checks/evidence, open issues, next action, child state
-```
+The lead owns integration and acceptance. Workers edit only their assigned area and return
+changed files, exact checks, evidence, and unresolved issues. Preserve unrelated modifications
+and untracked work; stage only the requested changes.
 
-Native coding workers may inspect, edit and test within authorized ownership. Discover current capabilities; model names and free-price labels do not prove tool grants, entitlement or allowance. Preserve exact routes when requested and do not silently enter paid fallback.
+Keep recovery copies before consequential edits. Record source and replacement hashes; a
+current-file hash mismatch blocks restoring a preimage over later work. Reconcile those edits.
 
-For selected Fugu work, read current owner-authored `POLICY.md`, discover the live catalog and use `Invoke-FuguLane.ps1`. Validate optional local paths through `LOCAL_PATHS.md`; do not reconfigure missing integrations. Current broker grants differ from native coding tools, so evidence/proposed patches may be the appropriate output. Preserve run plans, inherited budgets, expiry and broker-only recursion. Do not copy machine paths, auth profiles or a mutable roster into the repo.
+Use authority already supplied by the user. A request for documentation or PRs does not
+authorize a deployment, package publication, merge, credential change, or shared provider
+configuration change. If a required action falls outside the task, identify the missing decision.
 
-Native harness task IDs and Fugu run/task IDs remain separately owned. Parent wait expiry is not cancellation. Reconcile terminal status and descendants before completion; never kill shared servers by name. Record route substitutions and capability limits honestly. Catalog/inference/file-read/edit/test/acceptance evidence remain separate.
+## Verification and handoff
 
-## Contracts to preserve
+Use [TESTING.md](TESTING.md) to select the smallest meaningful checks plus the applicable
+project gates. Recheck after changed inputs, failures, or unresolved concerns; do not repeat
+successful broad suites without a reason. Read command side effects in [SCRIPTS.md](SCRIPTS.md)
+before running network, hosted, cleanup, or deployment steps.
 
-- `php-static` and `js-ssr` are distinct modes; PHP hosting alone does not provide request-time Svelte SSR.
-- Keep remote functions blocked until explicit generated-endpoint and host proof authorizes support.
-- Preserve Kit 2 and Kit 3 builder differences, custom route/app directories, base paths, trailing slashes, `csr=false`, multi-cookie behavior, body forwarding and build identity.
-- Public routers must deny private server/runtime source before any existing-file shortcut. Test Apache, Nginx and built-in PHP behavior separately.
-- Implement origin/proxy controls before claiming environment variables enforce them. A documentation recommendation is not runtime validation.
-- Generated `adapter/index.js` and declarations come from source, never hand patches. Coordinate source and bundle ownership.
-- Preserve unrelated dirty/untracked work, including sidecars. Never commit credentials, real env files, private packets or runtime data. Do not expose dev/preview servers to untrusted clients.
+Report source/static checks, build/runtime checks, visual checks, and human acceptance
+separately. Name what ran and what remains unverified. Keep authored source, generated output,
+Git commits, remote PR state, hosted behavior, and release acceptance distinct.
 
-## Verification and focused commits
+## Current intent and owned artifacts
 
-For adapter source changes, use `bun run build:adapter`, `bun run verify:artifacts -- --strict`, focused unit tests and `bun run check`. Add relevant root/base, generated PHP/Apache/Nginx, package-import and mode fixtures. Security changes need negative cases and proof rejected requests do not run handlers. Run pinned Kit 2/3 consumer checks when builder/runtime behavior changes. Broader local/hosted gates remain required for release and may have unrelated baseline blockers; report them rather than weakening them.
+Read `INTENT.md` and the relevant section of `docs/MODERNIZATION.md` before changing contracts. Use the work-order and handoff shapes in `repo.schema.json` for scoped ownership and evidence. Keep project task records under `.ai/`: intake in `inbox/`, deliverables in `outbox/`, checks in `evidence/`, and retained originals in `archive/`. Record plans and reviews in `.ai/SYNTHESIS-QUEUE.json`; mark them synthesized only after recording the source hash, maintained destination, unresolved issues and receipt. Never commit private packets, keys, runtime stores or conversation exports.
 
-Build/check commands can generate ignored reports or tracked artifacts. Inspect the diff and retain only the task's intended outputs. A prior receipt cannot certify a changed bundle; record package version, commit, dirty paths, bundle hash, commands, timestamp and host scope.
-
-When committing is authorized, make one coherent behavior fix plus necessary regression checks/docs. Run `git diff --check`, stage explicit files/reviewed hunks, inspect the staged diff, and commit with a useful title, for example `fix(runtime): keep sidecar bundles outside the public root`. Coordinate mixed-ownership files before staging. Do not broadly stage, reset, clean, or create cosmetic churn commits. Without commit authority, return the patch and suggested title. Separate publication, push, merge and deployment authority; reuse existing session authorization without asking again.
-
-Exit with a `handoff` receipt: base/current commit, worktree, paths/hashes, actual checks/evidence, unresolved findings, commit or null, pending descendants and next permitted action. Local checks, independent review, hosted proof and npm publication have separate states. The lead accepts the integrated candidate.
+Follow applicable parent Svelte instructions: use the official Svelte MCP documentation and autofixer for Svelte source changes. One writer owns a path; coordinate shared generated output and test processes. Historical receipts establish their recorded candidate only.
