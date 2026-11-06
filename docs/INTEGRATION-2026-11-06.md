@@ -38,6 +38,8 @@ choosing explicit boundary assertions. Request-time Svelte rendering remains the
 `js-ssr` boundary; changing it is a separate product decision.
 
 Reproduce the possible `js-ssr` sibling-output collision with generated-output and
-HTTP evidence before changing its generator. Retain existing behavior if no material
-divergence is established. Real-host security and human UI acceptance remain open;
+HTTP evidence before changing its generator. A synthetic PHP built-in-server probe
+returned HTML for a JSON request at a subdirectory while the root returned JSON;
+confirm the behavior with a real Kit consumer before selecting a fix. Retain existing
+behavior if no material divergence is established. Real-host security and human UI acceptance remain open;
 collect representative synthetic measurements before selecting optimizations.
