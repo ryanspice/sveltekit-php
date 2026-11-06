@@ -8,11 +8,13 @@ This integration combines operating guidance in [PR 2](https://github.com/ryansp
 
 The security candidate preserves private sidecar output, router/private-path guards, action origin checks, bounded request bodies, proxy-header trust, safe hydration decoding, and explicit remote-function exclusion. Review additionally fixed multipart upload-limit and missing-boundary validation before upstream dispatch, and rejection of an explicitly invalid zero body limit. Runtime tests cover those failures and bounded chunked bodies without Content-Length.
 
+Linux CI exposed a dependency on the optional PHP ctype extension in request guards. ASCII-digit validation now uses core PHP functions while retaining the existing range checks. Synthetic PHP fixtures disable `ctype_digit` even when compiled into the host, and 20 additional probes cover extension absence, forwarded depth, and malformed Content-Length. This reproduces the platform difference locally without relaxing rejection behavior.
+
 ## CI and verification
 
 Automatic CI separates source/package contracts, PHP 8.3/8.5 HTTP/browser checks, and pinned packed Kit 2/3 consumers. It checks lint, types, unit tests, bundle/declaration parity, runtime guards, output/router behavior, desktop/mobile behavior, and package types. Hosted Alpha/RC investigations are manual only. No automatic job deploys or publishes.
 
-Local integration evidence includes 227 unit tests, typechecking, strict generated-artifact parity, 19 release-prep checks, six E2E output builds, local root/subdirectory HTTP checks, 11 compatibility-router requests, 32 browser tests, and 28 Kit 3 desktop/mobile tests. Four Kit 3 cases are explicitly skipped because PHP-static actions use the client fallback. Eight packed consumer lanes cover Kit 2.70.3 and Kit 3.1.0, both modes, and root/subdirectory paths. These results do not establish a real shared-host deployment or native desktop-shell acceptance.
+Local integration evidence includes 247 unit tests, typechecking, strict generated-artifact parity, 19 release-prep checks, six E2E output builds, local root/subdirectory HTTP checks, 11 compatibility-router requests, 32 browser tests, and 28 Kit 3 desktop/mobile tests. Four Kit 3 cases are explicitly skipped because PHP-static actions use the client fallback. Eight packed consumer lanes cover Kit 2.70.3 and Kit 3.1.0, both modes, and root/subdirectory paths. These results do not establish a real shared-host deployment or native desktop-shell acceptance.
 
 Formatting and script typing make the existing lint/type gates executable. Generated declarations remain governed by strict generation parity rather than independent formatter rewrites. The RSS fixture link is an external document link so its existing deployment base is not applied twice.
 

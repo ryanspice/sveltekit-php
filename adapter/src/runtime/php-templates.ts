@@ -6,6 +6,10 @@ import { getRouterSharedPhp } from './router/shared';
 export function getPhpRequestSecurity() {
 	return String.raw`
 if (!function_exists('sk_normalize_origin')) {
+function sk_is_ascii_digits(string $value): bool {
+    // ctype is optional; numeric request limits must work without shared extensions.
+    return $value !== '' && strspn($value, '0123456789') === strlen($value);
+}
 function sk_normalize_origin($value): ?string {
     if (!is_string($value) || $value === '' || preg_match('/[\x00-\x20\x7f,\\\\]/', $value)) return null;
     $parts = parse_url($value);
@@ -42,7 +46,7 @@ function sk_client_address(): string {
     $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     if (!sk_trust_proxy_headers() || !isset($_SERVER['HTTP_X_FORWARDED_FOR'])) return $remote;
     $depth = getenv('SK_XFF_DEPTH') ?: '1';
-    if (!ctype_digit($depth) || (int)$depth < 1) return $remote;
+    if (!sk_is_ascii_digits($depth) || (int)$depth < 1) return $remote;
     $chain = array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']));
     $index = count($chain) - (int)$depth;
     return $index >= 0 && filter_var($chain[$index], FILTER_VALIDATE_IP) !== false ? $chain[$index] : $remote;
@@ -52,12 +56,12 @@ function sk_read_limited_body(): string {
     if ($body !== null) return $body;
     $limit = getenv('SK_BODY_SIZE_LIMIT');
     if ($limit === false || $limit === '') $limit = '10485760';
-    if (!ctype_digit($limit) || (int)$limit < 1 || (int)$limit >= PHP_INT_MAX) {
+    if (!sk_is_ascii_digits($limit) || (int)$limit < 1 || (int)$limit >= PHP_INT_MAX) {
         http_response_code(500);
         exit('Invalid SK_BODY_SIZE_LIMIT');
     }
     $length = $_SERVER['CONTENT_LENGTH'] ?? null;
-    if ($length !== null && (!ctype_digit((string)$length) || (int)$length > (int)$limit)) {
+    if ($length !== null && (!sk_is_ascii_digits((string)$length) || (int)$length > (int)$limit)) {
         http_response_code(413);
         exit('Payload Too Large');
     }

@@ -313,7 +313,7 @@ $timeoutMs = getenv('PROXY_TIMEOUT_MS') ?: 10000;
 $connectTimeoutMs = getenv('PROXY_CONNECT_TIMEOUT_MS') ?: 500;
 $configuredMaxBodyBytes = getenv('MAX_BODY_BYTES');
 $maxBodyBytes = $configuredMaxBodyBytes === false || $configuredMaxBodyBytes === '' ? '10485760' : $configuredMaxBodyBytes; // 10MB default
-if (!ctype_digit((string)$maxBodyBytes) || (int)$maxBodyBytes < 1 || (int)$maxBodyBytes >= PHP_INT_MAX) {
+if (!sk_is_ascii_digits((string)$maxBodyBytes) || (int)$maxBodyBytes < 1 || (int)$maxBodyBytes >= PHP_INT_MAX) {
     http_response_code(500);
     exit('Invalid MAX_BODY_BYTES');
 }

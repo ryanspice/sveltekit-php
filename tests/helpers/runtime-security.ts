@@ -1,4 +1,4 @@
-import { afterEach } from 'vitest';
+import { afterEach, onTestFailed } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -45,7 +45,13 @@ export async function start(
 	origin: string,
 	env: NodeJS.ProcessEnv = {}
 ) {
-	const child = spawn(command, args, {
+	// ctype may be a shared extension on Linux and therefore absent with -n.
+	// Disable it even on hosts that compile it in so these fixtures enforce that contract.
+	const fixtureArgs =
+		/^php(?:\.exe)?$/i.test(path.basename(command)) && args.includes('-n')
+			? ['-d', 'disable_functions=ctype_digit', ...args]
+			: args;
+	const child = spawn(command, fixtureArgs, {
 		cwd: f.root,
 		env: {
 			...process.env,
@@ -63,11 +69,20 @@ export async function start(
 	});
 	f.processes.push(child);
 	let logs = '';
+	let stderr = '';
 	child.stderr?.on('data', (data) => {
 		logs += String(data);
+		stderr = (stderr + String(data)).slice(-65536);
 	});
 	child.stdout?.on('data', (data) => {
 		logs += String(data);
+	});
+	onTestFailed(() => {
+		if (stderr) {
+			console.error(
+				`[runtime-security] ${path.basename(command)} child ${child.pid} stderr:\n${stderr}`
+			);
+		}
 	});
 	for (let attempt = 0; attempt < 80; attempt++) {
 		if (child.exitCode !== null) throw new Error(`Owned server ${child.pid} exited: ${logs}`);
