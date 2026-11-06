@@ -124,7 +124,7 @@ jobs:
           bun scripts/verify-all.mjs --mode=all --skipBuild --skipUnit --skipE2E 2>&1 | tee .ai/evidence/ci/http-root.log
           bun scripts/verify-all.mjs --mode=js-ssr --basePath=/dev/sveltekit --skipBuild --skipUnit --skipE2E 2>&1 | tee .ai/evidence/ci/http-subdir.log
       - name: Verify compatibility router against generated output
-        run: bun run verify:root-router-parity -- --build=build-e2e-php-static 2>&1 | tee .ai/evidence/ci/router.log
+        run: bun run verify:root-router-parity -- --build build-e2e-php-static 2>&1 | tee .ai/evidence/ci/router.log
       - name: Run browser regression projects
         run: bun run test:e2e -- --output=.ai/evidence/ci/browser-results 2>&1 | tee .ai/evidence/ci/browser.log
       - name: Run Kit 3 desktop and mobile acceptance

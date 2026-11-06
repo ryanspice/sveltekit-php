@@ -18,6 +18,8 @@ Local integration evidence includes 247 unit tests, typechecking, strict generat
 
 Formatting and script typing make the existing lint/type gates executable. Generated declarations remain governed by strict generation parity rather than independent formatter rewrites. The RSS fixture link is an external document link so its existing deployment base is not applied twice.
 
+The router-parity CLI now accepts both spaced and equals arguments and rejects unknown options rather than silently selecting the default build. Its comparison accounts for the demo layout's per-request PHP memory counter in the current named JSON format; status, headers, route content, other numbers and malformed values remain significant. Twenty-four focused verifier tests include those negative controls, and all 11 parity requests pass against the intended E2E output.
+
 ## Artifact and historical-plan disposition
 
 The inactive `.codegraph` directory and two empty sidecar outputs were removed. Ninety-two historical run/skill/Hermes files were preserved with their grouping under `.ai/archive/`, verified by SHA-256 before their originals were removed. No process was stopped. Private packets, evidence, archives, and indexes are excluded from commits.
