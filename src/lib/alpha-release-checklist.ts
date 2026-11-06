@@ -61,7 +61,7 @@ export function renderAlphaReleaseChecklistMarkdown() {
 		'',
 		'- Audit artifact: `docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md`',
 		'- Source docs: SvelteKit adapter, build, page-option, project-type, Svelte 5 migration, and browser-support guidance',
-		'- npm latest snapshot: `svelte@5.56.4`, `@sveltejs/kit@2.69.1`, `@sveltejs/vite-plugin-svelte@7.1.4`, and `vite@8.1.3`',
+		'- npm latest snapshot: `svelte@5.56.10`, `@sveltejs/kit@2.70.3`, `@sveltejs/vite-plugin-svelte@7.3.0`, and `vite@8.2.2`',
 		'- Freshness verifier: `bun run verify:latest-sveltekit-audit` compares this source-controlled snapshot with current `npm view` output',
 		'- Same-major smoke: `bun run alpha:latest-same-major:smoke` packs this adapter, installs it into a temporary fixture with npm-latest `svelte@5.x` and `@sveltejs/kit@2.x`, runs `vite build`, and checks generated PHP/static output',
 		'- Current alpha support floor: same-major `svelte` and `@sveltejs/kit` compatibility is a local-gate proof lane, not an in-place dependency-floor upgrade',
@@ -189,4 +189,3 @@ export function renderAlphaReleaseChecklistMarkdown() {
 
 	return lines.join('\n');
 }
-

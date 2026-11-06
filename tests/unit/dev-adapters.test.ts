@@ -80,7 +80,9 @@ describe('development adapters', () => {
 
 	it('registers the Vite dev router stub', async () => {
 		const out = path.join(tempRoot, 'vite-out');
-		await viteDevAdapter({ out, assets: path.join(tempRoot, 'vite-assets') }).adapt(createBuilder());
+		await viteDevAdapter({ out, assets: path.join(tempRoot, 'vite-assets') }).adapt(
+			createBuilder()
+		);
 
 		const stub = fs.readFileSync(path.join(out, 'dev-router.php'), 'utf8');
 		expect(stub).toContain('Vite PHP dev adapter');
@@ -102,9 +104,9 @@ describe('development adapters', () => {
 	it('rejects CI usage unless explicitly allowed', async () => {
 		process.env.CI = 'true';
 
-		await expect(devAdapter({ out: path.join(tempRoot, 'ci-out') }).adapt(createBuilder())).rejects.toThrow(
-			/SK_PHP_ALLOW_DEV_ADAPTER/
-		);
+		await expect(
+			devAdapter({ out: path.join(tempRoot, 'ci-out') }).adapt(createBuilder())
+		).rejects.toThrow(/SK_PHP_ALLOW_DEV_ADAPTER/);
 
 		await expect(
 			viteDevAdapter({ out: path.join(tempRoot, 'vite-ci-out') }).adapt(createBuilder())
@@ -116,8 +118,12 @@ describe('development adapters', () => {
 		process.env.SK_PHP_ALLOW_DEV_ADAPTER = 'true';
 
 		const out = path.join(tempRoot, 'explicit-out');
-		await devAdapter({ out, assets: path.join(tempRoot, 'explicit-assets') }).adapt(createBuilder());
+		await devAdapter({ out, assets: path.join(tempRoot, 'explicit-assets') }).adapt(
+			createBuilder()
+		);
 
-		expect(fs.readFileSync(path.join(out, 'index.php'), 'utf8')).toContain('production adapter for deployable PHP output');
+		expect(fs.readFileSync(path.join(out, 'index.php'), 'utf8')).toContain(
+			'production adapter for deployable PHP output'
+		);
 	});
 });

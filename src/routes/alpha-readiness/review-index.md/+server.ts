@@ -1,5 +1,5 @@
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
-import { renderAlphaReviewIndexMarkdown } from '$lib/alpha-review-index';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
+import { renderAlphaReviewIndexMarkdown } from '#lib/alpha-review-index.ts';
 
 export const prerender = true;
 

@@ -6,7 +6,6 @@ import svelte from 'eslint-plugin-svelte';
 import { defineConfig } from 'eslint/config';
 import globals from 'globals';
 import ts from 'typescript-eslint';
-import svelteConfig from './svelte.config.js';
 
 const gitignorePath = fileURLToPath(new URL('./.gitignore', import.meta.url));
 
@@ -16,6 +15,7 @@ export default defineConfig(
 			'build/**',
 			'.svelte-kit/**',
 			'adapter/index.js',
+			'adapter/declarations/**',
 			'adapter/src/runtime/php-templates.ts',
 			'docs/**/*.md'
 		]
@@ -43,7 +43,16 @@ export default defineConfig(
 				projectService: true,
 				extraFileExtensions: ['.svelte'],
 				parser: ts.parser,
-				svelteConfig
+				svelteConfig: {}
+			}
+		}
+	},
+	{
+		files: ['tests/fixtures/**/*.svelte'],
+		languageOptions: {
+			parserOptions: {
+				// Fixture apps have separate generated projects; keep syntax and rule checks here.
+				projectService: false
 			}
 		}
 	},

@@ -6,4 +6,3 @@
 
 <h1>{data.title}</h1>
 <p>Locale: {data.locale}</p>
-

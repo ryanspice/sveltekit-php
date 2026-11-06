@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	interface FileBrowserData {
-		path: string[];
+		path: string[] | string;
 	}
 
 	let { data = { path: [] } }: { data?: FileBrowserData } = $props();
@@ -10,8 +10,12 @@
 	const pathSegments = $derived(normalizePathSegments(data?.path));
 	const filePath = $derived(pathSegments.join('/'));
 
-	function normalizePathSegments(path: string[]): string[] {
-		return Array.isArray(path) ? path : [];
+	function normalizePathSegments(path: string[] | string | undefined): string[] {
+		return Array.isArray(path)
+			? path
+			: typeof path === 'string'
+				? path.split('/').filter(Boolean)
+				: [];
 	}
 </script>
 
@@ -25,13 +29,17 @@
 
 	<nav aria-label="Breadcrumb">
 		<ol>
-			<li><a href="{base}/path-viewer">Root</a></li>
+			<li><a href={resolve('/path-viewer/[...path]', { path: '' })}>Root</a></li>
 			{#each pathSegments as segment, i (segment + i)}
 				<li>
 					{#if i === pathSegments.length - 1}
 						{segment}
 					{:else}
-						<a href="{base}/path-viewer/{pathSegments.slice(0, i + 1).join('/')}">{segment}</a>
+						<a
+							href={resolve('/path-viewer/[...path]', {
+								path: pathSegments.slice(0, i + 1).join('/')
+							})}>{segment}</a
+						>
 					{/if}
 				</li>
 			{/each}
@@ -52,9 +60,21 @@
 	<div class="actions">
 		<h3>Available Actions</h3>
 		<ul>
-			<li><a href="{base}/path-viewer/test/document.pdf">View a sample document</a></li>
-			<li><a href="{base}/path-viewer/images/photo.jpg">View a sample image</a></li>
-			<li><a href="{base}/path-viewer/code/script.js">View a sample script</a></li>
+			<li>
+				<a href={resolve('/path-viewer/[...path]', { path: 'test/document.pdf' })}
+					>View a sample document</a
+				>
+			</li>
+			<li>
+				<a href={resolve('/path-viewer/[...path]', { path: 'images/photo.jpg' })}
+					>View a sample image</a
+				>
+			</li>
+			<li>
+				<a href={resolve('/path-viewer/[...path]', { path: 'code/script.js' })}
+					>View a sample script</a
+				>
+			</li>
 		</ul>
 	</div>
 </main>

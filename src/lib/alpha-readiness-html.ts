@@ -146,7 +146,10 @@ export function renderAlphaReadinessHtml(
 			<p><code>supported-api-lanes</code>: ${escapeHtml(communityResearchPack.summary.supportedSourceCount)} / <code>manual-research-lanes</code>: ${escapeHtml(communityResearchPack.summary.manualSourceCount)}</p>
 			<p><code>analytics-linked-keyword-graph</code>: <code>curated-signal-score</code> + <code>collected-demand-score</code> as <code>directional-community-signal</code>, with <code>no-live-community-api-runtime-boundary</code> protecting runtime endpoints.</p>
 			<p class="gap">${keywordSearchGraph.nodes
-				.map((node) => `<code>${escapeHtml(node.id)}:${escapeHtml(node.sourceHosts.slice(0, 3).join('|'))}</code>`)
+				.map(
+					(node) =>
+						`<code>${escapeHtml(node.id)}:${escapeHtml(node.sourceHosts.slice(0, 3).join('|'))}</code>`
+				)
 				.join(' ')}</p>
 		</article>
 		${keywordSearchGraph.edges
@@ -226,7 +229,8 @@ export function renderAlphaReadinessHtml(
 		{
 			label: 'Source health',
 			values: communityResearchPack.summary.sourceHealthCoverage,
-			description: 'Whether each source is countable, rate-limited, or manual-only for alpha evidence.'
+			description:
+				'Whether each source is countable, rate-limited, or manual-only for alpha evidence.'
 		},
 		{
 			label: 'Result total fields',

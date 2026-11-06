@@ -1,6 +1,6 @@
 # SvelteKit PHP adapter feature catalogue
 
-Last reviewed: 2026-07-06
+Last reviewed: 2026-08-24
 
 This is the human-readable feature map for `sveltekit-php`. It combines official SvelteKit adapter expectations, Azure Static Web Apps patterns, PHP-FPM/Composer ideas, WordPress/CMS embedding ideas, and this repo's current support level.
 
@@ -10,10 +10,10 @@ Latest package evidence captured for the alpha track:
 
 | Package | Latest | Repo range | Support | Notes |
 | --- | ---: | --- | --- | --- |
-| `svelte` | `5.56.4` | `^5.45.6` | 🟢 | Same-major Svelte 5 support is part of the alpha fixture lane. |
-| `@sveltejs/kit` | `2.69.1` | `^2.49.1` | 🟢 | Same-major SvelteKit 2 adapter shape is part of the alpha fixture lane. |
-| `@sveltejs/vite-plugin-svelte` | `7.1.4` | `^6.2.1` | 🟡 | Latest major is validated by `alpha:latest-vite-major:smoke`; it is not the support floor. |
-| `vite` | `8.1.3` | `^7.2.6` | 🟡 | Latest major is validated by `alpha:latest-vite-major:smoke`; it is not the support floor. |
+| `svelte` | `5.56.10` | `^5.45.6` | 🟢 | Same-major Svelte 5 support is part of the alpha fixture lane. |
+| `@sveltejs/kit` | `2.70.3` | `^2.49.1` | 🟢 | Same-major SvelteKit 2 adapter shape is part of the alpha fixture lane. |
+| `@sveltejs/vite-plugin-svelte` | `7.3.0` | `^6.2.1` | 🟡 | Latest major is validated by `alpha:latest-vite-major:smoke`; it is not the support floor. |
+| `vite` | `8.2.2` | `^7.2.6` | 🟡 | Latest major is validated by `alpha:latest-vite-major:smoke`; it is not the support floor. |
 
 Official adapter comparison snapshot:
 
@@ -62,8 +62,8 @@ This pass rechecked the catalogue against current official docs and community ad
 - [x] 🟢 Official adapter contract: SvelteKit adapters still revolve around `adapt(builder)`, optional `emulate`, optional `supports`, output writing, manifest generation, `server.respond`, platform data, bundling, and correct placement of static/client/server output.
 - [x] 🟢 Static adapter baseline: `adapter-static` still frames fully prerendered output, `fallback`, `precompress`, `strict`, and trailing-slash behavior as the relevant static-host contract.
 - [x] 🟢 Node adapter baseline: `adapter-node` remains the best source for env-driven runtime knobs: `ORIGIN`, forwarded host/protocol/port headers, address headers, body size limits, keep-alive/shutdown behavior, `envPrefix`, and custom server/health-route patterns.
-- [x] 🟢 Latest Svelte/SvelteKit same-major snapshot: `svelte@5.56.4` and `@sveltejs/kit@2.69.1` remain same-major alpha gate targets.
-- [x] 🟡 Latest Vite/plugin snapshot: `vite@8.1.3` and `@sveltejs/vite-plugin-svelte@7.1.4` are covered by `alpha:latest-vite-major:smoke` as latest-major validation lanes, not dependency-floor upgrades.
+- [x] 🟢 Latest Svelte/SvelteKit same-major snapshot: `svelte@5.56.10` and `@sveltejs/kit@2.70.3` remain same-major alpha gate targets.
+- [x] 🟡 Latest Vite/plugin snapshot: `vite@8.2.2` and `@sveltejs/vite-plugin-svelte@7.3.0` are covered by `alpha:latest-vite-major:smoke` as latest-major validation lanes, not dependency-floor upgrades.
 - [x] 🟢 Live blog consumer proof: `blog.ryanspice.com` currently corroborates static/no-hydration homepage behavior and returns healthy robots/sitemap responses.
 - [x] 🟢 Azure SWA baseline: `svelte-adapter-azure-swa` still splits static output and Azure Function SSR output, uses `build/static` and `build/server` by default, exposes `apiDir`/`staticDir`, and protects critical SWA routing config.
 - [x] 🟢 Azure platform config: `staticwebapp.config.json` remains the useful model for declarative routes, auth/roles, rewrites, redirects, fallback exclusions, response overrides, headers, MIME types, runtime selection, forwarding hosts, and required headers.

@@ -1,5 +1,5 @@
-import { renderAlphaNativeHostGuideMarkdown } from '$lib/alpha-native-host-guide';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
+import { renderAlphaNativeHostGuideMarkdown } from '#lib/alpha-native-host-guide.ts';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
 
 export const prerender = true;
 

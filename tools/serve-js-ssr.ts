@@ -35,7 +35,7 @@ console.log(`✓ Artifacts verified in ${outDir} (built at ${result.stamp.builtA
 console.log(`Starting js-ssr sidecar on port ${port}...`);
 console.log(`Starting PHP proxy on port ${phpPort} with base path "${basePath}"...`);
 
-const serverDir = path.join(outDir, 'server');
+const serverDir = `${path.resolve(outDir)}-server`;
 const handlerPath = path.join(serverDir, 'handler.mjs');
 
 if (!fs.existsSync(handlerPath)) {
@@ -48,6 +48,7 @@ const nodeServer = spawn('node', [handlerPath], {
 	env: {
 		...process.env,
 		PORT: port,
+		SK_ORIGIN: process.env.SK_ORIGIN || `http://127.0.0.1:${phpPort}`,
 		ADDRESS_HEADER: 'x-forwarded-for',
 		XFF_DEPTH: '1'
 	}

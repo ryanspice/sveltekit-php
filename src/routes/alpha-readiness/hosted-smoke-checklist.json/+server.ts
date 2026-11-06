@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
-import { buildHostedSmokeChecklist } from '$lib/alpha-hosted-smoke-checklist';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
+import { buildHostedSmokeChecklist } from '#lib/alpha-hosted-smoke-checklist.ts';
 
 export const prerender = true;
 

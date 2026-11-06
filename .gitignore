@@ -12,6 +12,7 @@ node_modules
 /build
 build-*
 !scripts/build-e2e.mjs
+!scripts/build-adapter-types.mjs
 
 # OS
 .DS_Store
@@ -49,3 +50,9 @@ tools/*.patch
 /playwright/.cache/
 /playwright/.auth/
 .svelte-doctor/*
+
+# Local agent evidence, archived prompts and retired indexes
+.ai/
+.codegraph/
+.hermes-sidecars/
+*.hermes.*

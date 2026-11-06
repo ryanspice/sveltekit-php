@@ -65,26 +65,27 @@ export function renderCommunitySignalsCsv(
 	communityAnalytics: CommunityAnalyticsArtifact = null
 ) {
 	const collectedScores = new Map(
-		(communityAnalytics?.queries ?? [])
-			.flatMap((query) => {
-				const key = query.signalId ?? query.id;
-				return typeof key === 'string'
-					? ([[key, query.aggregate?.demandScore ?? ''] as [string, number | string]])
-					: [];
-			})
+		(communityAnalytics?.queries ?? []).flatMap((query) => {
+			const key = query.signalId ?? query.id;
+			return typeof key === 'string'
+				? [[key, query.aggregate?.demandScore ?? ''] as [string, number | string]]
+				: [];
+		})
 	);
 	const weightedScores = new Map(
-		(communityAnalytics?.queries ?? [])
-			.flatMap((query) => {
-				const key = query.signalId ?? query.id;
-				return typeof key === 'string'
-					? ([[key, query.aggregate?.weightedDemandScore ?? ''] as [string, number | string]])
-					: [];
-			})
+		(communityAnalytics?.queries ?? []).flatMap((query) => {
+			const key = query.signalId ?? query.id;
+			return typeof key === 'string'
+				? [[key, query.aggregate?.weightedDemandScore ?? ''] as [string, number | string]]
+				: [];
+		})
 	);
 	const queryEdges = new Map(
 		(communityAnalytics?.queries ?? [])
-			.map((query) => [query.signalId ?? query.id, query.sourceToKeywordEdges?.join(' | ') ?? ''] as const)
+			.map(
+				(query) =>
+					[query.signalId ?? query.id, query.sourceToKeywordEdges?.join(' | ') ?? ''] as const
+			)
 			.filter((entry): entry is [string, string] => typeof entry[0] === 'string')
 	);
 	const rows = [
@@ -201,4 +202,3 @@ export function renderCommunitySourcesCsv(report: AlphaReadinessReport) {
 
 	return `${rows.map((row) => row.map(csvCell).join(',')).join('\n')}\n`;
 }
-

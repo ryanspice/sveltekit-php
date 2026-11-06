@@ -119,8 +119,12 @@ describe('assertSafeBuildTarget', () => {
 		expect(() => assertSafeBuildTarget(path.parse(process.cwd()).root, 'out', routesRoot)).toThrow(
 			/Unsafe build target/
 		);
-		expect(() => assertSafeBuildTarget(process.cwd(), 'out', routesRoot)).toThrow(/Unsafe build target/);
-		expect(() => assertSafeBuildTarget(os.homedir(), 'out', routesRoot)).toThrow(/Unsafe build target/);
+		expect(() => assertSafeBuildTarget(process.cwd(), 'out', routesRoot)).toThrow(
+			/Unsafe build target/
+		);
+		expect(() => assertSafeBuildTarget(os.homedir(), 'out', routesRoot)).toThrow(
+			/Unsafe build target/
+		);
 	});
 
 	it('rejects temp root and common user directories (hardening)', () => {
@@ -188,7 +192,10 @@ describe('adapter hygiene (audit fixes)', () => {
 	});
 
 	it('removed dead PHP 7.4 polyfills from the runtime', () => {
-		const compat = readFileSync(path.join(repoRoot, 'adapter', 'src', 'runtime', 'php-compat.php'), 'utf8');
+		const compat = readFileSync(
+			path.join(repoRoot, 'adapter', 'src', 'runtime', 'php-compat.php'),
+			'utf8'
+		);
 		expect(compat).not.toContain('function str_starts_with');
 		expect(compat).not.toContain('function str_ends_with');
 		expect(compat).not.toContain('function array_is_list');

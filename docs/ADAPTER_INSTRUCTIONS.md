@@ -1,5 +1,9 @@
 # SvelteKit PHP Adapter Instructions
 
+For repository work, start with [AGENTS.md](../AGENTS.md), then use
+[OPERATIONS.md](../OPERATIONS.md) and [TESTING.md](../TESTING.md). This document describes
+adapter behavior and hosting examples; it adds no separate workflow authority.
+
 This repo ships a custom SvelteKit adapter that targets **PHP hosting** and supports two deploy styles:
 
 - **Mode A: `php-static`**: prerendered HTML + client assets, with **PHP bridges** for `__data.json`, actions, and endpoints.
@@ -50,7 +54,7 @@ The adapter now supports:
 ### `svelte.config.js`
 
 ```js
-import adapter from './adapter/dist/index.js';
+import adapter from './adapter/index.js';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {

@@ -1,1 +1,5 @@
-for my svelte kit php adapter it should allow dynamic supoprt for each deployment mode based on how the sveltekit route is defined, we should be able to have prerendered ssg SEO pages for example and then have it connect to a SPA which is a route or an exernal sveltekit app designed around spa and we should be able to do ssr and streaming and the like if so necessary.
+# Repository entry
+
+Read [AGENTS.md](../../AGENTS.md) for shared instructions and task routing.
+The [README](../../README.md) describes the adapter's PHP/static and JavaScript SSR modes.
+This tool entry adds no separate authority; automatic loading depends on the host.

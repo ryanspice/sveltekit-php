@@ -1,6 +1,5 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import os from 'node:os';
 import glob from 'tiny-glob';
 import { readFile, writeFile, rename, stat, readdir } from 'node:fs/promises';
 import {
@@ -20,7 +19,7 @@ import {
 	type RouteManifestEntry
 } from './utils/routing.js';
 import { detectInlineDataModeFromHtml, replaceInlineConstData } from './utils/html.js';
-import { exists } from './utils/fs.js';
+import { cleanBuildDirectory, exists } from './utils/fs.js';
 import {
 	getDataPhp,
 	getActionPhp,
@@ -32,7 +31,14 @@ import {
 } from './runtime/php-templates.js';
 import { getNodeHandlerMjs, getPhpProxy, getStandaloneApiPhp } from './runtime/js-ssr-templates.js';
 import { getHtaccess } from './runtime/htaccess-templates.js';
-import type { AdapterMode, AdapterOptions, Builder } from './types.js';
+import type { AdapterMode, AdapterOptions } from './types.js';
+import type { Adapter } from '@sveltejs/kit';
+import { normalizeBuilder } from './utils/builder.js';
+import {
+	normalizeAdapterOptions,
+	normalizeBasePathOption,
+	resolveContainedOutputPath
+} from './utils/options.js';
 import {
 	REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER,
 	assertRemoteFunctionsUnsupported,
@@ -43,9 +49,13 @@ import {
 } from './utils/guards.js';
 import type { ResolvedBuildIdentityContract } from './utils/guards.js';
 
-const ADAPTER_VERSION = '1.0.2-alpha.0';
+const ADAPTER_VERSION = '1.1.0-alpha.0';
 
-function buildStamp(mode: AdapterMode, basePath: string, buildIdentity: ResolvedBuildIdentityContract | null) {
+function buildStamp(
+	mode: AdapterMode,
+	basePath: string,
+	buildIdentity: ResolvedBuildIdentityContract | null
+) {
 	return {
 		mode,
 		basePath: basePath || '',
@@ -64,19 +74,23 @@ function buildStamp(mode: AdapterMode, basePath: string, buildIdentity: Resolved
 	};
 }
 
-export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
+export type { AdapterMode, AdapterOptions, BuildIdentityContract } from './types.js';
+
+export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapter {
+	const normalizedOptions = normalizeAdapterOptions(options);
 	const {
 		ssr = true,
 		out = './build',
 		assets = './build',
 		precompress = false,
-		fallback = false,
+		fallback,
 		strict = true,
-		baseMode = 'fixed'
-	} = options;
-	const mode: AdapterMode = options.mode ?? 'php-static';
+		baseMode,
+		basePath: configuredBasePathOption
+	} = normalizedOptions;
+	const mode: AdapterMode = normalizedOptions.mode;
 	const debugEnabled = process.env.ADAPTER_DEBUG === 'true' || process.env.SK_DEBUG === 'true';
-	const buildIdentity = resolveBuildIdentityContract(options.buildIdentity);
+	const buildIdentity = resolveBuildIdentityContract(normalizedOptions.buildIdentity);
 
 	return {
 		name: 'sveltekit-php',
@@ -114,7 +128,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 								baseMode
 							},
 							paths: {
-								base: options.basePath ?? ''
+								base: configuredBasePathOption ?? ''
 							},
 							runtime: {
 								documentSsr: mode === 'js-ssr',
@@ -139,7 +153,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				}
 			};
 		},
-		async adapt(builder: Builder) {
+		async adapt(kitBuilder) {
+			const builder = normalizeBuilder(kitBuilder);
 			const debug = (...args: unknown[]) => {
 				if (debugEnabled) process.stdout.write(`${args.map(String).join(' ')}\n`);
 			};
@@ -153,13 +168,16 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			const assetsIsUrl = isUrlLike(assets);
 			const outDir = path.resolve(out);
 			const assetsDir = assetsIsUrl ? outDir : path.resolve(assets);
+			const privateServerDir = `${outDir}-server`;
 			const tmpDir = builder.getBuildDirectory('sveltekit-php');
-			const basePath =
-				baseMode === 'fixed' ? (options.basePath ?? builder.config.kit.paths.base ?? '') : '';
+			const configuredBasePath =
+				normalizeBasePathOption(configuredBasePathOption ?? builder.config.kit.paths.base ?? '') ??
+				'';
+			const basePath = baseMode === 'fixed' ? configuredBasePath : '';
 			const routesBasePath = path.resolve(builder.config.kit.files.routes);
 			const trailingSlash = (await readTrailingSlashFromRoute('/', routesBasePath)) ?? 'ignore';
 			debug(`DEBUG: trailingSlash from root route: ${trailingSlash}`);
-			const buildTimeBase = options.basePath ?? builder.config.kit.paths.base ?? '';
+			const buildTimeBase = configuredBasePath;
 			const compatCandidates = [
 				fileURLToPath(new URL('./runtime/php-compat.php', import.meta.url)),
 				fileURLToPath(new URL('./src/runtime/php-compat.php', import.meta.url))
@@ -188,35 +206,35 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			assertSafeBuildTarget(outDir, 'out', builder.config.kit.files.routes);
 			if (!assetsIsUrl) assertSafeBuildTarget(assetsDir, 'assets', builder.config.kit.files.routes);
 			assertSafeBuildTarget(tmpDir, 'tmp', builder.config.kit.files.routes);
-
-			// Robust delete for Windows
-			const robustRimraf = async (dir: string) => {
-				try {
-					// Retry logic or just simple rmSync with force
-					// We import fs from 'node:fs/promises', but we need sync or standard fs for some ops?
-					// builder.rimraf is likely sync or async? It returns void in types usually.
-					// Let's use the one from 'node:fs/promises' if we imported it?
-					// I imported { readFile, writeFile, rename } from 'node:fs/promises'.
-					// I need 'rm' or 'rmdir'.
-					// But I can import 'node:fs' dynamically.
-					const fs = await import('node:fs');
-					if (fs.existsSync(dir)) {
-						try {
-							fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
-						} catch {
-							// If ENOTEMPTY, try again after a short delay
-							await new Promise((r) => setTimeout(r, 200));
-							fs.rmSync(dir, { recursive: true, force: true });
-						}
+			if (mode === 'js-ssr') {
+				assertSafeBuildTarget(privateServerDir, 'private server', builder.config.kit.files.routes);
+				if (!assetsIsUrl) {
+					const overlaps = (parent: string, child: string) => {
+						const rel = path.relative(parent, child);
+						return (
+							rel === '' ||
+							(!rel.startsWith(`..${path.sep}`) && rel !== '..' && !path.isAbsolute(rel))
+						);
+					};
+					if (overlaps(assetsDir, privateServerDir) || overlaps(privateServerDir, assetsDir)) {
+						throw new Error('sveltekit-php: private server output must not overlap public assets');
 					}
-				} catch (error) {
-					builder.log.warn(`Failed to clean ${dir}: ${error}`);
 				}
-			};
+				if (await exists(privateServerDir)) {
+					const entries = await readdir(privateServerDir);
+					if (entries.length > 0 && !entries.includes('.sveltekit-php-server')) {
+						throw new Error('sveltekit-php: refusing to clean an unowned private server directory');
+					}
+				}
+			}
 
-			await robustRimraf(outDir);
-			if (!assetsIsUrl && assetsDir !== outDir) await robustRimraf(assetsDir);
-			await robustRimraf(tmpDir);
+			const clean = (dir: string) =>
+				cleanBuildDirectory(dir, { strict, warn: (message) => builder.log.warn(message) });
+
+			await clean(outDir);
+			if (!assetsIsUrl && assetsDir !== outDir) await clean(assetsDir);
+			await clean(tmpDir);
+			if (mode === 'js-ssr') await clean(privateServerDir);
 
 			builder.mkdirp(outDir);
 			if (!assetsIsUrl && assetsDir !== outDir) builder.mkdirp(assetsDir);
@@ -242,11 +260,20 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 			if (fallback) {
 				const fallbackFile = typeof fallback === 'string' ? fallback : '200.html';
 				builder.log.minor(`Generating fallback page: ${fallbackFile}`);
-				const fallbackSrc = path.join(prerenderedRoot, fallbackFile);
+				const fallbackSrc = resolveContainedOutputPath(
+					prerenderedRoot,
+					fallbackFile,
+					'fallback source'
+				);
+				builder.mkdirp(path.dirname(fallbackSrc));
 				await builder.generateFallback(fallbackSrc);
 
 				// Manually copy fallback file to outDir as it might not be in builder.prerendered.pages
-				const fallbackDest = path.join(outDir, fallbackFile);
+				const fallbackDest = resolveContainedOutputPath(
+					outDir,
+					fallbackFile,
+					'fallback destination'
+				);
 				await builder.copy(fallbackSrc, fallbackDest);
 			}
 
@@ -554,6 +581,48 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				return { files, loadMapItems };
 			}
 
+			// Kit includes HTML +server responses in prerendered.pages as well as documents.
+			// Preserve endpoint bytes and avoid generating PHP stubs that shadow them under a base.
+			const prerenderedEndpointRoutes = new Set<string>();
+			const isEndpointOnlyRoute = async (route: ReturnType<typeof findRouteForNavPath>) => {
+				if (!route) return false;
+				const metadata = route as typeof route & {
+					page?: { methods?: string[] };
+					api?: { methods?: string[] };
+				};
+				if (Array.isArray(metadata.page?.methods) && Array.isArray(metadata.api?.methods)) {
+					return metadata.page.methods.length === 0 && metadata.api.methods.length > 0;
+				}
+				// Older/reduced builders may omit method metadata. Use the configured route tree,
+				// retaining every route with a page module regardless of its component extension.
+				const routeDir = path.join(routesBaseFs, stripLeadingSlash(route.id));
+				const entries = await readdir(routeDir).catch(() => [] as string[]);
+				return (
+					entries.some((file) => /^\+server\.(?:[jt]s|php)$/.test(file)) &&
+					!entries.some((file) => /^\+page(?:@[^.]*)?\./.test(file))
+				);
+			};
+			const localPrerenderPath = (navPath: string) =>
+				buildTimeBase && (navPath === buildTimeBase || navPath.startsWith(buildTimeBase + '/'))
+					? navPath.slice(buildTimeBase.length) || '/'
+					: navPath;
+			const prerenderedAssets = (
+				builder.prerendered as typeof builder.prerendered & {
+					assets?: Map<string, { type: string }>;
+				}
+			).assets;
+			for (const [navPath] of prerenderedAssets ?? []) {
+				const localPath = localPrerenderPath(navPath);
+				const route = findRouteForNavPath(builder, localPath);
+				if (
+					route &&
+					(await isEndpointOnlyRoute(route)) &&
+					(await isFile(path.join(prerenderedRoot, stripLeadingSlash(localPath))))
+				) {
+					prerenderedEndpointRoutes.add(route.id);
+				}
+			}
+
 			// 4) For each prerendered page, generate runtime files + convert HTML->PHP
 			for (const [navPathRaw, filePath] of builder.prerendered.pages) {
 				const navPath = navPathRaw; // e.g. "/about/"
@@ -569,6 +638,11 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 				const route = findRouteForNavPath(builder, routePath);
 				const routeId = route?.id ?? routePath; // fallback: best-effort
+				if (await isEndpointOnlyRoute(route)) {
+					prerenderedEndpointRoutes.add(routeId);
+					builder.log.minor('Preserving prerendered endpoint: ' + navPath);
+					continue;
+				}
 
 				// DEBUG: Inspect route object for SSR flag
 				if (navPath.includes('matrix')) {
@@ -648,12 +722,12 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 
 				// Locate __data.json template near the HTML.
 				// Search strategy:
-				// 1. Sibling of the HTML file (standard)
-				// 2. Subdirectory matching navPath (common for named pages in some Kit versions)
-				// 3. Child directory if HTML is named (e.g. about.html -> about/__data.json)
+				// 1. Exact navigation path, accounting for base paths stripped from Kit output
+				// 2. Child directory if HTML is named (e.g. about.html -> about/__data.json)
+				// 3. Sibling of the HTML file for index/custom directory layouts
 
 				const candidates = [
-					path.join(htmlDir, '__data.json'),
+					path.join(prerenderedRoot, stripLeadingSlash(localPrerenderPath(navPath)), '__data.json'),
 					path.join(prerenderedRoot, stripLeadingSlash(navPath), '__data.json')
 				];
 
@@ -662,6 +736,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 					const baseName = path.basename(htmlFs, '.html');
 					candidates.push(path.join(htmlDir, baseName, '__data.json'));
 				}
+				candidates.push(path.join(htmlDir, '__data.json'));
 
 				let html = await readFile(htmlFs, 'utf8');
 				const inlineMode = detectInlineDataModeFromHtml(html);
@@ -890,8 +965,6 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				// requirePrefix is always empty now because data is alongside index.php
 				requirePrefix = '';
 
-
-
 				await writeFile(path.join(dataDir, '__data.php'), dataPhp, 'utf8');
 				await writeFile(path.join(dataDir, '__action.php'), actionPhp, 'utf8');
 
@@ -997,28 +1070,54 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				await writeFile(path.join(outDir, '_runtime', 'compat.php'), compatPhp, 'utf8');
 
 				// Generate Server Bundle
-				const serverDir = path.join(outDir, 'server');
+				// Only outDir is a public document root. The sidecar is a separate deployment tree.
+				const serverDir = privateServerDir;
 				builder.mkdirp(serverDir);
+				await writeFile(
+					path.join(serverDir, '.sveltekit-php-server'),
+					'sveltekit-php private server output\n'
+				);
 				builder.writeServer(serverDir);
 
-				// Generate Manifest
-				// We need the manifest to be importable by handler.mjs which is in server/
-				const manifest = builder.generateManifest({ relativePath: '.' }); // . because handler is in same dir as index.js
-				await writeFile(
-					path.join(serverDir, 'manifest.js'),
-					`export const manifest = ${manifest};\n`
-				);
+				// Kit 3 generates a server instance; Kit 2 retains the manifest/class API.
+				const serverInstance = typeof builder.generateServerInstance === 'function';
+				if (serverInstance) {
+					builder.generateServerInstance!(path.join(serverDir, 'instance.js'), {
+						serverDirectory: serverDir
+					});
+				} else {
+					const manifest = builder.generateManifest({ relativePath: '.' });
+					await writeFile(
+						path.join(serverDir, 'manifest.js'),
+						`export const manifest = ${manifest};\n`
+					);
+				}
 
 				// Generate Handler
-				const handler = getNodeHandlerMjs(basePath);
+				const handler = getNodeHandlerMjs(basePath, serverInstance);
 				await writeFile(path.join(serverDir, 'handler.mjs'), handler);
+				if (builder.hasServerInstrumentationFile?.()) {
+					const initializer = builder.createInstrumentationInitializer?.({
+						outputDirectory: serverDir,
+						serverDirectory: serverDir
+					});
+					if (!builder.instrument)
+						throw new Error('sveltekit-php: builder cannot instrument the JavaScript sidecar');
+					builder.instrument({
+						entrypoint: path.join(serverDir, 'handler.mjs'),
+						instrumentation: path.join(serverDir, 'instrumentation.server.js'),
+						start: path.join(serverDir, 'handler-start.mjs'),
+						...(initializer ? { initializer } : {}),
+						module: { exports: [] }
+					});
+				}
 
 				// Generate PHP Proxy
 				// We default to port 3000, but it can be configured via env in the sidecar.
 				// The PHP script needs to know where the sidecar is.
 				// We use env var PHP_SIDECAR_URL if set, otherwise default to localhost:3000
 				const sidecarUrl = process.env.PHP_SIDECAR_URL || 'http://127.0.0.1:3000';
-				const proxy = getPhpProxy(sidecarUrl);
+				const proxy = getPhpProxy(sidecarUrl, basePath);
 				await writeFile(path.join(outDir, 'index.php'), proxy);
 
 				// Generate .htaccess
@@ -1110,7 +1209,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}) {
 				// SvelteKit's writeServer produces a standalone bundle usually if we use the right options,
 				// but typically it relies on dependencies being installed.
 				// However, the prompt says "zero deps" for the handler.
-				// We assume the user runs `node out/server/handler.mjs` in an environment where deps are available
+				// Run `node <out>-server/handler.mjs` outside the public document root.
 				// OR the bundle is standalone.
 				// Standard adapter-node produces an index.js that requires '0' (the app).
 				// We'll assume the user will run this in the project root or similar.
@@ -1376,7 +1475,6 @@ if (sk_prefers_html($accept)) {
 }
 ?>`;
 
-
 								await writeFile(indexPhp, negotiationPhp, 'utf8');
 							} else {
 								// No collision, just write index.php
@@ -1387,180 +1485,7 @@ if (sk_prefers_html($accept)) {
 						}
 					}
 
-					// Process JS/TS server endpoints
-					builder.log.minor('Processing JS/TS server endpoints');
-					debugMinor(
-						`DEBUG: Starting JS/TS endpoint processing loop with ${allServerTsJsFs.length} files`
-					);
-					for (const absPath of allServerTsJsFs) {
-						debugMinor(`DEBUG: Checking file: ${absPath}`);
-
-						const relPosixPath = posixify(absPath);
-						const sliced = relPosixPath.startsWith(routesBasePosix)
-							? relPosixPath.slice(routesBasePosix.length)
-							: relPosixPath;
-						const relative = sliced.startsWith('/') ? sliced : '/' + sliced;
-						const normalized = normalizeServerRel(relative);
-
-						if (!effectiveTsFiles.has(normalized)) {
-							builder.log.minor(`Skipping ignored TS/JS file: ${absPath}`);
-							continue;
-						}
-
-						if (absPath.endsWith('+server.js') || absPath.endsWith('+server.ts')) {
-							builder.log.minor(`Processing JS/TS endpoint: ${absPath}`);
-							const routeDir = path.dirname(normalized);
-							const prefix = fnPrefixMap.get(normalized);
-							const protectedRel = protectedMap.get(normalized);
-
-							if (!prefix || !protectedRel) {
-								builder.log.minor(`Skipping ${normalized} - missing prefix or protectedRel`);
-								continue;
-							}
-
-							usedServerFiles.add(normalized);
-
-							const outDir = path.join(jsSsrOutputRoot, stripLeadingSlash(routeDir));
-							if (await isFile(outDir)) {
-								builder.log.minor(`Skipping prerendered JS/TS endpoint file: ${routeDir}`);
-								continue;
-							}
-							debugMinor(`DEBUG: Creating output directory: ${outDir}`);
-							debug(`DEBUG: Creating output directory: ${outDir}`);
-							builder.mkdirp(outDir);
-
-							const relToRoot = phpRelToRootFromNav(routeDir + '/');
-							const include =
-								"require_once __DIR__ . '/" + relToRoot + protectedRel.replace(/^\//, '') + "';";
-
-							const { phpRegex: routeRegex, phpMap: routeParamMapPhp } =
-								compilePhpRouteMatcher(routeDir);
-							const apiPhp = getApiPhp(
-								[include],
-								prefix,
-								basePath || '',
-								routeRegex,
-								routeParamMapPhp,
-								relToRoot + '_runtime/compat.php'
-							);
-							const indexPhp = path.join(outDir, 'index.php');
-
-							// Check for collision with index.php OR sibling .php (e.g. about.php)
-							let pageFile = null;
-							if (await exists(indexPhp)) {
-								pageFile = indexPhp;
-							} else if (
-								stripLeadingSlash(routeDir) !== '' &&
-								stripLeadingSlash(routeDir) !== '.'
-							) {
-								// Check if there is a sibling file with the same name as the directory + .php
-								// e.g. prerendered/negotiate.php
-								// outDir is prerendered/negotiate
-								const siblingPhp = outDir + '.php';
-								if (await exists(siblingPhp)) {
-									pageFile = siblingPhp;
-								}
-							}
-
-							builder.log.minor(
-								`Checking for collision at ${indexPhp} or sibling for JS/TS endpoint`
-							);
-							if (pageFile) {
-								builder.log.minor(`Collision found at ${pageFile} for JS/TS endpoint`);
-								// Collision with prerendered page! Implement content negotiation.
-
-								// 1. Rename existing page to _page.php
-								// If we are moving a sibling file (e.g. negotiate.php -> negotiate/_page.php),
-								// we need to adjust the relative paths in the PHP file because depth changed.
-								if (pageFile === indexPhp) {
-									await rename(pageFile, path.join(outDir, '_page.php'));
-								} else {
-									// Moving sibling file into directory (depth +1)
-									let content = await readFile(pageFile, 'utf8');
-									// Adjust require_once paths to account for deeper location
-									content = content.replace(
-										/require_once __DIR__ \. '\//g,
-										"require_once __DIR__ . '/../"
-									);
-
-									await writeFile(path.join(outDir, '_page.php'), content, 'utf8');
-									// Remove the original file
-									await builder.rimraf(pageFile);
-								}
-
-								// 2. Write API dispatch logic to _server_dispatch.php
-								await writeFile(path.join(outDir, '_server_dispatch.php'), apiPhp, 'utf8');
-
-								// 3. Create new index.php that negotiates
-								const negotiationPhp = `<?php
-// SvelteKit-style Content Negotiation
-// Generated by sveltekit-php
-
-$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-$accept = $_SERVER['HTTP_ACCEPT'] ?? '';
-
-if (($_SERVER['HTTP_X_SVELTEKIT_ACTION'] ?? '') === 'true') {
-    require __DIR__ . '/_page.php';
-    return;
-}
-
-// 1. Method Precedence
-// SvelteKit rules: PUT/PATCH/DELETE/OPTIONS -> always +server
-// POST also goes to +server if it exists (conflicts with actions are not allowed by Kit)
-if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])) {
-    require __DIR__ . '/_server_dispatch.php';
-    return;
-}
-
-// 2. Accept Header Negotiation (for GET/POST/HEAD)
-// Always set Vary: Accept so CDNs/proxies cache HTML vs JSON separately
-header('Vary: Accept');
-
-function sk_prefers_html($accept) {
-    if (trim($accept) === '' || trim($accept) === '*/*') return false;
-
-    $types = explode(',', $accept);
-    $htmlQ = 0.0;
-    $jsonQ = 0.0;
-
-    foreach ($types as $type) {
-        $parts = explode(';', $type);
-        $mime = trim($parts[0]);
-        $q = 1.0;
-
-        for ($i = 1; $i < count($parts); $i++) {
-            $part = trim($parts[$i]);
-            if (strncmp($part, 'q=', 2) === 0) {
-                $q = (float)substr($part, 2);
-            }
-        }
-
-        if ($mime === 'text/html' || $mime === 'application/xhtml+xml') {
-            $htmlQ = max($htmlQ, $q);
-        } elseif ($mime === 'application/json') {
-            $jsonQ = max($jsonQ, $q);
-        }
-    }
-
-    return $htmlQ > $jsonQ;
-}
-
-if (sk_prefers_html($accept)) {
-    require __DIR__ . '/_page.php';
-} else {
-    require __DIR__ . '/_server_dispatch.php';
-}
-?>`;
-
-
-								await writeFile(indexPhp, negotiationPhp, 'utf8');
-							} else {
-								// No collision, just write index.php
-
-								await writeFile(indexPhp, apiPhp, 'utf8');
-							}
-						}
-					}
+					// JavaScript endpoints are served by the sidecar. PHP stubs would shadow them.
 
 					// 5) Convert PHP server files into namespaced protected copies
 					builder.log.minor('Converting PHP server files');
@@ -1846,8 +1771,6 @@ if (is_file($fallback_200)) {
 					const pagePrefix = pageDep ? fnPrefixMap.get(pageDep) : null;
 					const actionPhp = getActionPhp(includes, routeId, pagePrefix ?? null, compatRel);
 
-
-
 					await writeFile(path.join(outDirForRoute, '__data.php'), dataPhp, 'utf8');
 					await writeFile(path.join(outDirForRoute, '__action.php'), actionPhp, 'utf8');
 				}
@@ -2010,7 +1933,6 @@ if (sk_prefers_html($accept)) {
 }
 ?>`;
 
-
 							await writeFile(indexPhp, negotiationPhp, 'utf8');
 						} else {
 							// No collision, just write index.php
@@ -2053,6 +1975,10 @@ if (sk_prefers_html($accept)) {
 						debug(`DEBUG: Converted to normalized path: ${normalized}`);
 
 						const routeDir = path.dirname(normalized);
+						if (prerenderedEndpointRoutes.has(routeDir)) {
+							builder.log.minor(`Preserving static JS/TS endpoint output: ${routeDir}`);
+							continue;
+						}
 						const prefix = fnPrefixMap.get(normalized);
 						const protectedRel = protectedMap.get(normalized);
 
@@ -2207,7 +2133,6 @@ if (sk_prefers_html($accept)) {
 }
 ?>`;
 
-
 							await writeFile(indexPhp, negotiationPhp, 'utf8');
 						} else {
 							// No collision, just write index.php
@@ -2325,8 +2250,13 @@ if (sk_prefers_html($accept)) {
 				await writeFile(path.join(outDir, 'router.php'), router, 'utf8');
 
 				// 9) Compress assets
-				builder.log.minor('Compressing assets');
-				await builder.compress(outDir);
+				if (precompress) {
+					builder.log.minor('Compressing assets');
+					await builder.compress(outDir);
+					if (!assetsIsUrl && assetsDir !== outDir) {
+						await builder.compress(assetsDir);
+					}
+				}
 
 				if (buildIdentity) {
 					builder.log.minor('Verifying build identity contract');
@@ -2347,4 +2277,3 @@ if (sk_prefers_html($accept)) {
 		}
 	};
 }
-

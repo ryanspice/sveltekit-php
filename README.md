@@ -1,25 +1,78 @@
 # SvelteKit PHP Adapter
 
-![PHP 8.1+](https://img.shields.io/badge/PHP-8.1%2B-777bb4?logo=php&logoColor=white) ![Apache/Nginx](https://img.shields.io/badge/Apache%20%2F%20Nginx-supported-6c757d)
+**Keep SvelteKit's frontend workflow when your deployment target is PHP hosting.**
+
+[Choose a mode](#choose-the-host-you-actually-need) · [Project intent](INTENT.md) · [Agent guide](AGENTS.md) · [Security and update plan](docs/MODERNIZATION.md) · [Compatibility evidence](docs/SVELTEKIT-3-COMPATIBILITY.md)
+
+PHP hosting is widely available, and many sites already have PHP endpoints, forms, and operational knowledge. This adapter connects that environment to SvelteKit's build and frontend tooling: prerendered documents and PHP handlers for ordinary PHP hosts, with a separate JavaScript sidecar when request-time Svelte SSR is needed.
+
+The interesting engineering work lives at the boundary: matching routes, protecting server files, preserving cookies and base paths, and producing a package consumers can verify. The fixtures and hosting contract make those choices inspectable.
+
+**Current status:** local `1.1.0-alpha.0` candidate, unpublished. October 23 registry inspection found only `latest → 1.0.1`, with no `alpha` tag. Private sidecar output, PHP action-origin checks, and sidecar proxy/body boundaries are implemented in source. The working tree contains a Kit 3 development-app migration candidate; final multipart, generated-artifact and browser acceptance remain pending. See the [migration receipt](docs/security/kit3-migration-20261025.md) and earlier [security implementation receipt](docs/security/implementation-20261023.md). Hosted proof and publication remain open.
+
+## Choose the host you actually need
+
+| Mode         | What runs in production                                                   | Good fit                                                           | Boundary                                                                      |
+| ------------ | ------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `php-static` | Prerendered documents/assets plus PHP data, action, and endpoint handlers | Static sites and PHP-backed interactions on standard PHP hosting   | Request-time Svelte document SSR is outside this mode.                        |
+| `js-ssr`     | PHP frontend proxy plus a persistent JavaScript SSR sidecar               | Dynamic Svelte documents and streaming where the host can run Node | Requires a Node process, a private server bundle, and proxy/origin hardening. |
+
+```mermaid
+flowchart LR
+  Source[SvelteKit project] --> Build[Adapter build]
+  Build --> Static[Prerendered HTML and assets]
+  Build --> PHP[PHP data / actions / endpoints]
+  Build --> JS[Optional private JavaScript sidecar]
+  Browser[Browser] --> Host[Apache or Nginx with PHP]
+  Host --> Static
+  Host --> PHP
+  Host --> JS
+```
+
+Kit 2 and Kit 3 have separate configuration and pinned fixture lanes. Remote functions remain explicitly unsupported. A peer range, a passing build, and real-host acceptance answer different questions. EFSDB's use of imported static output is narrower than the adapter's own modes; see [EFSDB](https://github.com/ryanspice/efsdb).
+
+## Start here
+
+For the published package, inspect the current release before selecting it:
+
+```powershell
+npm view sveltekit-php dist-tags --json
+npm view sveltekit-php@1.0.1 version
+```
+
+The guide below describes the current source candidate. Its newer compatibility features are not established for the older published package. For development, use this checkout's Bun workflow and a security-patched PHP runtime; run the package/consumer gates before distributing a candidate. Do not copy a nonexistent `@alpha` installation command.
+
+For contributors and coding agents, begin with [INTENT.md](INTENT.md) and [AGENTS.md](AGENTS.md). Pick one owned task, include generated-package verification, and return a focused patch/authorized commit with a current receipt.
+
+<details>
+<summary>Source-candidate setup, configuration, recipes, and full verification guide</summary>
 
 This project implements a **SvelteKit adapter for PHP**, allowing you to deploy SvelteKit applications to standard PHP hosting environments (Apache, Nginx, Shared Hosting) while maintaining a modern development experience.
 
-Current package track: `1.0.2-alpha.0`.
+Current package track: `1.1.0-alpha.0`. See [SvelteKit 2/3 compatibility and CoS integration](docs/SVELTEKIT-3-COMPATIBILITY.md).
+
+## Working in this repository
+
+Start with [AGENTS.md](AGENTS.md) for shared contributor instructions. Use
+[OPERATIONS.md](OPERATIONS.md) for setup and build work, [SCRIPTS.md](SCRIPTS.md) for command
+effects, [TESTING.md](TESTING.md) for checks, and [POLICIES.md](POLICIES.md) for project invariants.
+Tool-specific instruction files route to the same guidance.
 
 ## Support Policy
 
-- Official support floor: PHP 8.1+
-- Recommended production target: PHP 8.3+
+- Current code compatibility floor: PHP 8.1+; this does not establish security support for an end-of-life branch.
+- Production requires a supported, patched PHP branch. Prefer patched 8.4/8.5 after host acceptance; see the [PHP support calendar](https://www.php.net/supported-versions.php) and [October 21 security advisory](https://www.php.net/archive/2026.php#2026-10-21-5).
 - Supported hosting styles: Apache, Nginx, shared hosting, and PHP-FPM-backed hosts
 - `php-static` is the deployment default
 - `js-ssr` is JavaScript-sidecar SSR behind PHP
 - Prerendered SSR still hydrates unless the app exports `csr = false`; use the build identity contract below for static skins where client data must not downgrade the deployed theme or tenant
-- SvelteKit remote functions (`kit.experimental.remoteFunctions` and `.remote.*` files) are unsupported in `1.0.2-alpha` and fail the build; see [`docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`](docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md)
+- SvelteKit remote functions (`kit.experimental.remoteFunctions` and `.remote.*` files) are unsupported in the current alpha and fail the build; see [`docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`](docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md)
 - Historical audit notes under `docs/AUDIT-*` and `docs/CHAT-*` are archival snapshots, not the current contract
 - Live example: [blog.ryanspice.com](https://blog.ryanspice.com) uses this adapter for its PHP-hosted release path
 - Adapter landscape and competitive positioning: [`docs/ADAPTER-LANDSCAPE.md`](docs/ADAPTER-LANDSCAPE.md)
 - Adapter feature catalogue and backlog: [`docs/ADAPTER-FEATURE-CATALOG.md`](docs/ADAPTER-FEATURE-CATALOG.md)
 - PHP hosting contract: [`docs/HOSTING-CONTRACT.md`](docs/HOSTING-CONTRACT.md)
+- RC production-consumer proof: [`docs/RC-CONSUMER-PROOF.md`](docs/RC-CONSUMER-PROOF.md)
 - Dev adapter boundary: [`docs/DEV-ADAPTER-BOUNDARY.md`](docs/DEV-ADAPTER-BOUNDARY.md)
 - CMS recipes: [`docs/recipes/wordpress.md`](docs/recipes/wordpress.md) and [`docs/recipes/composer-bootstrap.md`](docs/recipes/composer-bootstrap.md)
 - License: MIT
@@ -49,19 +102,62 @@ Mode choice:
 
 ### Prerequisites
 
-- **Node.js** (or Bun)
+- **Development checkout:** Node.js >=22.17 and Bun. The checkout uses Kit 3, Vite 8, Svelte 5 and TypeScript 6. Consumers follow their selected Kit version's runtime requirements; the adapter retains its Kit 2/3 peer range.
 - **PHP 8.1+** (Available in your system PATH)
 
-### Installation
+### Select a source-candidate package
 
-```bash
-# Install dependencies
-bun install
+Build and verify this checkout, then use a reviewed local package tarball in a disposable consumer. The October 23 registry has no `alpha` dist-tag; publication and hosted acceptance are still required. The published `1.0.1` package and this `1.1.0-alpha.0` source candidate have different evidence. The [compatibility guide](docs/SVELTEKIT-3-COMPATIBILITY.md) documents the packed-consumer fixture workflow.
+
+For SvelteKit 2, configure `svelte.config.js` (Kit 3 uses `sveltekit({ adapter: adapter() })` in `vite.config.js`; see the compatibility guide):
+
+```js
+import adapter from 'sveltekit-php';
+
+export default {
+	kit: {
+		adapter: adapter({
+			mode: 'php-static',
+			out: 'build',
+			assets: 'build',
+			strict: true
+		})
+	}
+};
 ```
 
-### Development
+Prerender the pages that provide the document shell, then add PHP handlers where the host needs request-time behavior:
 
-Start the hybrid development server:
+```ts
+// src/routes/+page.ts
+export const prerender = true;
+```
+
+```php
+<?php // src/routes/contact/+page.server.php
+function load($params) {
+    return ['title' => 'Contact'];
+}
+
+function action_default($event) {
+    return ['success' => true];
+}
+```
+
+```php
+<?php // src/routes/api/health/+server.php
+function GET($event) {
+    return ['status' => 200, 'body' => ['ok' => true]];
+}
+```
+
+For `php-static`, build with your project package manager, verify the generated output locally, and deploy the reviewed public output to the PHP web root after the required security/host checks. Current `js-ssr` output separates its private server bundle into `<out>-server/`; keep that sibling outside every document root and complete host acceptance before deployment. Both `sveltekit-php` and the compatibility import `sveltekit-php/adapter` are supported and typed.
+
+### Contributing to this adapter
+
+The checkout keeps flat Kit 3 application options in `app.config.mjs`, passed explicitly to `sveltekit(...)` in `vite.config.ts`. Source imports use exact-extension `#lib/*` package imports. Environment controls for modes, output, fixed/automatic bases and fallback remain available. The development watcher excludes generated fixture outputs while retaining the current Kit-generated modules needed for HMR.
+
+Install this repository with `bun install`, then start the hybrid development server:
 
 ```bash
 bun run dev
@@ -127,6 +223,8 @@ function GET($params) {
 ## ✅ Testing & Verification
 
 The project includes a suite of fixture routes to verify functionality.
+Choose checks by change scope in [TESTING.md](TESTING.md). The release gates below are broader
+evidence workflows; a documentation-only check does not establish their runtime or hosted results.
 
 ### Feature Showcase
 
@@ -146,7 +244,7 @@ bun run verify:release-prep
 
 The alpha surface is expected to prove:
 
-- Windows 11 Mica/macOS-style browser-safe native shell cues reused from `B:\Dev\GPTLIGHTINGSTRENGTHTEST\lg-ultragear-bridge`.
+- Windows 11 Mica/macOS-style browser-safe native shell cues adapted from the UltraGear bridge project.
 - A native-host guide at `/alpha-readiness/native-host-guide.md` and `report/alpha-native-host-guide.md` for optional desktop wrappers.
 - A no-hydration prerender proof at `/alpha-readiness/no-hydration` for blog/static skins that must keep stable SSR theme HTML without client hydration repaint.
 - A deterministic native wrapper smoke contract at `/alpha-readiness/native-host-wrapper-smoke.json` and `report/alpha-native-host-wrapper-smoke.json`, with `realHostVerified: false` until an actual Windows/macOS wrapper supplies proof.
@@ -160,7 +258,7 @@ The alpha surface is expected to prove:
 
 ### Alpha Readiness Surface
 
-The `/alpha-readiness` fixture is the operator-facing report surface for the 1.0.2-alpha track. It adapts the Windows 11 Mica/macOS chrome and structured-report patterns from `B:\Dev\GPTLIGHTINGSTRENGTHTEST\lg-ultragear-bridge` without adding Tauri as a dependency to this PHP adapter demo.
+The `/alpha-readiness` fixture is the operator-facing report surface for the 1.0.2-alpha track. It adapts the Windows 11 Mica/macOS chrome and structured-report patterns from the UltraGear bridge project without adding Tauri as a dependency to this PHP adapter demo.
 
 The page provides:
 
@@ -261,14 +359,14 @@ For the same split used by CI:
 
 ```bash
 bun run build:e2e
-bun run verify:artifacts
+bun run verify:artifacts -- --strict
 bun scripts/verify-all.mjs --mode=php-static --skipBuild
 bun scripts/verify-all.mjs --mode=all --skipBuild
 ```
 
-Generated artifacts such as `adapter/index.js` should be produced by the build scripts, not patched by hand. `bun run verify:artifacts` fails when checked-in generated output drifts after `bun run build:adapter`.
+Generate artifacts such as `adapter/index.js` with the build scripts. `bun run verify:artifacts -- --strict` fails when checked-in generated output drifts after `bun run build:adapter`; plain verification can be advisory outside CI.
 
-After editing `adapter/src/**` or runtime PHP templates, run `bun run build:adapter` before `bun run verify:artifacts`. Treat stale `adapter/index.js` output as a release blocker until it is regenerated from source.
+After editing `adapter/src/**` or runtime PHP templates, run `bun run build:adapter` before `bun run verify:artifacts -- --strict`. Treat stale `adapter/index.js` output as a release blocker until it is regenerated from source.
 
 ### Build identity contract
 
@@ -326,10 +424,14 @@ For host-level routing, MIME, fallback, proxy, and body-size expectations, see [
 To create a deployable PHP application:
 
 ```bash
+bun run build:adapter
 bun run build
 ```
 
 The output will be in the `build/` directory.
+The `build:php` and `build:apache` package scripts currently reference missing post-build
+helpers. The default dev-host deployment wrapper therefore also has a blocked build step;
+see [known command gaps](OPERATIONS.md#known-command-gaps).
 
 ### Running Production Build Locally
 
@@ -352,21 +454,17 @@ The runtime base path is read from `SK_BASE_PATH` first and `DEPLOY_BASE` second
 
 Generated output, caches, private drafts, databases, encrypted files, and other mutable backend state should stay outside source-controlled and cloud-synced project folders. For normal Windows development, prefer a private path such as `%LOCALAPPDATA%\sveltekit-php\sites\<site-id>`. For servers, prefer a host-private path such as `/var/lib/sveltekit-php/sites/<site-id>`.
 
-This checkout also supports an adapter-developer POC lane for `ryanspice.com`: an ignored local config can map the site to `B:\Dev\sveltekit-php\.runtime\sites\ryanspice.com`. That path is acceptable for local adapter work because the adapter developer controls this checkout, but it is not the general recommendation for consumers.
-
-Use `config/site-runtime.example.json` as the committed template and keep real machine-specific overrides in ignored `config/site-runtime.local.json`. Resolve the current site root with:
+Use `config/site-runtime.example.json` as the committed template and keep real machine-specific overrides in ignored `config/site-runtime.local.json`. Adapt its developer-site values to your machine before resolving a configured site root:
 
 ```powershell
-pwsh -NoProfile -ExecutionPolicy Bypass -File .\scripts\Resolve-SiteRuntime.ps1 -SiteId ryanspice.com -Create
+pwsh -NoProfile -File .\scripts\Resolve-SiteRuntime.ps1 -SiteId 'example.com'
 ```
 
-If a SvelteKit build writes adapter output outside the project or OS temp directory, set `SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS` to the trusted parent root before running `vite build`. The value is a semicolon-separated path list on Windows, for example:
-
-```powershell
-$env:SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS = 'B:\Dev\sveltekit-php\.runtime'
-```
-
-`.runtime\` is ignored and must not contain files intended for Git, OneDrive publishing, or deployment source control.
+Add `-Create` only when you intend to create the configured directory tree. If a SvelteKit
+build writes output outside the project or OS temp directory, set
+`SVELTEKIT_PHP_SAFE_EXTERNAL_ROOTS` to a narrow trusted build-output parent. The Windows value
+is a semicolon-separated list. Validate the resolved paths first: builds recursively clean
+output, so persistent site data must use a separate directory. `.runtime/` is ignored.
 
 Before running deploy or publish automation, verify required deploy values:
 
@@ -382,6 +480,8 @@ The precheck requires non-empty `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REMOTE`, a
 - Form actions: PHP-provided `$_POST`/`$_FILES` data is used when available, with a `php://input` fallback for JSON, URL-encoded raw bodies, and raw text.
 - Server fetch: `sk_fetch()` uses PHP stream wrappers when available, falls back to cURL, and returns an explicit fetch-error response if neither transport is available. Shared hosts should enable either `allow_url_fopen` or `curl`.
 
+The source candidate enforces PHP action origins before handler includes, writes the sidecar bundle to the private sibling `<out>-server/`, and defaults Node to loopback. PHP action and non-read Node request bodies have a default 10 MiB cap; the PHP proxy has a separate limit. Standalone PHP endpoints still rely on host/consumer body limits. Set the same public `SK_ORIGIN` in PHP and Node for proxied actions; keep the sibling server directory outside all document roots. The [hosting contract](docs/HOSTING-CONTRACT.md) documents implemented defaults and exceptions. Consumers still own authentication, authorization and ingress limits; complete hosted acceptance before production rollout.
+
 ---
 
 ## 📂 Project Structure
@@ -392,4 +492,4 @@ The precheck requires non-empty `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REMOTE`, a
   - `dev-php.mjs`: The hybrid dev server orchestrator.
 - `src/lib/server/php-dev.ts`: The bridge connecting Vite to PHP in dev.
 
-
+</details>

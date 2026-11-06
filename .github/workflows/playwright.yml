@@ -1,52 +1,195 @@
 name: CI
+
 on:
   push:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: 'true'
+  TMPDIR: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  TEMP: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  TMP: ${{ github.workspace }}/.ai/evidence/ci/tmp
+  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.ai/evidence/ci/browsers
+  PLAYWRIGHT_HTML_REPORT: ${{ github.workspace }}/.ai/evidence/ci/playwright-report
+
 jobs:
-  test:
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
+  source:
+    name: Source and package contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare project-local evidence
+        run: mkdir -p "$TMPDIR"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.23'
+      - uses: shivammathur/setup-php@v2
+        env:
+          update: 'true'
+          fail-fast: 'true'
+        with:
+          php-version: '8.5'
+          coverage: none
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Enforce PHP security floor
+        run: bun run check:runtime
+      - name: Lint source
+        run: bun run lint 2>&1 | tee .ai/evidence/ci/lint.log
+      - name: Build adapter
+        run: bun run build:adapter 2>&1 | tee .ai/evidence/ci/adapter-build.log
+      - name: Verify generated artifacts and committed package parity
+        run: |
+          bun run verify:artifacts -- --strict
+          git diff --exit-code -- adapter/index.js adapter/declarations
+      - name: Typecheck
+        run: bun run check 2>&1 | tee .ai/evidence/ci/typecheck.log
+      - name: Unit tests
+        run: bun run test:unit 2>&1 | tee .ai/evidence/ci/unit.log
+      - name: Verify remote-function exclusion contract
+        run: bun run verify:remote-functions
+      - name: Verify local release metadata and templates
+        run: bun run verify:release-prep
+      - name: Upload source-check logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-checks
+          path: .ai/evidence/ci/*.log
+          if-no-files-found: warn
+          retention-days: 7
+          include-hidden-files: true
+
+  runtime:
+    name: PHP ${{ matrix.php }} HTTP and browser contracts
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        php: ['8.1', '8.3']
+        php: ['8.3', '8.5']
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare project-local evidence
+        run: mkdir -p "$TMPDIR"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.23'
       - uses: shivammathur/setup-php@v2
+        env:
+          update: 'true'
+          fail-fast: 'true'
         with:
           php-version: ${{ matrix.php }}
-      - uses: oven-sh/setup-bun@v2
-      - name: Install dependencies
+          coverage: none
+      - name: Install locked dependencies
         run: bun install --frozen-lockfile
-      - name: Lint
-        run: bun run lint
-      - name: Typecheck
-        run: bun run check
-      - name: Build adapter
-        run: bun run build:adapter
-      - name: Verify generated artifacts
-        run: bun run verify:artifacts -- --strict
-      - name: Verify latest SvelteKit audit freshness
-        run: bun run verify:latest-sveltekit-audit
-      - name: Smoke latest same-major SvelteKit build
-        run: bun run alpha:latest-same-major:smoke
-      - name: Verify alpha release prep
-        run: bun run verify:release-prep
-      - name: Build E2E artifacts
-        run: bun run build:e2e
-      - name: Install Playwright Browsers
-        run: bunx playwright install --with-deps
-      - name: Run Unit Tests
-        run: bun run test:unit
-      - name: Run PHP Static Verification
-        run: bun scripts/verify-all.mjs --mode=php-static --skipBuild
-      - name: Run Full Verification
-        run: bun scripts/verify-all.mjs --mode=all --skipBuild
-      - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+      - name: Enforce PHP security floor
+        run: bun run check:runtime
+      - name: Build all E2E artifacts once
+        run: bun run build:e2e 2>&1 | tee .ai/evidence/ci/build.log
+      - name: PHP regression tests for this runtime
+        run: bun run test:php 2>&1 | tee .ai/evidence/ci/php.log
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Verify output and HTTP using the current build
+        # Source job owns unit tests; browser steps below own E2E.
+        run: |
+          bun scripts/verify-all.mjs --mode=all --skipBuild --skipUnit --skipE2E 2>&1 | tee .ai/evidence/ci/http-root.log
+          bun scripts/verify-all.mjs --mode=js-ssr --basePath=/dev/sveltekit --skipBuild --skipUnit --skipE2E 2>&1 | tee .ai/evidence/ci/http-subdir.log
+      - name: Verify compatibility router against generated output
+        run: bun run verify:root-router-parity -- --build build-e2e-php-static 2>&1 | tee .ai/evidence/ci/router.log
+      - name: Run browser regression projects
+        run: bun run test:e2e -- --output=.ai/evidence/ci/browser-results 2>&1 | tee .ai/evidence/ci/browser.log
+      - name: Run Kit 3 desktop and mobile acceptance
+        run: bun run test:e2e:kit3 -- --output=.ai/evidence/ci/kit3-results 2>&1 | tee .ai/evidence/ci/kit3.log
+      - name: Upload runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 30
+          name: runtime-php-${{ matrix.php }}
+          path: |
+            .ai/evidence/ci/*.log
+            .ai/evidence/ci/playwright-report/
+            .ai/evidence/ci/browser-results/
+            .ai/evidence/ci/kit3-results/
+          if-no-files-found: warn
+          retention-days: 7
+          include-hidden-files: true
+
+  consumers:
+    name: Packed Kit 2 and Kit 3 consumers
+    needs: source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Prepare project-local evidence
+        run: mkdir -p "$TMPDIR"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.2.23'
+      - uses: shivammathur/setup-php@v2
+        env:
+          update: 'true'
+          fail-fast: 'true'
+        with:
+          php-version: '8.5'
+          coverage: none
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: Enforce PHP security floor
+        run: bun run check:runtime
+      - name: Build the package candidate
+        run: bun run build:adapter
+      - name: Verify pinned consumers, package types and local HTTP
+        run: bun run test:kit-compatibility 2>&1 | tee .ai/evidence/ci/consumers.log
+      - name: Preserve the consumer receipt in project evidence
+        if: always()
+        run: |
+          if [ -f report/kit-compatibility.json ]; then
+            cp report/kit-compatibility.json .ai/evidence/ci/kit-compatibility.json
+            cmp report/kit-compatibility.json .ai/evidence/ci/kit-compatibility.json
+          fi
+      - name: Upload packed-consumer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: packed-consumers
+          path: |
+            .ai/evidence/ci/consumers.log
+            .ai/evidence/ci/kit-compatibility.json
+          if-no-files-found: warn
+          retention-days: 7
+          include-hidden-files: true

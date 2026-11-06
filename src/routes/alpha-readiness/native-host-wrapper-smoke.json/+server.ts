@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { buildAlphaNativeHostWrapperSmoke } from '$lib/alpha-native-host-wrapper-smoke';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
+import { buildAlphaNativeHostWrapperSmoke } from '#lib/alpha-native-host-wrapper-smoke.ts';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
 
 export const prerender = true;
 

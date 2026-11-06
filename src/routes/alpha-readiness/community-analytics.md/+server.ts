@@ -1,5 +1,5 @@
-import { renderAlphaCommunityAnalyticsMarkdown } from '$lib/alpha-community-analytics-markdown';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
+import { renderAlphaCommunityAnalyticsMarkdown } from '#lib/alpha-community-analytics-markdown.ts';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
 
 export const prerender = true;
 

@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	type StreamData = {
 		step1?: string;
 		step2?: Promise<string>;
 	};
 
-	let { data } = $props<{ data: StreamData }>();
+	let { data }: { data: StreamData } = $props();
 </script>
 
 <div class="container">
@@ -29,7 +29,7 @@
 		{/if}
 	</div>
 
-	<a href="{base}/">Back to Home</a>
+	<a href={resolve('/')}>Back to Home</a>
 </div>
 
 <style>

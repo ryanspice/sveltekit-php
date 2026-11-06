@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
-import { buildCommunityResearchPack } from '$lib/alpha-community-research-pack';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
+import { buildCommunityResearchPack } from '#lib/alpha-community-research-pack.ts';
 
 export const prerender = true;
 

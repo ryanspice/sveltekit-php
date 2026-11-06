@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { buildBridgeReuseInventory } from '$lib/alpha-bridge-reuse';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
+import { buildBridgeReuseInventory } from '#lib/alpha-bridge-reuse.ts';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
 
 export const prerender = true;
 

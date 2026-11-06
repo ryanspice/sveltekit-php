@@ -1,0 +1,28 @@
+{
+	"schemaVersion": 1,
+	"id": "canopy-sites",
+	"kind": "sveltekit-php.rc-consumer-profile",
+	"role": "php-static-base-path-production-consumer",
+	"limitations": [
+		"These archive consumers do not prove PHP form actions, data loads, or API endpoints.",
+		"A dedicated hosted functional fixture remains required for dynamic PHP behavior."
+	],
+	"consumers": [
+		{
+			"id": "lancasterfbc.ca",
+			"mode": "php-static",
+			"baseUrl": "https://canopydigital.ca/sites/lancasterfbc.ca/",
+			"provenancePath": "sveltekit-php.json",
+			"identityMarker": "LancasterFBC",
+			"representativePaths": ["about/", "contact/"]
+		},
+		{
+			"id": "519troughandexterior.ca",
+			"mode": "php-static",
+			"baseUrl": "https://canopydigital.ca/sites/519troughandexterior.ca/",
+			"provenancePath": "sveltekit-php.json",
+			"identityMarker": "519 Trough",
+			"representativePaths": ["services/", "contact/"]
+		}
+	]
+}

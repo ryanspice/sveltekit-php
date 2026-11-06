@@ -11,4 +11,3 @@ export const GET: RequestHandler = ({ params }) => {
 		}
 	});
 };
-

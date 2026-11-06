@@ -13,8 +13,7 @@ const hostHandlerNotes = {
 		'Call when detail.windowEffect is mica; unsupported platforms can keep the browser-safe CSS fallback.',
 	'set-progress':
 		'Translate adapter progressStatus into TaskbarProgressState { saveInFlight, refreshInFlight, hasQueuedSave } before calling the desktop-shell-ui helper.',
-	'clear-progress':
-		'Clears queued/in-flight taskbar state, which maps to ProgressBarStatus.None.',
+	'clear-progress': 'Clears queued/in-flight taskbar state, which maps to ProgressBarStatus.None.',
 	'report-ready':
 		'Keeps report URLs and generated alpha evidence artifacts host-owned without adding native APIs to the PHP adapter.'
 } satisfies Record<string, string>;
@@ -52,8 +51,7 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 					permission: 'core:window:allow-set-progress-bar',
 					adapterActions: ['set-progress', 'clear-progress'],
 					desktopShellUiHelpers: ['syncTaskbarProgress'],
-					proves:
-						'Alpha evidence/report progress can be bound to native taskbar progress states.'
+					proves: 'Alpha evidence/report progress can be bound to native taskbar progress states.'
 				},
 				{
 					permission: 'core:window:allow-start-dragging',
@@ -62,7 +60,8 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 					proves: 'The titlebar pointer-threshold drag seam can start native window dragging.'
 				},
 				{
-					permission: 'core:window:allow-is-maximized + core:window:allow-maximize + core:window:allow-unmaximize + core:window:allow-toggle-maximize',
+					permission:
+						'core:window:allow-is-maximized + core:window:allow-maximize + core:window:allow-unmaximize + core:window:allow-toggle-maximize',
 					adapterActions: ['toggle-maximize'],
 					desktopShellUiHelpers: ['toggleWindowMaximize'],
 					proves: 'Caption maximize/restore controls can change real host window state.'
@@ -316,12 +315,14 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 			{
 				marker: 'data-window-focused',
 				source: 'src/lib/components/native-shell/NativeWindowShell.svelte',
-				purpose: 'Focus-state styling seam equivalent to the UltraGear bridge inactive Mica treatment.'
+				purpose:
+					'Focus-state styling seam equivalent to the UltraGear bridge inactive Mica treatment.'
 			},
 			{
 				marker: 'data-native-titlebar',
 				source: 'src/lib/components/native-shell/NativeTitlebar.svelte',
-				purpose: 'Stable titlebar marker for native host binding, screenshots, and chrome parity checks.'
+				purpose:
+					'Stable titlebar marker for native host binding, screenshots, and chrome parity checks.'
 			},
 			{
 				marker: 'data-native-platform',
@@ -396,7 +397,8 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 			},
 			{
 				name: 'theme-ultragear',
-				source: 'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge/src/lib/bridge-ui/tokens/theme.css',
+				source:
+					'B:/Dev/GPTLIGHTINGSTRENGTHTEST/lg-ultragear-bridge/src/lib/bridge-ui/tokens/theme.css',
 				purpose:
 					'UltraGear-derived dark desktop material direction for future host prototypes and visual parity checks.'
 			}
@@ -594,7 +596,8 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 				'Native OS calls stay in an optional host wrapper; adapter source carries the matching DOM markers, browser fallback event bridge, native-styled report graphics, and structured release evidence artifacts.'
 		},
 		progressReportHandoff: {
-			sourceCue: 'src/app.ts syncWindowProgress and src/lib/bridge-ui/pages/ValidationView.svelte reportUrl/reportJson',
+			sourceCue:
+				'src/app.ts syncWindowProgress and src/lib/bridge-ui/pages/ValidationView.svelte reportUrl/reportJson',
 			hostOwnedCues: [
 				'syncWindowProgress',
 				'ProgressBarStatus.Indeterminate',
@@ -699,7 +702,9 @@ export function buildAlphaNativeHostContract(report: AlphaReadinessReport) {
 			source: 'src/lib/native-shell/native-host-event-bridge.ts',
 			trustLevel: 'deterministic-host-wrapper-handoff',
 			requiredActions: nativeHostWrapperProbe.map((step) => step.action),
-			requiredHelpers: Array.from(new Set(nativeHostWrapperProbe.map((step) => step.desktopShellUiHelper))),
+			requiredHelpers: Array.from(
+				new Set(nativeHostWrapperProbe.map((step) => step.desktopShellUiHelper))
+			),
 			steps: nativeHostWrapperProbe,
 			proofUse:
 				'Gives optional Windows/macOS wrappers a deterministic probe sequence for Mica, drag, maximize, progress, clear-progress, and report-ready bindings using the same LG UltraGear helper mapping as the live alpha surface.'
@@ -785,13 +790,13 @@ export const alphaNativeHostChromeStateBoundaryEvidence = {
 	sourceCues: [
 		'packages/ultragear-widget-ui/src/app.ts webview.setBackgroundColor([0, 0, 0, 0])',
 		'packages/ultragear-widget-ui/src/app.ts root.dataset.windowChromeState',
-		'packages/ultragear-widget-ui/src/app.ts windowChromeState mica-active | mica-inactive | plain',
+		'packages/ultragear-widget-ui/src/app.ts windowChromeState mica-active | mica-inactive | plain'
 	],
 	adapterMarkers: [
 		'data-window-chrome-state="mica-active"',
 		'data-transparent-webview-material-boundary="host-owned"',
-		'transparent-webview-material-boundary',
+		'transparent-webview-material-boundary'
 	],
 	policy:
-		'The adapter can emit SSR/report markers for native material readiness, but real Mica/acrylic/vibrancy behavior stays owned by the desktop host and must be proven in a live host smoke.',
+		'The adapter can emit SSR/report markers for native material readiness, but real Mica/acrylic/vibrancy behavior stays owned by the desktop host and must be proven in a live host smoke.'
 } as const;

@@ -2,6 +2,96 @@ import { getRouterJsSsrPhp } from './router/js-ssr';
 import { getRouterPhpStaticPhp } from './router/php-static';
 import { getRouterSharedPhp } from './router/shared';
 
+/** Shared by generated action entrypoints and the PHP-to-JavaScript proxy. */
+export function getPhpRequestSecurity() {
+	return String.raw`
+if (!function_exists('sk_normalize_origin')) {
+function sk_is_ascii_digits(string $value): bool {
+    // ctype is optional; numeric request limits must work without shared extensions.
+    return $value !== '' && strspn($value, '0123456789') === strlen($value);
+}
+function sk_normalize_origin($value): ?string {
+    if (!is_string($value) || $value === '' || preg_match('/[\x00-\x20\x7f,\\\\]/', $value)) return null;
+    $parts = parse_url($value);
+    if (!is_array($parts) || !isset($parts['scheme'], $parts['host'])) return null;
+    $scheme = strtolower($parts['scheme']);
+    $host = strtolower($parts['host']);
+    if (!in_array($scheme, ['http', 'https'], true) || isset($parts['user']) || isset($parts['pass']) || isset($parts['query']) || isset($parts['fragment'])) return null;
+    if (($parts['path'] ?? '') !== '' && $parts['path'] !== '/') return null;
+    if (!preg_match('/^(?:[a-z0-9.-]+|\[[a-f0-9:.]+\])$/', $host)) return null;
+    $port = $parts['port'] ?? null;
+    if ($port !== null && ($port < 1 || $port > 65535)) return null;
+    $default = ($scheme === 'https' ? 443 : 80);
+    return $scheme . '://' . $host . ($port !== null && $port !== $default ? ':' . $port : '');
+}
+function sk_trust_proxy_headers(): bool {
+    if (getenv('SK_TRUSTED_PROXY_HEADERS') !== 'true') return false;
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '';
+    if (str_starts_with($remote, '::ffff:')) $remote = substr($remote, 7);
+    $trusted = explode(',', getenv('SK_TRUSTED_PROXY_IPS') ?: '127.0.0.1,::1');
+    return in_array($remote, array_map('trim', $trusted), true);
+}
+function sk_request_origin(): ?string {
+    $configured = getenv('SK_ORIGIN');
+    if ($configured !== false && $configured !== '') return sk_normalize_origin($configured);
+    $scheme = (($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTPS'] ?? '') === '1') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if (sk_trust_proxy_headers()) {
+        $scheme = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? $scheme;
+        $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $host;
+    }
+    return sk_normalize_origin($scheme . '://' . $host);
+}
+function sk_client_address(): string {
+    $remote = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+    if (!sk_trust_proxy_headers() || !isset($_SERVER['HTTP_X_FORWARDED_FOR'])) return $remote;
+    $depth = getenv('SK_XFF_DEPTH') ?: '1';
+    if (!sk_is_ascii_digits($depth) || (int)$depth < 1) return $remote;
+    $chain = array_map('trim', explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']));
+    $index = count($chain) - (int)$depth;
+    return $index >= 0 && filter_var($chain[$index], FILTER_VALIDATE_IP) !== false ? $chain[$index] : $remote;
+}
+function sk_read_limited_body(): string {
+    static $body = null;
+    if ($body !== null) return $body;
+    $limit = getenv('SK_BODY_SIZE_LIMIT');
+    if ($limit === false || $limit === '') $limit = '10485760';
+    if (!sk_is_ascii_digits($limit) || (int)$limit < 1 || (int)$limit >= PHP_INT_MAX) {
+        http_response_code(500);
+        exit('Invalid SK_BODY_SIZE_LIMIT');
+    }
+    $length = $_SERVER['CONTENT_LENGTH'] ?? null;
+    if ($length !== null && (!sk_is_ascii_digits((string)$length) || (int)$length > (int)$limit)) {
+        http_response_code(413);
+        exit('Payload Too Large');
+    }
+    $raw = file_get_contents('php://input', false, null, 0, (int)$limit + 1);
+    $body = is_string($raw) ? $raw : '';
+    if (strlen($body) > (int)$limit) {
+        http_response_code(413);
+        exit('Payload Too Large');
+    }
+    return $body;
+}
+function sk_validate_action_origin(): void {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') return;
+    $expected = sk_request_origin();
+    if ($expected === null) {
+        http_response_code(400);
+        exit('Invalid request origin configuration');
+    }
+    $origin = $_SERVER['HTTP_ORIGIN'] ?? null;
+    $allowMissing = $origin === null && getenv('SK_ALLOW_MISSING_ORIGIN') === '1';
+    if (!$allowMissing && ($origin === null || sk_normalize_origin($origin) !== $expected)) {
+        http_response_code(403);
+        exit('Cross-site POST form submissions are forbidden');
+    }
+    sk_read_limited_body();
+}
+}
+`;
+}
+
 export function getDataPhp(
 	includes: string[],
 	base: string = '',
@@ -18,6 +108,9 @@ export function getDataPhp(
  */
 
 declare(strict_types=1);
+
+${getPhpRequestSecurity()}
+sk_validate_action_origin();
 
 // Runtime Hardening
 if (!defined('SK_HARDENED')) {
@@ -313,43 +406,62 @@ function sk_serialize($value): array {
 if (!function_exists('sk_unflatten')) {
 function sk_unflatten(array $data) {
 	if (empty($data)) return null;
-
-	$resolve = function($idx) use ($data, &$resolve) {
-		$val = $data[$idx] ?? null;
-
-		// Primitives are returned as-is
+	$memo = [];
+	$costs = [];
+	$heights = [];
+	$visiting = [];
+	$limit = 100000;
+	$resolve = function($idx, int $depth = 0) use ($data, &$resolve, &$memo, &$costs, &$heights, &$visiting, $limit) {
+		if (!is_int($idx) || $idx < 0 || !array_key_exists($idx, $data)) {
+			throw new RuntimeException('Unsupported devalue reference or non-JSON sentinel in PHP hydration');
+		}
+		if ($depth > 256) throw new RuntimeException('PHP hydration data exceeds maximum depth 256');
+		if (isset($visiting[$idx])) throw new RuntimeException('Cyclic devalue data is unsupported in PHP hydration');
+		if (array_key_exists($idx, $memo)) {
+			if ($depth + $heights[$idx] > 256) throw new RuntimeException('PHP hydration data exceeds maximum depth 256');
+			return $memo[$idx];
+		}
+		$val = $data[$idx];
 		if (!is_array($val) && !is_object($val)) {
-			return $val;
-		}
-
-		// Handle stdClass (from sk_serialize)
-		if (is_object($val)) {
-			$val = (array)$val;
-			$res = (object)[];
-			foreach ($val as $k => $i) {
-				$res->{$k} = $resolve($i);
+			if (is_resource($val) || (is_float($val) && !is_finite($val))) {
+				throw new RuntimeException('Non-JSON value is unsupported in PHP hydration');
 			}
-			return $res;
+			$costs[$idx] = 1;
+			$heights[$idx] = 0;
+			return $memo[$idx] = $val;
 		}
-
-		// Handle arrays (from json_decode or sk_serialize)
-		// Check for array vs object (associative)
-		// Polyfill for array_is_list: keys are 0..count-1
-		$is_list = $val === [] || (array_keys($val) === range(0, count($val) - 1));
-
-		if ($is_list) {
-			$res = [];
-			foreach ($val as $i) {
-				$res[] = $resolve($i);
+		$visiting[$idx] = true;
+		if (is_array($val) && isset($val[0]) && is_string($val[0])) {
+			if ($val[0] !== 'Promise' || count($val) !== 2) {
+				throw new RuntimeException('Unsupported devalue tag in PHP JSON hydration: ' . $val[0]);
 			}
-			return $res;
-		} else {
-			$res = (object)[];
-			foreach ($val as $k => $i) {
-				$res->{$k} = $resolve($i);
-			}
-			return $res;
+			$id = $resolve($val[1], $depth + 1);
+			if (!is_int($id) || $id < 1) throw new RuntimeException('Invalid deferred promise ID in PHP hydration');
+			unset($visiting[$idx]);
+			$costs[$idx] = 2;
+			$heights[$idx] = 1;
+			return $memo[$idx] = '%%%SK_DEFER_' . $id . '%%%';
 		}
+		if (is_object($val) && !($val instanceof stdClass)) {
+			throw new RuntimeException('Non-JSON object is unsupported in PHP hydration');
+		}
+		$is_list = is_array($val) && array_is_list($val);
+		$res = $is_list ? [] : (object)[];
+		$cost = 1;
+		$height = 0;
+		foreach ($val as $key => $ref) {
+			$child = $resolve($ref, $depth + 1);
+			// JSON repeats shared subtrees. Bound that expanded size, not just table size.
+			if ($cost > $limit - $costs[$ref]) throw new RuntimeException('PHP hydration data exceeds expanded node limit 100000');
+			$cost += $costs[$ref];
+			$height = max($height, 1 + $heights[$ref]);
+			if ($is_list) $res[] = $child;
+			else $res->{$key} = $child;
+		}
+		unset($visiting[$idx]);
+		$costs[$idx] = $cost;
+		$heights[$idx] = $height;
+		return $memo[$idx] = $res;
 	};
 
 	// Devalue root is always at index 0
@@ -503,9 +615,35 @@ function sk_apply_loads(string $routeid, array $loadFns, array &$payload, string
 }
 }
 
+if (!function_exists('sk_decode_template_payload')) {
+function sk_decode_template_payload(string $templateJson): array {
+	$payload = json_decode($templateJson, true);
+	if (!is_array($payload)) return [];
+	// Retain object/list distinctions inside prerendered devalue tables, including {}.
+	$typedPayload = json_decode($templateJson);
+	$templateRef = sk_get_nodes_ref($payload);
+	if ($templateRef['kind'] === 'assoc') {
+		$templateNodes = &$payload[$templateRef['key']];
+		$typedNodes = $typedPayload->{$templateRef['key']};
+	} elseif ($templateRef['kind'] === 'index') {
+		$templateNodes = &$payload[$templateRef['idx']];
+		$typedNodes = $typedPayload[$templateRef['idx']];
+	} else {
+		$templateNodes = &$payload;
+		$typedNodes = $typedPayload;
+	}
+	foreach ($typedNodes as $i => $node) {
+		if (is_object($node) && isset($node->data) && is_array($node->data)) {
+			$templateNodes[$i]['data'] = $node->data;
+		}
+	}
+	return $payload;
+}
+}
+
 if (!function_exists('sk_build_embed_data')) {
 function sk_build_embed_data(string $routeid, array $loadFns, string $templateJson, string $inline_mode, bool $streaming = false): array {
-	$payload = json_decode($templateJson, true);
+	$payload = sk_decode_template_payload($templateJson);
 	if (!$payload) return ['[]', []];
 
 	$deferreds = $streaming ? [] : null;
@@ -518,19 +656,27 @@ function sk_build_embed_data(string $routeid, array $loadFns, string $templateJs
 	$ref = sk_get_nodes_ref($finalPayload);
 	$nodes = [];
 	if ($ref['kind'] === 'assoc') {
-		$nodes = $finalPayload[$ref['key']];
+		$nodes = &$finalPayload[$ref['key']];
 	} elseif ($ref['kind'] === 'index') {
-		$nodes = $finalPayload[$ref['idx']];
+		$nodes = &$finalPayload[$ref['idx']];
 	} else {
-		$nodes = $finalPayload;
+		$nodes = &$finalPayload;
 	}
+	// Inline hydration receives decoded values; only __data navigation receives wire tables.
+	foreach ($nodes as &$node) {
+		if (is_array($node) && ($node['type'] ?? '') === 'data' && is_array($node['data'] ?? null)) {
+			$node['data'] = sk_unflatten($node['data']);
+		} elseif (is_array($node) && ($node['type'] ?? '') === 'data' && is_int($node['data'] ?? null) && $node['data'] < 0) {
+			throw new RuntimeException('Unsupported non-JSON devalue sentinel in PHP hydration');
+		}
+	}
+	unset($node);
 
 	$outputPayload = $finalPayload;
 
 	// If inline_mode is 'nodes', we want the parallel array of data objects
 	// SvelteKit hydration expects [ data_0, data_1, ... ] matching node_ids
-	// The nodes are usually objects like { type: 'data', data: [...], uses: ... }
-	// We should return them AS IS (preserving Devalue structure) because SvelteKit client will deserialize them.
+	// The nodes use { type: 'data', data: { ...decoded values }, uses: ... } here.
 	if ($inline_mode === 'nodes' || $inline_mode === 'unknown') {
 		$outputPayload = $nodes;
 	}
@@ -606,7 +752,7 @@ if (basename($_SERVER['SCRIPT_FILENAME']) === '__data.php') {
 
 	// Execute loads
 	$templateJson = base64_decode('PLACEHOLDER_TEMPLATE_B64');
-	$payload = json_decode(is_string($templateJson) ? $templateJson : '', true);
+	$payload = sk_decode_template_payload(is_string($templateJson) ? $templateJson : '');
 	$loadFns = PLACEHOLDER_LOAD_FNS;
 	$routeId = PLACEHOLDER_ROUTE_ID;
 	$inlineMode = PLACEHOLDER_INLINE_MODE;
@@ -640,6 +786,9 @@ export function getActionPhp(
 
 declare(strict_types = 1);
 
+${getPhpRequestSecurity()}
+sk_validate_action_origin();
+
 require_once __DIR__ . '/${compatRel}';
 
 ${includes.join('\n')}
@@ -655,7 +804,53 @@ function sk_fail(int $status, $data): array {
 
 if (!function_exists('sk_action_serialize')) {
 function sk_action_serialize($value): string {
-	return sk_json_encode(array_values(sk_serialize($value)));
+	if (!is_array($value) || !isset($value['type'])) {
+		$value = ['type' => 'success', 'data' => $value];
+	}
+	if ($value['type'] === 'success' || $value['type'] === 'failure') {
+		$value['status'] = (int)($value['status'] ?? ($value['type'] === 'failure' ? 400 : 200));
+		$value['location'] = sk_action_location();
+		http_response_code($value['status']);
+		if (array_key_exists('data', $value)) {
+			// Kit deserializes a JSON object whose data field alone is devalue encoded.
+			$value['data'] = sk_json_encode(array_values(sk_serialize($value['data'])));
+		}
+	}
+	if ($value['type'] === 'error') {
+		$error = $value['error'] ?? [];
+		if (is_object($error)) $error = get_object_vars($error);
+		if (is_string($error)) $error = ['message' => $error];
+		if (!is_array($error)) $error = [];
+		$status = (int)($value['status'] ?? $error['status'] ?? 500);
+		if ($status < 400 || $status > 599) $status = 500;
+		$error['status'] = $status;
+		if (!isset($error['message']) || !is_string($error['message'])) $error['message'] = 'Internal Server Error';
+		$value['error'] = $error;
+		$value['status'] = $status;
+		$value['location'] = sk_action_location();
+		http_response_code($status);
+	}
+	return sk_json_encode($value);
+}
+}
+
+if (!function_exists('sk_action_location')) {
+function sk_action_location(): string {
+	$uri = explode('?', (string)($_SERVER['REQUEST_URI'] ?? '/'), 2);
+	$pathname = preg_replace('~/__action(?:[.]php)?$~', '', $uri[0]) ?: '/';
+	if (!str_starts_with($pathname, '/')) $pathname = '/' . $pathname;
+	// Match Kit 3: leading double slashes must not become a protocol-relative URL.
+	if (str_starts_with($pathname, '//')) $pathname = '/.' . $pathname;
+	$query = [];
+	$actionKey = null;
+	foreach (explode('&', $uri[1] ?? '') as $part) {
+		$key = urldecode(explode('=', $part, 2)[0]);
+		if ($actionKey === null && str_starts_with($key, '/')) $actionKey = $key;
+		// URLSearchParams.delete removes every occurrence of the selected decoded key.
+		if ($key === $actionKey) continue;
+		if ($part !== '') $query[] = $part;
+	}
+	return $pathname . ($query ? '?' . implode('&', $query) : '');
 }
 }
 
@@ -669,9 +864,7 @@ function sk_action_content_type(): string {
 
 if (!function_exists('sk_action_raw_body')) {
 function sk_action_raw_body(): string {
-	static $body = null;
-	if ($body === null) $body = file_get_contents('php://input') ?: '';
-	return $body;
+	return sk_read_limited_body();
 }
 }
 
@@ -730,7 +923,8 @@ $fnName = $pagePrefix . '_action_' . $actionName;
 if (!function_exists($fnName)) {
 	http_response_code(404);
 	header('Content-Type: application/json; charset=utf-8');
-	echo sk_json_encode(['type' => 'error', 'error' => ['message' => 'Action not found']]);
+	$error = ['type' => 'error', 'error' => ['message' => 'Action not found']];
+	echo $isEnhanced ? sk_action_serialize($error + ['status' => 404]) : sk_json_encode($error);
 	exit;
 }
 
@@ -850,7 +1044,7 @@ try {
 	http_response_code($e->status);
 	if ($isEnhanced) {
 		header('Content-Type: application/json; charset=utf-8');
-		echo sk_json_encode(['type' => 'error', 'error' => $e->body, 'status' => $e->status]);
+		echo sk_action_serialize(['type' => 'error', 'error' => $e->body, 'status' => $e->status]);
 		exit;
 	}
 	$GLOBALS['__SK_ACTION_RESULT'] = $e->body;
@@ -859,7 +1053,8 @@ try {
 	http_response_code(500);
 	error_log('[sveltekit-php] action error: ' . $e->getMessage());
 	header('Content-Type: application/json; charset=utf-8');
-	echo sk_json_encode(['type' => 'error', 'error' => ['message' => 'Internal Server Error'], 'status' => 500]);
+	$error = ['type' => 'error', 'error' => ['message' => 'Internal Server Error'], 'status' => 500];
+	echo $isEnhanced ? sk_action_serialize($error) : sk_json_encode($error);
 	exit;
 }
 `;
@@ -874,6 +1069,8 @@ export function getBootstrapPhp(
 ) {
 	const templateB64 = Buffer.from(templateJson, 'utf8').toString('base64');
 	return `<?php
+${getPhpRequestSecurity()}
+sk_validate_action_origin();
 require_once __DIR__ . '${requirePrefix}/__data.php';
 
 ini_set('output_buffering', '0');
@@ -954,6 +1151,8 @@ if (!empty($sk_deferreds)) {
 
 export function getMinimalBootstrapPhp(requirePrefix: string = '') {
 	return `<?php
+${getPhpRequestSecurity()}
+sk_validate_action_origin();
 // Minimal bootstrap for actions only (SSR=false or no data)
 // Keep GET/HEAD page requests on the generated HTML shell; delegate only action posts.
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && file_exists(__DIR__ . '${requirePrefix}/__action.php')) {

@@ -40,7 +40,7 @@ export async function startPhpAndSidecar(options: ServerOptions): Promise<Server
 
 	try {
 		if (mode === 'js-ssr') {
-			const handlerPath = path.resolve(outDir, 'server/handler.mjs');
+			const handlerPath = path.resolve(`${outDir}-server`, 'handler.mjs');
 			if (!fs.existsSync(handlerPath)) {
 				throw new Error(`Node handler not found at ${handlerPath}`);
 			}
@@ -50,7 +50,8 @@ export async function startPhpAndSidecar(options: ServerOptions): Promise<Server
 				env: {
 					...process.env,
 					...env,
-					PORT: sidecarPort.toString()
+					PORT: sidecarPort.toString(),
+					SK_ORIGIN: `http://127.0.0.1:${port}`
 					// ORIGIN: `http://localhost:${sidecarPort}` // SvelteKit might need this
 				},
 				stdio: 'pipe' // Capture output for debugging

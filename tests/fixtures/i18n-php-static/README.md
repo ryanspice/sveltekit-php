@@ -15,4 +15,3 @@ Covered surfaces:
 - localized JSON endpoint at `/fr/api/locale`
 - base-path expectation such as `/blog/fr/...`
 - SvelteKit data/action companion paths such as `/blog/fr/demo/__data.json` and `/blog/fr/action-test/__action`
-

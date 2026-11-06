@@ -1,5 +1,8 @@
 import type { AlphaReadinessReport } from './alpha-readiness';
-import { buildAlphaHardProofBlockers, type AlphaHardProofBlocker } from './alpha-hard-proof-blockers';
+import {
+	buildAlphaHardProofBlockers,
+	type AlphaHardProofBlocker
+} from './alpha-hard-proof-blockers';
 import { requiredAlphaEvidence } from './alpha-required-evidence';
 
 type ManifestLike = {
@@ -26,7 +29,10 @@ type ManifestLike = {
 	hardProofBlockers?: AlphaHardProofBlocker[];
 } | null;
 
-export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: ManifestLike = null) {
+export function renderAlphaReleaseNotes(
+	report: AlphaReadinessReport,
+	manifest: ManifestLike = null
+) {
 	const readyAreas = report.readinessAreas.filter((area) => area.status === 'ready');
 	const watchAreas = report.readinessAreas.filter((area) => area.status === 'watch');
 	const blockedAreas = report.readinessAreas.filter((area) => area.status === 'blocked');
@@ -47,14 +53,23 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		{ path: '/alpha-readiness/release-notes.md', kind: 'release-notes-markdown-endpoint' },
 		{ path: '/alpha-readiness/release-checklist.md', kind: 'release-checklist-markdown-endpoint' },
 		{ path: '/alpha-readiness/report.svg', kind: 'svg-release-graphic-endpoint' },
-		{ path: '/alpha-readiness/community-source-map.svg', kind: 'community-source-map-svg-endpoint' },
+		{
+			path: '/alpha-readiness/community-source-map.svg',
+			kind: 'community-source-map-svg-endpoint'
+		},
 		{ path: '/alpha-readiness/release-manifest.json', kind: 'release-manifest-json-endpoint' },
 		{ path: '/alpha-readiness/gate-matrix.json', kind: 'gate-matrix-json-endpoint' },
 		{ path: '/alpha-readiness/evidence-index.json', kind: 'evidence-index-json-endpoint' },
 		{ path: '/alpha-readiness/package-contract.json', kind: 'package-contract-json-endpoint' },
-		{ path: '/alpha-readiness/native-host-contract.json', kind: 'native-host-contract-json-endpoint' },
+		{
+			path: '/alpha-readiness/native-host-contract.json',
+			kind: 'native-host-contract-json-endpoint'
+		},
 		{ path: '/alpha-readiness/native-host-guide.md', kind: 'native-host-guide-markdown-endpoint' },
-		{ path: '/alpha-readiness/native-host-wrapper-smoke.json', kind: 'native-host-wrapper-smoke-json-endpoint' },
+		{
+			path: '/alpha-readiness/native-host-wrapper-smoke.json',
+			kind: 'native-host-wrapper-smoke-json-endpoint'
+		},
 		{
 			path: '/alpha-readiness/hosted-smoke-checklist.json',
 			kind: 'hosted-smoke-checklist-json-endpoint'
@@ -62,8 +77,14 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		{ path: '/alpha-readiness/bridge-reuse.json', kind: 'bridge-reuse-json-endpoint' },
 		{ path: '/alpha-readiness/review-index.md', kind: 'alpha-review-index-markdown-endpoint' },
 		{ path: '/alpha-readiness/community-signals.json', kind: 'community-signals-json-endpoint' },
-		{ path: '/alpha-readiness/community-analytics.md', kind: 'community-analytics-markdown-endpoint' },
-		{ path: '/alpha-readiness/community-research-pack.json', kind: 'community-research-pack-json-endpoint' },
+		{
+			path: '/alpha-readiness/community-analytics.md',
+			kind: 'community-analytics-markdown-endpoint'
+		},
+		{
+			path: '/alpha-readiness/community-research-pack.json',
+			kind: 'community-research-pack-json-endpoint'
+		},
 		{ path: '/alpha-readiness/readiness.csv', kind: 'readiness-csv-endpoint' },
 		{ path: '/alpha-readiness/community-signals.csv', kind: 'community-signals-csv-endpoint' },
 		{ path: '/alpha-readiness/community-sources.csv', kind: 'community-sources-csv-endpoint' }
@@ -78,16 +99,16 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		'',
 		'## Release call',
 		'',
-		`This is an alpha candidate, not stable 1.0.2. The local evidence bundle is designed for runtime correctness, deployment safety, native-styled review, and open-source community research handoff.`,
+		`This is an alpha candidate, not stable 1.1.0. The local evidence bundle is designed for runtime correctness, deployment safety, native-styled review, and open-source community research handoff.`,
 		`Release policy: ${report.releasePolicy.marker}; channel ${report.releasePolicy.channel}; track ${report.releasePolicy.track}; rank ${report.releasePolicy.rank}.`,
 		`Rule: ${report.releasePolicy.releaseRule}`,
 		`Stable promotion rule: ${report.releasePolicy.stablePromotionRule}`,
-		`Project-rank policy: 1.0.2-alpha is the required pre-stable release label and ranks above any RC for this project; RC, latest, and stable channels remain disallowed until the required alpha evidence is proven.`,
+		`Project-rank policy: 1.1.0-alpha is the required pre-stable release label and ranks above any RC for this project; RC, latest, and stable channels remain disallowed until the required alpha evidence is proven.`,
 		`SemVer note: this is an explicit project release policy, not a claim that generic SemVer prerelease comparison orders alpha above rc.`,
 		'',
 		'## Required alpha evidence',
 		'',
-		'These `requiredEvidence` markers define the `required-alpha-evidence` boundary for treating this as a real `1.0.2-alpha` candidate rather than a generic adapter smoke test.',
+		'These `requiredEvidence` markers define the `required-alpha-evidence` boundary for treating this as a real `1.1.0-alpha` candidate rather than a generic adapter smoke test.',
 		'',
 		...requiredEvidence.map((marker) => `- ${marker}`),
 		'',
@@ -102,7 +123,7 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		'- Community analytics handoff is reviewer-auditable: `result-total-field-contract`, `top-result-field-contract`, and `sample-review-rule` are exposed in JSON/Markdown/SVG and in `alpha-community-sources.csv` as `result_total_field`, `top_result_fields`, and `sample_review_rule`.',
 		hostedProofLine,
 		'',
-		'## Support lanes for 1.0.2-alpha',
+		'## Support lanes for 1.1.0-alpha',
 		'',
 		'- Supported: `php-static` covers prerendered/static HTML, PHP data/action handlers, endpoint dispatch, base-path deployment, root/generated router parity, and no-hydration `csr=false` pages.',
 		'- Supported with sidecar: `js-ssr` covers request-time Svelte document SSR, exact streamed/deferred document behavior, and Node-like rendering that `php-static` intentionally does not emulate.',
@@ -113,7 +134,7 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 		'',
 		'## Hard proof blockers',
 		'',
-		'These `hardProofBlockers` rows are the stable-promotion ledger. They define what still blocks stable `1.0.2`, real native-host claims, or fresh community claims.',
+		'These `hardProofBlockers` rows are the stable-promotion ledger. They define what still blocks stable `1.1.0`, real native-host claims, or fresh community claims.',
 		'',
 		...hardProofBlockers.map(
 			(blocker) =>
@@ -515,4 +536,3 @@ export function renderAlphaReleaseNotes(report: AlphaReadinessReport, manifest: 
 	lines.push('');
 	return lines.join('\n');
 }
-

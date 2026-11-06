@@ -1,5 +1,5 @@
 <script>
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	let { children } = $props();
 </script>
@@ -20,7 +20,7 @@
 	<h3>Navigate the hierarchy:</h3>
 	<ul>
 		<li><strong>Parent level</strong> (current)</li>
-		<li><a href="{base}/layout/parent/child">Child level</a></li>
-		<li><a href="{base}/layout/parent/child/grandchild">Grandchild level</a></li>
+		<li><a href={resolve('/layout/parent/child')}>Child level</a></li>
+		<li><a href={resolve('/layout/parent/child/grandchild')}>Grandchild level</a></li>
 	</ul>
 </nav>

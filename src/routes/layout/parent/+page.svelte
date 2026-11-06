@@ -6,8 +6,8 @@
 <section class="layout-page">
 	<h2>Parent route content</h2>
 	<p>
-		This page makes the parent layout route a real prerender target instead of a
-		layout-only navigation placeholder.
+		This page makes the parent layout route a real prerender target instead of a layout-only
+		navigation placeholder.
 	</p>
 </section>
 

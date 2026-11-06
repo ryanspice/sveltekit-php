@@ -39,7 +39,7 @@ describe('router parity and hardening', () => {
 			expect(router).toContain('function router_mime_type');
 			expect(router).toContain('function router_send_file');
 			expect(router).toContain("strpos($uri, $base . '/') !== 0");
-			expect(router).toContain("preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)");
+			expect(router).toContain("preg_match('#(^|/)_protected(?:/|$)#i', $uri_raw)");
 		}
 
 		expect(phpStatic).toContain('router_safe_path($root');
@@ -51,9 +51,9 @@ describe('router parity and hardening', () => {
 		const shared = getRouterSharedPhp('/base');
 		const phpStatic = getRouterPhpStaticPhp(false);
 
-		expect(shared).toContain("echo \"404 Not Found\"");
+		expect(shared).toContain('echo "404 Not Found"');
 		expect(shared).toContain("$uri !== $base && strpos($uri, $base . '/') !== 0");
-		expect(phpStatic).toContain("echo \"404 Not Found\"");
+		expect(phpStatic).toContain('echo "404 Not Found"');
 	});
 
 	it.each(maliciousPathFixtures)('keeps fixture guard for malicious path $path', ({ guard }) => {

@@ -4,7 +4,13 @@ import { readdir, stat, readFile } from 'node:fs/promises';
 import type { AdapterOptions, Builder, BuildIdentityContract } from '../types.js';
 
 export const DEFAULT_BUILD_IDENTITY_EXTENSIONS = ['.php', '.html', '.json'];
-export const RESERVED_ROUTE_SEGMENTS = new Set(['_app', '_runtime', '_protected', 'adapter']);
+export const RESERVED_ROUTE_SEGMENTS = new Set([
+	'_app',
+	'_runtime',
+	'_protected',
+	'adapter',
+	'server'
+]);
 export const RESERVED_ROUTE_FILES = new Set([
 	'__data',
 	'__action',
@@ -15,7 +21,7 @@ export const RESERVED_ROUTE_FILES = new Set([
 export const REMOTE_FUNCTIONS_ALPHA_POLICY_MARKER = 'remote-functions-alpha-policy';
 export const REMOTE_FUNCTIONS_UNSUPPORTED_MESSAGE =
 	'sveltekit-php: SvelteKit remote functions are not supported by the PHP runtime in 1.0.2-alpha. Remote functions generate server HTTP endpoints that are not yet mapped through the PHP router. Disable kit.experimental.remoteFunctions and remove .remote.* files, or use a Node/edge adapter until remote-functions-alpha-policy has fixture proof.';
-export const REMOTE_FUNCTION_FILE_RE = /\.remote\.(?:js|ts|mjs|mts|cjs|cts)$/i;
+export const REMOTE_FUNCTION_FILE_RE = /\.remote(?:\.svelte)?\.(?:js|ts|mjs|mts|cjs|cts)$/i;
 
 export type ResolvedBuildIdentityContract = Required<
 	Pick<BuildIdentityContract, 'required' | 'forbidden' | 'extensions'>
@@ -79,9 +85,7 @@ export async function assertRemoteFunctionsUnsupported(builder: Builder) {
 			].filter(Boolean)
 		)
 	);
-	const remoteFiles = (
-		await Promise.all(roots.map((root) => collectRemoteFunctionFiles(root)))
-	)
+	const remoteFiles = (await Promise.all(roots.map((root) => collectRemoteFunctionFiles(root))))
 		.flat()
 		.map((file) => path.relative(cwd, file).replaceAll(path.sep, '/'))
 		.sort();
@@ -250,7 +254,11 @@ export function isRouteParamSegment(segment: string): boolean {
 	return segment.startsWith('[') && segment.endsWith(']');
 }
 
-export function validateReservedRouteIds(routes: Builder['routes'], strict: boolean, builder: Builder) {
+export function validateReservedRouteIds(
+	routes: Builder['routes'],
+	strict: boolean,
+	builder: Builder
+) {
 	const conflicts = routes
 		.map((route) => route.id)
 		.filter(Boolean)
@@ -335,9 +343,7 @@ export function assertSafeBuildTarget(target: string, label: string, routesRoot:
 		...(process.platform === 'win32'
 			? [
 					path.resolve(process.env.SystemRoot || 'C:\\Windows'),
-					path.resolve(
-						path.join(process.env.SystemRoot || 'C:\\Windows', 'System32')
-					)
+					path.resolve(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32'))
 				]
 			: ['/etc', '/usr', '/var', '/opt', '/boot', '/dev', '/proc', '/sys']),
 		path.join(home, 'Documents'),

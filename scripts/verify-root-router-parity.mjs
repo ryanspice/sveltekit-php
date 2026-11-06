@@ -4,9 +4,14 @@ import http from 'node:http';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import {
+	parseParityArgs,
+	compareResponses,
+	normalizeBodyForComparison
+} from './utils/root-router-parity.mjs';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const args = parseArgs(process.argv.slice(2));
+const args = parseParityArgs(process.argv.slice(2));
 const buildDir = path.resolve(repoRoot, args.build ?? process.env.VERIFY_BUILD_DIR ?? 'build');
 const host = args.host ?? process.env.VERIFY_PHP_HOST ?? '127.0.0.1';
 const generatedPort = Number(args.generatedPort ?? process.env.VERIFY_GENERATED_PORT ?? 8091);
@@ -80,23 +85,6 @@ try {
 	cleanupServers();
 }
 
-function parseArgs(argv) {
-	const output = {};
-	for (let i = 0; i < argv.length; i += 1) {
-		const arg = argv[i];
-		if (!arg.startsWith('--')) continue;
-		const key = arg.slice(2);
-		const next = argv[i + 1];
-		if (next === undefined || next.startsWith('--')) {
-			output[key] = true;
-			continue;
-		}
-		output[key] = next;
-		i += 1;
-	}
-	return output;
-}
-
 function normalizeBasePath(value) {
 	if (!value) return '';
 	const trimmed = String(value).trim();
@@ -109,7 +97,9 @@ async function requireFile(filePath, label) {
 	try {
 		await access(filePath);
 	} catch {
-		throw new Error(`${label} missing at ${filePath}. Build the adapter output before running parity.`);
+		throw new Error(
+			`${label} missing at ${filePath}. Build the adapter output before running parity.`
+		);
 	}
 }
 
@@ -211,7 +201,11 @@ function createFixtures(base) {
 			headers: { accept: 'text/plain' }
 		},
 		{ name: 'protected', path: withBase('/_protected/secret.txt'), headers: { accept: '*/*' } },
-		{ name: 'missing-route', path: withBase('/definitely-missing'), headers: { accept: 'text/html' } }
+		{
+			name: 'missing-route',
+			path: withBase('/definitely-missing'),
+			headers: { accept: 'text/html' }
+		}
 	];
 
 	if (base) {
@@ -238,21 +232,21 @@ function request(port, fixture) {
 			},
 			(res) => {
 				const chunks = [];
-			res.on('data', (chunk) => chunks.push(chunk));
-			res.on('end', () => {
-				const body = Buffer.concat(chunks);
-				const normalizedBody = normalizeBodyForComparison(body, port);
-				resolve({
-					statusCode: res.statusCode ?? 0,
-					contentType: normalizeHeader(res.headers['content-type']),
-					location: normalizeHeader(res.headers.location),
-					bodyLength: body.length,
-					bodyHash: createHash('sha256').update(body).digest('hex'),
-					normalizedBodyHash: createHash('sha256').update(normalizedBody).digest('hex'),
-					normalizedBody
+				res.on('data', (chunk) => chunks.push(chunk));
+				res.on('end', () => {
+					const body = Buffer.concat(chunks);
+					const normalizedBody = normalizeBodyForComparison(body, port, host);
+					resolve({
+						statusCode: res.statusCode ?? 0,
+						contentType: normalizeHeader(res.headers['content-type']),
+						location: normalizeHeader(res.headers.location),
+						bodyLength: body.length,
+						bodyHash: createHash('sha256').update(body).digest('hex'),
+						normalizedBodyHash: createHash('sha256').update(normalizedBody).digest('hex'),
+						normalizedBody
+					});
 				});
-			});
-		}
+			}
 		);
 		req.on('timeout', () => {
 			req.destroy(new Error(`request timed out: ${fixture.path}`));
@@ -260,48 +254,6 @@ function request(port, fixture) {
 		req.on('error', reject);
 		req.end();
 	});
-}
-
-function compareResponses(generated, root) {
-	if (generated.statusCode !== root.statusCode) {
-		return { ok: false, reason: `status mismatch ${generated.statusCode} !== ${root.statusCode}` };
-	}
-	if (generated.contentType !== root.contentType) {
-		return {
-			ok: false,
-			reason: `content-type mismatch ${generated.contentType || '(none)'} !== ${root.contentType || '(none)'}`
-		};
-	}
-	if (generated.location !== root.location) {
-		return {
-			ok: false,
-			reason: `location mismatch ${generated.location || '(none)'} !== ${root.location || '(none)'}`
-		};
-	}
-	if (generated.normalizedBodyHash !== root.normalizedBodyHash) {
-		return { ok: false, reason: `body mismatch ${firstDiff(generated.normalizedBody, root.normalizedBody)}` };
-	}
-	return { ok: true, reason: '' };
-}
-
-function firstDiff(left, right) {
-	const max = Math.min(left.length, right.length);
-	let index = 0;
-	while (index < max && left[index] === right[index]) index += 1;
-	const leftSnippet = JSON.stringify(left.slice(Math.max(0, index - 40), index + 80));
-	const rightSnippet = JSON.stringify(right.slice(Math.max(0, index - 40), index + 80));
-	return `at ${index}; generated=${leftSnippet}; root=${rightSnippet}`;
-}
-
-function normalizeBodyForComparison(body, port) {
-	const text = body.toString('utf8');
-	return text
-		.replaceAll(`${host}:${port}`, `${host}:<PORT>`)
-		.replaceAll(`localhost:${port}`, 'localhost:<PORT>')
-		.replace(/req_[a-f0-9]+\.\d+/g, 'req_<ID>')
-		.replace(/layout_[a-f0-9]+\.\d+/g, 'layout_<ID>')
-		.replace(/page_[a-z0-9_-]+_[a-f0-9]+\.\d+/g, 'page_<ID>')
-		.replace(/("PHP [^"]+",)\d+/g, '$1<MEMORY>');
 }
 
 function normalizeHeader(value) {

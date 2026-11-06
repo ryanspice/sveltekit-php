@@ -10,4 +10,3 @@ export const load: PageServerLoad = ({ params }) => {
 		feedPath: `/${params.lang}/rss.xml`
 	};
 };
-

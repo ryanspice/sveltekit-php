@@ -137,7 +137,9 @@ async function main() {
 
 	const elapsedSeconds = Math.round((Date.now() - started) / 1000);
 	console.log(`\nAlpha release gate passed in ${elapsedSeconds}s.`);
-	console.log('If this was a clean checkout, the repo is ready for a package-version alpha bump review.');
+	console.log(
+		'If this was a clean checkout, the repo is ready for a package-version alpha bump review.'
+	);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

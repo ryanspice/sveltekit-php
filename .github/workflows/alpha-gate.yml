@@ -1,69 +1,89 @@
-name: Alpha Gate
+name: Manual Alpha Gate
 
+# Community analytics and optional deployed-host probes remain an explicit
+# release investigation. Automatic source CI lives in playwright.yml.
 on:
-  push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
   workflow_dispatch:
     inputs:
       alpha_smoke_base_url:
-        description: Optional deployed PHP base URL for hosted alpha smoke.
+        description: Optional authorized deployed PHP URL for GET and POST smoke probes.
         required: false
         type: string
 
-jobs:
-  alpha-local:
-    name: Local alpha gate
-    timeout-minutes: 60
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-      - uses: oven-sh/setup-bun@v2
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Install Playwright browsers
-        run: bunx playwright install --with-deps
-      - name: Run local alpha gate
-        run: bun run alpha:gate
-      - uses: actions/upload-artifact@v4
-        if: ${{ always() }}
-        with:
-          name: alpha-report-local
-          path: |
-            report/
-            playwright-report/
-            test-results/
-          if-no-files-found: ignore
-          retention-days: 30
+permissions:
+  contents: read
 
-  hosted-smoke:
-    name: Hosted alpha smoke
-    needs: alpha-local
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.alpha_smoke_base_url != '' }}
-    timeout-minutes: 15
-    runs-on: ubuntu-latest
+concurrency:
+  group: manual-alpha-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CI: 'true'
+  TMPDIR: ${{ github.workspace }}/.ai/evidence/alpha/tmp
+  TEMP: ${{ github.workspace }}/.ai/evidence/alpha/tmp
+  TMP: ${{ github.workspace }}/.ai/evidence/alpha/tmp
+  PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.ai/evidence/alpha/browsers
+  PLAYWRIGHT_HTML_REPORT: ${{ github.workspace }}/.ai/evidence/alpha/playwright-report
+
+jobs:
+  alpha:
+    name: Manual local release gate and optional hosted proof
+    timeout-minutes: 60
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          persist-credentials: false
+      - name: Prepare project-local evidence
+        run: mkdir -p "$TMPDIR"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: shivammathur/setup-php@v2
+        env:
+          update: 'true'
+          fail-fast: 'true'
+        with:
+          php-version: '8.5'
+          coverage: none
       - uses: oven-sh/setup-bun@v2
-      - name: Install dependencies
+        with:
+          bun-version: '1.2.23'
+      - name: Install locked dependencies
         run: bun install --frozen-lockfile
-      - name: Install Playwright browsers
-        run: bunx playwright install --with-deps
-      - name: Run hosted alpha gate
+      - name: Enforce PHP security floor
+        run: bun run check:runtime
+      - name: Install Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Run local alpha release gate
+        run: bun run alpha:gate
+      - name: Run requested hosted proof using this job's local evidence
+        if: inputs.alpha_smoke_base_url != ''
         env:
           ALPHA_SMOKE_BASE_URL: ${{ inputs.alpha_smoke_base_url }}
-        run: bun run alpha:gate:hosted
-      - uses: actions/upload-artifact@v4
-        if: ${{ always() }}
+        run: bun run alpha:gate:hosted -- --skip-local
+      - name: Preserve release reports under project evidence
+        if: always()
+        run: |
+          mkdir -p .ai/evidence/alpha/reports
+          for source in report test-results; do
+            if [ -d "$source" ]; then
+              cp -R "$source" ".ai/evidence/alpha/reports/$source"
+              diff -qr "$source" ".ai/evidence/alpha/reports/$source"
+            fi
+          done
+      - name: Upload manual release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: alpha-report-hosted
-          path: report/
-          if-no-files-found: ignore
-          retention-days: 30
+          name: manual-alpha-report
+          path: |
+            .ai/evidence/alpha/reports/
+            .ai/evidence/alpha/playwright-report/
+          if-no-files-found: warn
+          retention-days: 7
+          include-hidden-files: true

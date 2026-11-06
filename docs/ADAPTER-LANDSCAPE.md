@@ -16,8 +16,8 @@ This refresh keeps the alpha plan aligned with current Svelte 5/SvelteKit 2 evid
 
 | Surface | Current evidence | Interpretation |
 | --- | --- | --- |
-| `svelte` / `@sveltejs/kit` | `svelte@5.56.4`, `@sveltejs/kit@2.69.1` | 🟢 Same-major adapter support is expected and must stay covered by `bun run alpha:latest-same-major:smoke`. |
-| Vite / Svelte plugin | `vite@8.1.3`, `@sveltejs/vite-plugin-svelte@7.1.4` | 🟡 New major lane; validate in isolation before raising dependency floors. |
+| `svelte` / `@sveltejs/kit` | `svelte@5.56.10`, `@sveltejs/kit@2.70.3` | 🟢 Same-major adapter support is expected and must stay covered by `bun run alpha:latest-same-major:smoke`. |
+| Vite / Svelte plugin | `vite@8.2.2`, `@sveltejs/vite-plugin-svelte@7.3.0` | 🟡 New major lane; validate in isolation before raising dependency floors. |
 | Official adapter API | Node `5.5.7`, static `3.0.10`, Cloudflare `7.2.9`, Netlify `6.0.4`, Vercel `6.3.4`, auto `7.0.1` | 🟡 Use these as parity models, not as claims that PHP can replicate each platform feature. |
 | This repo | `supports`, `emulate().platform`, `php-static`, PHP handlers/actions, no-hydration fixture, and report graphics are implemented. | 🟢 Current alpha shape is credible for static/shared-hosting and PHP handler work. |
 | Remaining risk | Remote functions, root/generated router drift, hosted external proof, and Node-style origin/proxy/body-size guards. | 🟡 Keep these explicit blockers before stable. |
@@ -72,7 +72,7 @@ Blog findings to carry forward:
 | Composer/PHP-FPM lane | PHP-FPM/Composer integration helps PHP teams reuse existing app logic. | Separate future package/profile. Core v1 stays shared-hosting focused. |
 | Real dynamic document SSR without Node | PHP cannot execute Svelte SSR JavaScript. | Use `js-ssr`; keep `php-static` boundary explicit. |
 | Vite 8 / plugin 7 latest-major validation | Current npm latest has moved beyond this repo's Vite/plugin major ranges. | Keep Svelte 5/SvelteKit 2 same-major green, but treat Vite 8/plugin 7 as a separate validation lane. |
-| Hosted external proof | Local, consumer, and dedicated hosted fixture evidence exist; `/dev/sveltekitphp` was refreshed and hosted smoke passed for `1.0.2-alpha.0` on 2026-07-01. | Keep this as alpha proof, but rerun the hosted gate for the final release deployment target before calling stable. |
+| Hosted external proof | The `/dev/sveltekitphp` fixture passed on 2026-07-01, but that result is historical: on 2026-08-24 the former fixture and both intended Canopy `/sites` consumers returned `404`. | Resync and redeploy the RC candidate, then require fresh dedicated-fixture and expiring Canopy consumer receipts before promotion. |
 
 ## Adopted now
 

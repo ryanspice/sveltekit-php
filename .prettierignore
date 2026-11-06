@@ -10,6 +10,11 @@ bun.lockb
 /build/
 /.svelte-kit/
 /adapter/index.js
+/adapter/declarations/
 /adapter/src/runtime/php-templates.ts
 /docs/**/*.md
 debug_payload.json
+.ai/
+.codegraph/
+.hermes-sidecars/
+*.hermes.*

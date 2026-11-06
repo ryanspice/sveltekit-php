@@ -125,7 +125,42 @@ if (router_has_bad_path($path) || router_has_bad_path($uri_raw)) {
 	return;
 }
 
-if (preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)) {
+// Deny private artifacts before exact-file delegation, including Windows path aliases.
+$guard_uri = $uri_raw;
+for ($i = 0; $i < 3; $i++) {
+    $next = rawurldecode($guard_uri);
+    if ($next === $guard_uri) break;
+    $guard_uri = $next;
+}
+$guard_segments = array_values(array_filter(explode('/', str_replace('\\\\', '/', $guard_uri)), 'strlen'));
+$private_roots = [0];
+$base_segments = array_values(array_filter(explode('/', $base), 'strlen'));
+if (count($base_segments) > 0 && count($guard_segments) >= count($base_segments)) {
+    $matches_base = true;
+    foreach ($base_segments as $index => $segment) {
+        if (strtolower(rtrim($guard_segments[$index], ' .')) !== strtolower(rtrim($segment, ' .'))) {
+            $matches_base = false;
+            break;
+        }
+    }
+    if ($matches_base) $private_roots[] = count($base_segments);
+}
+foreach ($guard_segments as $index => $segment) {
+    $normalized = strtolower(rtrim($segment, ' .'));
+    $at_private_root = in_array($index, $private_roots, true);
+    $private = $normalized === '_protected' || ($at_private_root && in_array($normalized, ['server', 'adapter'], true));
+    if ($at_private_root && $normalized === '_runtime') {
+        $private = count($guard_segments) !== $index + 2 || $guard_segments[$index + 1] !== 'build-stamp.json';
+    }
+    if ($private || (isset($segment[0]) && $segment[0] === '.') || preg_match('/\\.server(?:\\.|$)/i', $normalized)) {
+        http_response_code(403);
+        echo "Access Denied";
+        return;
+    }
+}
+
+// Windows and other case-insensitive filesystems resolve case aliases to the same directory.
+if (preg_match('#(^|/)_protected(?:/|$)#i', $uri_raw)) {
 	http_response_code(403);
 	echo "Access Denied";
 	return;
@@ -176,7 +211,7 @@ if ($base !== '' && $uri !== $base && strpos($uri, $base . '/') !== 0) {
 	return;
 }
 
-if (preg_match('#^/_protected(?:/|$)#', $uri) || ($base !== '' && preg_match('#^' . preg_quote($base, '#') . '/_protected(?:/|$)#', $uri))) {
+if (preg_match('#^/_protected(?:/|$)#i', $uri) || ($base !== '' && preg_match('#^' . preg_quote($base, '#') . '/_protected(?:/|$)#i', $uri))) {
 	http_response_code(403);
     echo "Access Denied";
 	return;

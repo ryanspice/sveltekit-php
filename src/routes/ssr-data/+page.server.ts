@@ -1,14 +1,14 @@
 import type { PageServerLoad } from './$types';
-import { getPhpData } from '$lib/server/php-dev';
+import { getPhpData } from '#lib/server/php-dev.ts';
 
 export const prerender = true;
 
-export const load: PageServerLoad = async ({ fetch }) => {
+export const load: PageServerLoad = async ({ fetch, url }) => {
 	// This file exists to ensure SvelteKit recognizes that this page has server-side data.
 	// The actual data is provided by +page.server.php via the PHP adapter.
 
 	// In dev mode, we proxy to the PHP server to get the data
-	const nodes = await getPhpData(fetch, '/ssr-data');
+	const nodes = await getPhpData(fetch, url.pathname);
 	const data = nodes[nodes.length - 1];
 
 	if (data) return data;

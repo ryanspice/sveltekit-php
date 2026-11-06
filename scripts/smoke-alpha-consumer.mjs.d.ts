@@ -2,5 +2,9 @@ export function assertPackageExportShape(packageJsonPath?: string): Promise<{
 	name: string;
 	version: string;
 	private: boolean;
-	adapterExport: string;
+	adapterExport: {
+		types: string;
+		import: string;
+		default: string;
+	};
 }>;

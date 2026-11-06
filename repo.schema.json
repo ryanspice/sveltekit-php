@@ -1,0 +1,647 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"$id": "urn:ryanspice:repository-work:1.0.0",
+	"title": "Repository intent, bounded work order, and handoff",
+	"description": "Shared additive contract for EFSDB and SvelteKit PHP. Structural validation does not grant authority or prove execution, filesystem containment, model access, acceptance, or publication.",
+	"oneOf": [
+		{
+			"$ref": "#/$defs/intent"
+		},
+		{
+			"$ref": "#/$defs/work_order"
+		},
+		{
+			"$ref": "#/$defs/handoff"
+		}
+	],
+	"$defs": {
+		"intent": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"schemaVersion",
+				"kind",
+				"repository",
+				"reviewedAt",
+				"baselineCommit",
+				"status",
+				"purpose",
+				"entrypoints",
+				"sourceRoots",
+				"invariants",
+				"verificationCommands",
+				"releaseGates",
+				"presentation"
+			],
+			"properties": {
+				"schemaVersion": {
+					"const": "1.0.0"
+				},
+				"kind": {
+					"const": "intent"
+				},
+				"repository": {
+					"type": "string",
+					"pattern": "^[^/\\s]+/[^/\\s]+$"
+				},
+				"reviewedAt": {
+					"type": "string",
+					"format": "date"
+				},
+				"baselineCommit": {
+					"type": "string",
+					"pattern": "^[a-fA-F0-9]{40}$"
+				},
+				"status": {
+					"enum": ["experimental", "alpha", "beta", "stable", "archived"]
+				},
+				"purpose": {
+					"type": "string",
+					"minLength": 1
+				},
+				"entrypoints": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true,
+					"minItems": 1
+				},
+				"sourceRoots": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true,
+					"minItems": 1
+				},
+				"invariants": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true,
+					"minItems": 1
+				},
+				"verificationCommands": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true,
+					"minItems": 1
+				},
+				"releaseGates": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true,
+					"minItems": 1
+				},
+				"presentation": {
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["description", "topics", "profilePitch"],
+					"properties": {
+						"description": {
+							"type": "string",
+							"minLength": 1,
+							"maxLength": 350
+						},
+						"topics": {
+							"type": "array",
+							"uniqueItems": true,
+							"maxItems": 20,
+							"items": {
+								"type": "string",
+								"pattern": "^[a-z0-9][a-z0-9-]{0,49}$"
+							}
+						},
+						"profilePitch": {
+							"type": "string",
+							"minLength": 1
+						}
+					}
+				}
+			}
+		},
+		"work_order": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"schemaVersion",
+				"kind",
+				"taskId",
+				"repository",
+				"createdAt",
+				"objective",
+				"role",
+				"baseCommit",
+				"worktree",
+				"dirtyPaths",
+				"baselineHashes",
+				"allowedWrites",
+				"protectedPaths",
+				"route",
+				"authority",
+				"acceptance",
+				"budget",
+				"stopConditions"
+			],
+			"properties": {
+				"schemaVersion": {
+					"const": "1.0.0"
+				},
+				"kind": {
+					"const": "work_order"
+				},
+				"taskId": {
+					"type": "string",
+					"minLength": 1
+				},
+				"repository": {
+					"type": "string",
+					"minLength": 1
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"objective": {
+					"type": "string",
+					"minLength": 1
+				},
+				"role": {
+					"enum": ["lead", "implementation", "research", "independent_review"]
+				},
+				"baseCommit": {
+					"type": "string",
+					"pattern": "^[a-fA-F0-9]{40}$"
+				},
+				"worktree": {
+					"type": "string",
+					"minLength": 1
+				},
+				"dirtyPaths": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"baselineHashes": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string",
+						"pattern": "^[a-fA-F0-9]{64}$"
+					}
+				},
+				"allowedWrites": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"protectedPaths": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"route": {
+					"$ref": "#/$defs/route"
+				},
+				"authority": {
+					"$ref": "#/$defs/authority"
+				},
+				"acceptance": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"type": "object",
+						"additionalProperties": false,
+						"required": ["gate", "check", "expected"],
+						"properties": {
+							"gate": {
+								"$ref": "#/$defs/gate"
+							},
+							"check": {
+								"type": "string",
+								"minLength": 1
+							},
+							"expected": {
+								"type": "string",
+								"minLength": 1
+							}
+						}
+					}
+				},
+				"budget": {
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["deadline", "maxRuntimeSeconds", "maxTasks", "maxDepth", "maxActiveTasks"],
+					"properties": {
+						"deadline": {
+							"type": "string",
+							"format": "date-time"
+						},
+						"maxRuntimeSeconds": {
+							"type": "integer",
+							"minimum": 1
+						},
+						"maxTasks": {
+							"type": "integer",
+							"minimum": 1
+						},
+						"maxDepth": {
+							"type": "integer",
+							"minimum": 0
+						},
+						"maxActiveTasks": {
+							"type": "integer",
+							"minimum": 1
+						}
+					}
+				},
+				"stopConditions": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true,
+					"minItems": 1
+				}
+			}
+		},
+		"route": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"harness",
+				"ownerId",
+				"selection",
+				"provider",
+				"model",
+				"options",
+				"costBoundary",
+				"dataBoundary",
+				"capabilityEvidence",
+				"noFallback"
+			],
+			"properties": {
+				"harness": {
+					"enum": ["codex", "t3", "hermes", "fugu", "other"]
+				},
+				"ownerId": {
+					"type": "string",
+					"minLength": 1
+				},
+				"selection": {
+					"enum": ["inherited", "exact", "unselected"]
+				},
+				"provider": {
+					"type": ["string", "null"],
+					"minLength": 1
+				},
+				"model": {
+					"type": ["string", "null"],
+					"minLength": 1
+				},
+				"options": {
+					"type": "object",
+					"additionalProperties": {
+						"anyOf": [
+							{
+								"type": "string"
+							},
+							{
+								"type": "number"
+							},
+							{
+								"type": "boolean"
+							},
+							{
+								"type": "null"
+							}
+						]
+					}
+				},
+				"costBoundary": {
+					"enum": ["authorized_subscription", "verified_free", "explicit_metered", "unverified"]
+				},
+				"dataBoundary": {
+					"type": "string",
+					"minLength": 1
+				},
+				"capabilityEvidence": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"noFallback": {
+					"type": "boolean"
+				}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"selection": {
+								"const": "exact"
+							}
+						},
+						"required": ["selection"]
+					},
+					"then": {
+						"properties": {
+							"provider": {
+								"type": "string",
+								"minLength": 1
+							},
+							"model": {
+								"type": "string",
+								"minLength": 1
+							},
+							"capabilityEvidence": {
+								"type": "array",
+								"items": {
+									"type": "string",
+									"minLength": 1
+								},
+								"uniqueItems": true,
+								"minItems": 1
+							}
+						}
+					}
+				}
+			]
+		},
+		"authority": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["allowedActions", "evidence"],
+			"properties": {
+				"allowedActions": {
+					"type": "array",
+					"uniqueItems": true,
+					"items": {
+						"enum": ["inspect", "edit", "test", "commit", "push", "merge", "publish", "deploy"]
+					}
+				},
+				"evidence": {
+					"type": "string",
+					"minLength": 1
+				}
+			}
+		},
+		"gate": {
+			"enum": [
+				"source",
+				"unit",
+				"typecheck",
+				"build",
+				"package",
+				"http",
+				"browser",
+				"concurrency",
+				"independent_review",
+				"hosted",
+				"publication",
+				"documentation"
+			]
+		},
+		"check": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["gate", "command", "status", "observedAt", "evidence", "expiresAt"],
+			"properties": {
+				"gate": {
+					"$ref": "#/$defs/gate"
+				},
+				"command": {
+					"type": "string",
+					"minLength": 1
+				},
+				"status": {
+					"enum": ["pass", "fail", "not_run", "blocked", "skipped"]
+				},
+				"observedAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"evidence": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"expiresAt": {
+					"type": ["string", "null"],
+					"format": "date-time"
+				}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"status": {
+								"enum": ["pass", "fail"]
+							}
+						},
+						"required": ["status"]
+					},
+					"then": {
+						"properties": {
+							"evidence": {
+								"type": "array",
+								"items": {
+									"type": "string",
+									"minLength": 1
+								},
+								"uniqueItems": true,
+								"minItems": 1
+							}
+						}
+					}
+				}
+			]
+		},
+		"handoff": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": [
+				"schemaVersion",
+				"kind",
+				"taskId",
+				"repository",
+				"finishedAt",
+				"baseCommit",
+				"headCommit",
+				"worktree",
+				"status",
+				"writtenPaths",
+				"dirtyPaths",
+				"fileHashes",
+				"route",
+				"commit",
+				"checks",
+				"unresolved",
+				"pendingChildren",
+				"nextAction"
+			],
+			"properties": {
+				"schemaVersion": {
+					"const": "1.0.0"
+				},
+				"kind": {
+					"const": "handoff"
+				},
+				"taskId": {
+					"type": "string",
+					"minLength": 1
+				},
+				"repository": {
+					"type": "string",
+					"minLength": 1
+				},
+				"finishedAt": {
+					"type": "string",
+					"format": "date-time"
+				},
+				"baseCommit": {
+					"type": "string",
+					"pattern": "^[a-fA-F0-9]{40}$"
+				},
+				"headCommit": {
+					"type": "string",
+					"pattern": "^[a-fA-F0-9]{40}$"
+				},
+				"worktree": {
+					"type": "string",
+					"minLength": 1
+				},
+				"status": {
+					"enum": ["proposed", "partial", "blocked", "complete"]
+				},
+				"writtenPaths": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"dirtyPaths": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"fileHashes": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string",
+						"pattern": "^[a-fA-F0-9]{64}$"
+					}
+				},
+				"route": {
+					"$ref": "#/$defs/route"
+				},
+				"commit": {
+					"anyOf": [
+						{
+							"type": "string",
+							"pattern": "^[a-fA-F0-9]{40}$"
+						},
+						{
+							"type": "null"
+						}
+					]
+				},
+				"checks": {
+					"type": "array",
+					"items": {
+						"$ref": "#/$defs/check"
+					}
+				},
+				"unresolved": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"minLength": 1
+					},
+					"uniqueItems": true
+				},
+				"pendingChildren": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"additionalProperties": false,
+						"required": ["harness", "taskId", "state"],
+						"properties": {
+							"harness": {
+								"type": "string",
+								"minLength": 1
+							},
+							"taskId": {
+								"type": "string",
+								"minLength": 1
+							},
+							"state": {
+								"type": "string",
+								"minLength": 1
+							}
+						}
+					}
+				},
+				"nextAction": {
+					"type": "string",
+					"minLength": 1
+				}
+			},
+			"allOf": [
+				{
+					"if": {
+						"properties": {
+							"status": {
+								"const": "complete"
+							}
+						},
+						"required": ["status"]
+					},
+					"then": {
+						"properties": {
+							"pendingChildren": {
+								"type": "array",
+								"maxItems": 0
+							},
+							"checks": {
+								"type": "array",
+								"minItems": 1
+							}
+						}
+					}
+				}
+			]
+		}
+	}
+}

@@ -1,14 +1,14 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { browser } from '$app/environment';
-	import { base } from '$app/paths';
+	import { browser } from '$app/env';
+	import { resolve } from '$app/paths';
 
 	type ServerData = {
 		parent?: string;
 		child?: string;
 	};
 
-	let { data } = $props<{ data?: ServerData }>();
+	let { data }: { data?: ServerData } = $props();
 
 	let serverData: ServerData | undefined = $state();
 
@@ -47,7 +47,7 @@
 	</div>
 
 	<br />
-	<a href="{base}/">Back to Home</a>
+	<a href={resolve('/')}>Back to Home</a>
 </div>
 
 <style>

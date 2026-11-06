@@ -1,5 +1,5 @@
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
-import { renderCommunitySignalsCsv } from '$lib/alpha-readiness-csv';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
+import { renderCommunitySignalsCsv } from '#lib/alpha-readiness-csv.ts';
 
 export const prerender = true;
 

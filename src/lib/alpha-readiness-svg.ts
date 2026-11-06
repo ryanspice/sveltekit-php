@@ -51,20 +51,26 @@ export function renderAlphaReadinessSvg(
 	};
 	const hostedStatus = remoteSmoke?.status ?? 'missing';
 	const hostedColor =
-		hostedStatus === 'passed' ? areaColors.ready : hostedStatus === 'failed' ? areaColors.blocked : areaColors.watch;
+		hostedStatus === 'passed'
+			? areaColors.ready
+			: hostedStatus === 'failed'
+				? areaColors.blocked
+				: areaColors.watch;
 	const analyticsSummary = communityAnalytics?.summary
 		? `${communityAnalytics.summary.successfulSources} ok / ${communityAnalytics.summary.failedSources} failed / ${communityAnalytics.summary.skippedSources} skipped`
 		: 'analytics not collected';
 	const queryWeightedScores =
 		communityAnalytics?.queries
 			?.map((query) => query.aggregate?.weightedDemandScore)
-			.filter((score): score is number => typeof score === 'number' && Number.isFinite(score)) ?? [];
+			.filter((score): score is number => typeof score === 'number' && Number.isFinite(score)) ??
+		[];
 	const weightedDemandScore =
 		typeof communityAnalytics?.summary?.weightedAverageDemandScore === 'number'
 			? communityAnalytics.summary.weightedAverageDemandScore
 			: queryWeightedScores.length
 				? Math.round(
-						(queryWeightedScores.reduce((total, score) => total + score, 0) / queryWeightedScores.length) *
+						(queryWeightedScores.reduce((total, score) => total + score, 0) /
+							queryWeightedScores.length) *
 							10
 					) / 10
 				: 'missing';
@@ -91,7 +97,8 @@ export function renderAlphaReadinessSvg(
 		: 'public-api | public-web-search | manual-review';
 	const proofLedgerMarkers = report.proofLedger.map((item) => item.marker).join(' | ');
 	const requiredEvidenceMarkers = requiredAlphaEvidence.join(' | ');
-	const nativeHostCompatibilityMatrix = buildBridgeReuseInventory(report).nativeHostCompatibilityMatrix;
+	const nativeHostCompatibilityMatrix =
+		buildBridgeReuseInventory(report).nativeHostCompatibilityMatrix;
 	const nativeHostCompatibilityRows = nativeHostCompatibilityMatrix.rows
 		.map((row) => row.id)
 		.join(' | ');

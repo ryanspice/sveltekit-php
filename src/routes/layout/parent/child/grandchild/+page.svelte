@@ -1,5 +1,5 @@
 <script>
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 	// No data needed for this page
 </script>
 
@@ -29,8 +29,8 @@
 	<div class="navigation">
 		<h3>Navigate the hierarchy:</h3>
 		<ul>
-			<li><a href="{base}/layout/parent">Parent level</a></li>
-			<li><a href="{base}/layout/parent/child">Child level</a></li>
+			<li><a href={resolve('/layout/parent')}>Parent level</a></li>
+			<li><a href={resolve('/layout/parent/child')}>Child level</a></li>
 			<li><strong>Grandchild level</strong> (current)</li>
 		</ul>
 	</div>

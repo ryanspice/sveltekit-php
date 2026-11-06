@@ -1,8 +1,12 @@
 # Dev adapter boundary
 
-Last updated: 2026-07-01
+Last updated: 2026-10-25
 
 The dev adapter surfaces exist for local development only. They are not production adapters and should fail loudly when used outside the intended local Vite/PHP workflow.
+
+The repository's development application uses Kit 3.1.0 with Node >=22.17, Vite 8, Svelte 5 and TypeScript 6. `app.config.mjs` supplies flat options to the Vite plugin. `scripts/dev-php.mjs` watches that configuration and starts the local frontend/backend workflow; it is distinct from the production adapter's Kit 2/3 consumer support.
+
+The Vite watcher excludes sibling `.svelte-kit*` and known build fixture trees. The current Kit output directory and its `generated` subtree remain traversable for HMR, alongside source/static/configuration inputs. This prevents accumulated verification output from overwhelming the development watcher. Root and fixed-base PHP data-bridge probes are recorded in the [Kit 3 migration receipt](security/kit3-migration-20261025.md).
 
 ## Current contract
 
