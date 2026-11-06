@@ -8,7 +8,7 @@ PHP hosting is widely available, and many sites already have PHP endpoints, form
 
 The interesting engineering work lives at the boundary: matching routes, protecting server files, preserving cookies and base paths, and producing a package consumers can verify. The fixtures and hosting contract make those choices inspectable.
 
-**Current status:** local `1.1.0-alpha.0` candidate, unpublished. October 23 registry inspection found only `latest → 1.0.1`, with no `alpha` tag. Private sidecar output, PHP action-origin checks, and sidecar proxy/body boundaries are implemented in source. The working tree contains a Kit 3 development-app migration candidate; final multipart, generated-artifact and browser acceptance remain pending. See the [migration receipt](docs/security/kit3-migration-20261025.md) and earlier [security implementation receipt](docs/security/implementation-20261023.md). Hosted proof and publication remain open.
+**Current status:** the `1.1.0-alpha.0` source candidate includes the Kit 3 integration and security fixes. CI covers source/package contracts, PHP 8.3/8.5 HTTP and browser checks, and packed Kit 2/3 consumers; see the [integration record](docs/INTEGRATION-2026-11-06.md). Four PHP-static no-JavaScript configurations are skipped and require separate characterization. Real-host and human acceptance remain open. On November 6, 2026, the npm registry reported `latest → 1.0.1` and did not list `1.1.0-alpha.0`; verify the registry again before installing or publishing.
 
 ## Choose the host you actually need
 
