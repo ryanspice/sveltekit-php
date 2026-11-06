@@ -19,6 +19,19 @@ describe('RC consumer evidence', () => {
 		expect(() => validateRcConsumerProfile(candidate)).toThrow(/public HTTPS/);
 	});
 
+	it('allows an optional controlled mirror but does not require one', () => {
+		const withoutMirrors = structuredClone(profile);
+		expect(() => validateRcConsumerProfile(withoutMirrors)).not.toThrow();
+		Object.assign(withoutMirrors.consumers[0], { mirrorUrl: 'https://owned.example/' });
+		expect(() => validateRcConsumerProfile(withoutMirrors)).not.toThrow();
+	});
+
+	it.each(['../private.json', 'https://example.test/proof.json', '.well-known/proof.json', 'proof%2fescape.json'])('rejects unsafe provenance path %s', (value) => {
+		const candidate = structuredClone(profile);
+		candidate.consumers[0].provenancePath = value;
+		expect(() => validateRcConsumerProfile(candidate)).toThrow(/provenancePath/);
+	});
+
 	it('rejects expired receipts when current proof is required', () => {
 		const receipt = {
 			schemaVersion: 1,
@@ -66,15 +79,12 @@ describe('RC consumer evidence', () => {
 		expect(JSON.stringify(result)).not.toContain('404 Not Found');
 	});
 
-	it('passes only with branded pages, a base-scoped asset, redirect, and matching provenance', async () => {
+	it('passes with branded pages, a base-scoped asset, and matching Canopy provenance', async () => {
 		const consumer = profile.consumers[0];
 		const candidate = { version: '1.0.2-alpha.0', adapterBundleSha256: 'b'.repeat(64) };
 		vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
 			const url = new URL(String(input));
-			if (url.origin === 'https://lancasterfbc.ca') {
-				return new Response('', { status: 301, headers: { location: consumer.baseUrl } });
-			}
-			if (url.pathname.endsWith('/.well-known/sveltekit-php.json')) {
+			if (url.pathname.endsWith(`/${consumer.provenancePath}`)) {
 				return Response.json({ adapterVersion: candidate.version, adapterBundleSha256: candidate.adapterBundleSha256 });
 			}
 			if (url.pathname.includes('__rc-proof-missing__')) return new Response('missing', { status: 404 });

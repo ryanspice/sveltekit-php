@@ -234,7 +234,7 @@ async function inferBasePathFromBuild(dir) {
 }
 
 async function inferBasePathFromConfig() {
-	const configPath = path.resolve('svelte.config.js');
+	const configPath = path.resolve('app.config.mjs');
 	if (!(await exists(configPath))) return '';
 	const config = await readFile(configPath, 'utf8');
 	const directMatch = config.match(/const\s+base\s*=\s*['"]([^'"]*)['"]/);

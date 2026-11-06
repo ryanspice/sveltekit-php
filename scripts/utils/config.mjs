@@ -1,6 +1,6 @@
 // scripts/utils/config.mjs
 //
-// Keep this module side-effect free. It is imported by svelte.config.js during
+// Keep this module side-effect free. It is imported by app.config.mjs and vite.config.ts during
 // `svelte-kit sync`, `vite build`, and npm packaging hooks, so loading .env here
 // would make build/package behavior depend on runtime deployment files.
 // Commands that intentionally support local .env files should load dotenv in

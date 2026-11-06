@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { base } from '$app/paths';
-	import { buildBridgeReuseInventory } from '$lib/alpha-bridge-reuse';
-	import { buildCommunityResearchPack } from '$lib/alpha-community-research-pack';
+	import { resolve } from '$app/paths';
+	import { buildBridgeReuseInventory } from '#lib/alpha-bridge-reuse.ts';
+	import { buildCommunityResearchPack } from '#lib/alpha-community-research-pack.ts';
 	import {
 		buildAlphaReadinessReport,
 		statusLabel,
 		type AlphaReadinessStatus
-	} from '$lib/alpha-readiness';
-	import { buildAlphaNativeHostContract } from '$lib/alpha-native-host-contract';
-	import { requiredAlphaEvidence } from '$lib/alpha-required-evidence';
-	import NativeTitlebar from '$lib/components/native-shell/NativeTitlebar.svelte';
-	import NativeHostBridgeStatus from '$lib/components/native-shell/NativeHostBridgeStatus.svelte';
-	import NativeWindowShell from '$lib/components/native-shell/NativeWindowShell.svelte';
+	} from '#lib/alpha-readiness.ts';
+	import { buildAlphaNativeHostContract } from '#lib/alpha-native-host-contract.ts';
+	import { requiredAlphaEvidence } from '#lib/alpha-required-evidence.ts';
+	import NativeTitlebar from '#lib/components/native-shell/NativeTitlebar.svelte';
+	import NativeHostBridgeStatus from '#lib/components/native-shell/NativeHostBridgeStatus.svelte';
+	import NativeWindowShell from '#lib/components/native-shell/NativeWindowShell.svelte';
 
 	const report = buildAlphaReadinessReport();
 	const nativeHostContract = buildAlphaNativeHostContract(report);
@@ -109,7 +109,7 @@
 	).length;
 	const hostedProofCount = proofLedger.filter((item) => item.status === 'needs-hosted-proof').length;
 	const reportJson = JSON.stringify(report, null, 2);
-	const localHref = (path: string) => `${base}${path.startsWith('/') ? path : `/${path}`}`;
+	const localHref = (path: string) => `${resolve('/')}${path.replace(/^\/+/, '')}`;
 	const reportHref = localHref('/alpha-readiness/report.json');
 	const reportHtmlHref = localHref('/alpha-readiness/report.html');
 	const reportMarkdownHref = localHref('/alpha-readiness/report.md');
@@ -966,7 +966,7 @@
 						<a href={communityResearchPackHref}>Open research pack</a>
 					</div>
 					<div class="collector-plan-list">
-						{#each prioritizedCommunitySources as source (`${source.provider}-${source.sourceHost}`)}
+						{#each prioritizedCommunitySources as source (source.href)}
 							<article>
 								<div>
 									<span>{source.mode}</span>

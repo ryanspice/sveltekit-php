@@ -10,7 +10,7 @@ The project earns attention by making the difficult boundaries visible and verif
 
 Local package track is `1.1.0-alpha.0`. October 23 registry inspection found published `latest=1.0.1` and no alpha tag. Fresh packed Kit 2.70.3/3.1.0 fixtures passed both modes at root and `/sites/cos`; this establishes local compatibility, with hosted acceptance still open. Remote functions remain unsupported. Ordinary FPM-backed hosting is distinct from any proposed special PHP-FPM package mode.
 
-The [modernization plan](docs/MODERNIZATION.md) owns the security queue and research inventory. A-01 through A-03 and compatible dependency patches are implemented locally; the [implementation receipt](docs/security/implementation-20261023.md) records evidence. Development-app migration to Kit 3, fresh host proof and publication remain open. Repository metadata does not replace the adapter's options, consumer API, or application data schema.
+The [modernization plan](docs/MODERNIZATION.md) owns the security queue and research inventory. A-01 through A-03 and compatible dependency patches are implemented locally; the [implementation receipt](docs/security/implementation-20261023.md) records that fix wave. The development-app working candidate uses Kit 3.1.0, Vite 8 and TypeScript 6; final multipart, generated-artifact and browser acceptance are pending. Its [migration receipt](docs/security/kit3-migration-20261025.md) separates application, adapter and agent evidence. Fresh host proof and publication remain open. Repository metadata does not replace the adapter's options, consumer API, or application data schema.
 
 ## Priorities
 
@@ -29,8 +29,8 @@ This JSON block is the `intent` instance for `repo.schema.json`. The schema also
   "schemaVersion": "1.0.0",
   "kind": "intent",
   "repository": "ryanspice/sveltekit-php",
-  "reviewedAt": "2026-10-23",
-  "baselineCommit": "5886f8467dda20a56fb125d5a292f1ce15d2f70d",
+  "reviewedAt": "2026-10-25",
+  "baselineCommit": "dabdfd2972482f22d5a0110450fd60c5e2af8b5a",
   "status": "alpha",
   "purpose": "Deploy SvelteKit frontend output to PHP hosting with explicit PHP-static and JavaScript-sidecar modes.",
   "entrypoints": ["README.md", "AGENTS.md", "docs/HOSTING-CONTRACT.md", "docs/MODERNIZATION.md"],

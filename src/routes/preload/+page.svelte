@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data: { timestamp?: string; heavy_data?: unknown[] } } = $props();
 </script>
@@ -9,7 +9,7 @@
 	<p>This page has data that can be preloaded on hover.</p>
 	<p>Server Timestamp: {data?.timestamp ?? 'Loading...'}</p>
 	<p>Data Length: {data?.heavy_data?.length ?? 0}</p>
-	<a href="{base}/">Back to Home</a>
+	<a href={resolve('/')}>Back to Home</a>
 </div>
 
 <style>

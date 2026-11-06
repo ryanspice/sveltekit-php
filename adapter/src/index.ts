@@ -571,6 +571,46 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				return { files, loadMapItems };
 			}
 
+			// Kit includes HTML +server responses in prerendered.pages as well as documents.
+			// Preserve endpoint bytes and avoid generating PHP stubs that shadow them under a base.
+			const prerenderedEndpointRoutes = new Set<string>();
+			const isEndpointOnlyRoute = async (route: ReturnType<typeof findRouteForNavPath>) => {
+				if (!route) return false;
+				const metadata = route as typeof route & {
+					page?: { methods?: string[] };
+					api?: { methods?: string[] };
+				};
+				if (Array.isArray(metadata.page?.methods) && Array.isArray(metadata.api?.methods)) {
+					return metadata.page.methods.length === 0 && metadata.api.methods.length > 0;
+				}
+				// Older/reduced builders may omit method metadata. Use the configured route tree,
+				// retaining every route with a page module regardless of its component extension.
+				const routeDir = path.join(routesBaseFs, stripLeadingSlash(route.id));
+				const entries = await readdir(routeDir).catch(() => [] as string[]);
+				return (
+					entries.some((file) => /^\+server\.(?:[jt]s|php)$/.test(file)) &&
+					!entries.some((file) => /^\+page(?:@[^.]*)?\./.test(file))
+				);
+			};
+			const localPrerenderPath = (navPath: string) =>
+				buildTimeBase && (navPath === buildTimeBase || navPath.startsWith(buildTimeBase + '/'))
+					? navPath.slice(buildTimeBase.length) || '/'
+					: navPath;
+			const prerenderedAssets = (builder.prerendered as typeof builder.prerendered & {
+				assets?: Map<string, { type: string }>;
+			}).assets;
+			for (const [navPath] of prerenderedAssets ?? []) {
+				const localPath = localPrerenderPath(navPath);
+				const route = findRouteForNavPath(builder, localPath);
+				if (
+					route &&
+					await isEndpointOnlyRoute(route) &&
+					await isFile(path.join(prerenderedRoot, stripLeadingSlash(localPath)))
+				) {
+					prerenderedEndpointRoutes.add(route.id);
+				}
+			}
+
 			// 4) For each prerendered page, generate runtime files + convert HTML->PHP
 			for (const [navPathRaw, filePath] of builder.prerendered.pages) {
 				const navPath = navPathRaw; // e.g. "/about/"
@@ -586,6 +626,11 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 
 				const route = findRouteForNavPath(builder, routePath);
 				const routeId = route?.id ?? routePath; // fallback: best-effort
+				if (await isEndpointOnlyRoute(route)) {
+					prerenderedEndpointRoutes.add(routeId);
+					builder.log.minor('Preserving prerendered endpoint: ' + navPath);
+					continue;
+				}
 
 				// DEBUG: Inspect route object for SSR flag
 				if (navPath.includes('matrix')) {
@@ -665,12 +710,12 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 
 				// Locate __data.json template near the HTML.
 				// Search strategy:
-				// 1. Sibling of the HTML file (standard)
-				// 2. Subdirectory matching navPath (common for named pages in some Kit versions)
-				// 3. Child directory if HTML is named (e.g. about.html -> about/__data.json)
+				// 1. Exact navigation path, accounting for base paths stripped from Kit output
+				// 2. Child directory if HTML is named (e.g. about.html -> about/__data.json)
+				// 3. Sibling of the HTML file for index/custom directory layouts
 
 				const candidates = [
-					path.join(htmlDir, '__data.json'),
+					path.join(prerenderedRoot, stripLeadingSlash(localPrerenderPath(navPath)), '__data.json'),
 					path.join(prerenderedRoot, stripLeadingSlash(navPath), '__data.json')
 				];
 
@@ -679,6 +724,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 					const baseName = path.basename(htmlFs, '.html');
 					candidates.push(path.join(htmlDir, baseName, '__data.json'));
 				}
+				candidates.push(path.join(htmlDir, '__data.json'));
 
 				let html = await readFile(htmlFs, 'utf8');
 				const inlineMode = detectInlineDataModeFromHtml(html);
@@ -1916,6 +1962,10 @@ if (sk_prefers_html($accept)) {
 						debug(`DEBUG: Converted to normalized path: ${normalized}`);
 
 						const routeDir = path.dirname(normalized);
+						if (prerenderedEndpointRoutes.has(routeDir)) {
+							builder.log.minor(`Preserving static JS/TS endpoint output: ${routeDir}`);
+							continue;
+						}
 						const prefix = fnPrefixMap.get(normalized);
 						const protectedRel = protectedMap.get(normalized);
 

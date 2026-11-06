@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { browser } from '$app/environment';
-	import { base } from '$app/paths';
+	import { browser } from '$app/env';
+	import { resolve } from '$app/paths';
 
 	type ServerData = {
 		parent?: string;
@@ -9,7 +9,7 @@
 		nested?: string;
 	};
 
-	let { data } = $props<{ data?: ServerData }>();
+	let { data }: { data?: ServerData } = $props();
 	let serverData: ServerData | undefined = $state();
 
 	$effect(() => {
@@ -52,7 +52,7 @@
 	</div>
 
 	<br />
-	<a href="{base}/parent-child">Back to Level 1</a>
+	<a href={resolve('/parent-child')}>Back to Level 1</a>
 </div>
 
 <style>

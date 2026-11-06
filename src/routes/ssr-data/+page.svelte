@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { browser } from '$app/environment';
-	import { base } from '$app/paths';
+	import { browser } from '$app/env';
+	import { resolve } from '$app/paths';
 
 	let { data }: { data?: { message?: string } } = $props();
 </script>
@@ -25,7 +25,7 @@
 		</div>
 	{/if}
 
-	<a href="{base}/">Back to Home</a>
+	<a href={resolve('/')}>Back to Home</a>
 </div>
 
 <style>

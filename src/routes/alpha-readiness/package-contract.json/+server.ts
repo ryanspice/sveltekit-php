@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { buildAlphaPackageContract } from '$lib/alpha-package-contract';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
+import { buildAlphaPackageContract } from '#lib/alpha-package-contract.ts';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
 
 export const prerender = true;
 

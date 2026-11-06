@@ -20,10 +20,10 @@
 	 */
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { dev, browser } from '$app/environment';
-	import { transformDebugData } from '$lib/devtools/transform';
-	import { DevToolsStore, HistoryStore } from '$lib/devtools/store';
-	import type { TransformResult } from '$lib/devtools/transform';
+	import { dev, browser } from '$app/env';
+	import { transformDebugData } from '#lib/devtools/transform.ts';
+	import { DevToolsStore, HistoryStore } from '#lib/devtools/store.ts';
+	import type { TransformResult } from '#lib/devtools/transform.ts';
 
 	// PROPS
 	let { data = undefined }: { data?: any } = $props();
@@ -278,7 +278,7 @@
 	</div>
 
 	{#if isObject && isExpanded}
-		{#each Object.entries(value) as [k, v]}
+		{#each Object.entries(value) as [k, v] (k)}
 			{@render treeNode(k, v, path ? `${path}.${k}` : k, level + 1)}
 		{/each}
 	{/if}
@@ -321,7 +321,7 @@
 
 					<!-- Tabs -->
 					<nav class="tabs-nav">
-						{#each ['overview', 'structured', 'raw', 'paths', 'diff'] as tab}
+						{#each ['overview', 'structured', 'raw', 'paths', 'diff'] as tab (tab)}
 							<button
 								class="tab-btn"
 								class:active={settings.activeTab === tab}
@@ -498,7 +498,7 @@
 								<div class="panel full-height">
 									<h2 class="panel-title">HISTORY ({snapshots.length})</h2>
 									<div class="history-list">
-										{#each snapshots as snap, i}
+										{#each snapshots as snap, i (snap.id)}
 											<div
 												class="history-row"
 												class:selected={JSON.stringify(snap.data) === JSON.stringify(rawData)}
@@ -528,7 +528,7 @@
 							</div>
 							<div class="tree-viewer">
 								{#if currentSnapshot.structured}
-									{#each Object.entries(currentSnapshot.structured) as [k, v]}
+									{#each Object.entries(currentSnapshot.structured) as [k, v] (k)}
 										{@render treeNode(k, v, k, 0)}
 									{/each}
 								{:else}
@@ -568,7 +568,7 @@
 										</tr>
 									</thead>
 									<tbody>
-										{#each filteredPaths as path}
+										{#each filteredPaths as path (path)}
 											{@const val = getValueByPath(currentSnapshot.structured, path)}
 											<tr class="path-row">
 												<td class="path-cell text-accent" title={path}>{path}</td>

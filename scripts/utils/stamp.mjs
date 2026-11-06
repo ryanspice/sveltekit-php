@@ -3,6 +3,11 @@ import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { normalizeAdapterMode } from './config.mjs';
 
+/**
+ * @param {string} buildDir
+ * @param {'php-static' | 'js-ssr'} expectedMode
+ * @param {string} expectedBasePath
+ */
 export async function verifyBuildStamp(buildDir, expectedMode, expectedBasePath) {
 	const stampPath = path.join(buildDir, '_runtime', 'build-stamp.json');
 
@@ -24,7 +29,7 @@ export async function verifyBuildStamp(buildDir, expectedMode, expectedBasePath)
 		}
 
 		// Normalize base paths for comparison (remove trailing slashes, ensure leading slash if not empty)
-		const normalize = (p) => {
+		const normalize = (/** @type {string | undefined} */ p) => {
 			if (!p || p === '/' || p === '.') return '';
 			let s = p.trim();
 			if (s.endsWith('/')) s = s.slice(0, -1);
@@ -44,6 +49,9 @@ export async function verifyBuildStamp(buildDir, expectedMode, expectedBasePath)
 
 		return { ok: true, stamp };
 	} catch (e) {
-		return { ok: false, error: `Failed to read/parse stamp: ${e.message}` };
+		return {
+			ok: false,
+			error: `Failed to read/parse stamp: ${e instanceof Error ? e.message : String(e)}`
+		};
 	}
 }

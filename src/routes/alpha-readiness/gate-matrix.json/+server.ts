@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { buildAlphaGateMatrix } from '$lib/alpha-gate-matrix';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
+import { buildAlphaGateMatrix } from '#lib/alpha-gate-matrix.ts';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
 
 export const prerender = true;
 

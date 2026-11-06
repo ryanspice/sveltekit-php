@@ -1,6 +1,7 @@
 import { execSync, spawn } from 'node:child_process';
 import net from 'node:net';
 import * as fs from 'node:fs';
+import { parse as parseDevalue } from 'devalue';
 import { verifyBuildStamp } from './utils/stamp.mjs';
 import { getBasePath, normalizeAdapterMode } from './utils/config.mjs';
 
@@ -426,29 +427,8 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 
 			const actionJson = await resAction.json();
 
-			// Helper to decode simple devalue (flattened array)
-			function devalueSimple(flattened) {
-				if (!Array.isArray(flattened)) return flattened;
-
-				function resolve(idx) {
-					const val = flattened[idx];
-					if (typeof val === 'object' && val !== null) {
-						// Simple object reconstruction
-						const out = {};
-						for (const k in val) {
-							out[k] = resolve(val[k]);
-						}
-						return out;
-					}
-					return val;
-				}
-
-				return resolve(0);
-			}
-
-			// SvelteKit enhanced actions return devalue-serialized data
-			// [ {type:1, data:2}, "success", "..." ]
-			const resultObj = Array.isArray(actionJson) ? devalueSimple(actionJson) : actionJson;
+			// Match SvelteKit deserialize: the envelope is JSON, only data is devalue.
+			const resultObj = actionJson;
 
 			if (resultObj.type !== 'success') {
 				console.error(`\nFAILED: Action type is '${resultObj.type}'`);
@@ -456,23 +436,10 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				throw new Error(`Action POST returned type '${resultObj.type}' (expected success)`);
 			}
 
-			// Verify echo data
-			// resultObj.data might be a JSON string if the server double-encoded it, or an object if devalue worked perfectly.
-			// In our PHP adapter, we currently json_encode the data inside the devalue array.
-			let resultData = resultObj.data;
-			if (typeof resultData === 'string') {
-				// Sanity check: verify it's not double-encoded JSON
-				if (/^\s*\{/.test(resultData)) {
-					throw new Error(
-						`Double-encoded JSON detected in action response: ${resultData.substring(0, 50)}...`
-					);
-				}
-				try {
-					resultData = JSON.parse(resultData);
-				} catch {
-					// keep as string
-				}
+			if (typeof resultObj.data !== 'string') {
+				throw new Error('Enhanced action data must be a devalue string');
 			}
+			const resultData = parseDevalue(resultObj.data);
 
 			if (resultData.echo !== 'sanity-check') {
 				console.error(`\nFAILED: Action echo mismatch`);
@@ -522,10 +489,16 @@ async function fastHttpCheck(mode, ports, outDir, env) {
 				}
 			}
 			const failJson = await resFail.json();
-			const failObj = Array.isArray(failJson) ? devalueSimple(failJson) : failJson;
+			const failObj = failJson;
 
 			if (failObj.type !== 'failure') {
 				throw new Error(`Action Fail check: type '${failObj.type}' (expected failure)`);
+			}
+			if (resFail.status !== 400 || failObj.status !== 400) {
+				throw new Error('Action failure must preserve HTTP and result status 400');
+			}
+			if (parseDevalue(failObj.data).error !== 'invalid') {
+				throw new Error('Action failure data did not deserialize to the validation error');
 			}
 			log('  ✓ /form-basic Action Fail -> failure (strict check)');
 

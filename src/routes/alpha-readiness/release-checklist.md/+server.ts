@@ -1,4 +1,4 @@
-import { renderAlphaReleaseChecklistMarkdown } from '$lib/alpha-release-checklist';
+import { renderAlphaReleaseChecklistMarkdown } from '#lib/alpha-release-checklist.ts';
 
 export const prerender = true;
 

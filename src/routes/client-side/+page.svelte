@@ -1,5 +1,5 @@
 <script>
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	let loaded = $state(false);
 	let time = $state('');
@@ -43,7 +43,7 @@
 		the initial HTML.
 	</p>
 
-	<a href="{base}/">Back to Home</a>
+	<a href={resolve('/')}>Back to Home</a>
 </div>
 
 <style>

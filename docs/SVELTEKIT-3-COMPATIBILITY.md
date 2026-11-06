@@ -2,6 +2,8 @@
 
 Original receipt date: 2026-10-06. Local candidate: **1.1.0-alpha.0**, unpublished. The historical matrix and limits below describe that date. See the [October 23 implementation receipt](security/implementation-20261023.md) for the fresh Kit **2.70.3 / 3.1.0** packed matrix, patched dependencies, PHP **8.5.12**, private sibling output and current checks.
 
+The subsequent [October 25 development-app migration receipt](security/kit3-migration-20261025.md) covers the checkout's move to Kit **3.1.0**, Vite **8.3.5**, plugin **7.3.1** and TypeScript **6.0.3**, including the action, prerendering and hydration fixes needed by real browser flows. The October 6 results below remain historical evidence.
+
 ## API and release verification
 
 Official sources: [Kit 3 migration](https://svelte.dev/docs/kit/migrating-to-sveltekit-3), [writing adapters](https://svelte.dev/docs/kit/writing-adapters), and installed official `@sveltejs/kit@3.0.1` builder/types. Registry metadata checked on this date: Kit 3.0.1, Svelte 5.57.1, Vite 8.3.3, vite-plugin-svelte 7.3.1, adapter-node 6.0.0, adapter-static 4.0.0. npm's `sveltekit-php` latest tag resolves to 1.0.1; this local candidate has not been published.

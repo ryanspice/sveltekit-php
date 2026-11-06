@@ -32,9 +32,20 @@ export function validateRcConsumerProfile(profile) {
 			throw new Error(`${consumer.id} must include a stable identity marker.`);
 		}
 		const base = assertPublicHttpsUrl(consumer.baseUrl, `${consumer.id}.baseUrl`);
-		assertPublicHttpsUrl(consumer.mirrorUrl, `${consumer.id}.mirrorUrl`);
+		if (consumer.mirrorUrl !== undefined) {
+			assertPublicHttpsUrl(consumer.mirrorUrl, `${consumer.id}.mirrorUrl`);
+		}
 		if (!base.pathname.endsWith(`/sites/${consumer.id}/`)) {
 			throw new Error(`${consumer.id}.baseUrl must end with /sites/${consumer.id}/.`);
+		}
+		const provenanceSegments =
+			typeof consumer.provenancePath === 'string' ? consumer.provenancePath.split('/') : [];
+		if (
+			typeof consumer.provenancePath !== 'string' ||
+			!/^[A-Za-z0-9][A-Za-z0-9._/-]*$/.test(consumer.provenancePath) ||
+			provenanceSegments.some((segment) => !segment || segment === '.' || segment === '..' || segment.startsWith('.'))
+		) {
+			throw new Error(`${consumer.id}.provenancePath must be a safe non-dot relative path.`);
 		}
 		if (!Array.isArray(consumer.representativePaths) || consumer.representativePaths.length < 1) {
 			throw new Error(`${consumer.id} must include representative paths.`);

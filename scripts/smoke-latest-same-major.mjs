@@ -10,7 +10,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const keep = process.argv.includes('--keep');
 const expectedMajors = {
 	svelte: 5,
-	'@sveltejs/kit': 2
+	'@sveltejs/kit': 3
 };
 
 function run(command, args, options = {}) {
@@ -46,11 +46,6 @@ function run(command, args, options = {}) {
 }
 
 async function npmLatestVersion(packageName) {
-	if (packageName === '@sveltejs/kit') {
-		const result = await run('npm', ['view', '@sveltejs/kit@2', 'version', '--json', '--silent']);
-		const versions = JSON.parse(result.stdout);
-		return Array.isArray(versions) ? versions.at(-1) : versions;
-	}
 	const result = await run('npm', ['view', packageName, 'version', '--silent']);
 	return result.stdout.trim();
 }
@@ -79,8 +74,8 @@ async function assertLatestSameMajorTargets() {
 }
 
 async function writeFixture(tempRoot, tarballPath, packageJson, versions) {
-	const viteRange = packageJson.devDependencies?.vite ?? '^7.2.6';
-	const pluginRange = packageJson.devDependencies?.['@sveltejs/vite-plugin-svelte'] ?? '^6.2.1';
+	const viteRange = packageJson.devDependencies?.vite ?? '^8.3.5';
+	const pluginRange = packageJson.devDependencies?.['@sveltejs/vite-plugin-svelte'] ?? '^7.3.1';
 	const tarballSpec = `file:${tarballPath.replace(/\\/g, '/')}`;
 
 	await writeFile(
@@ -108,32 +103,18 @@ async function writeFixture(tempRoot, tarballPath, packageJson, versions) {
 	);
 
 	await writeFile(
-		path.join(tempRoot, 'svelte.config.js'),
-		[
-			"import adapter from 'sveltekit-php/adapter';",
-			'',
-			'/** @type {import("@sveltejs/kit").Config} */',
-			'const config = {',
-			'  kit: {',
-			'    adapter: adapter({ mode: "php-static", out: "build", assets: "build", strict: true }),',
-			'    paths: { relative: false },',
-			'    prerender: { entries: ["/"] }',
-			'  }',
-			'};',
-			'',
-			'export default config;',
-			''
-		].join('\n')
-	);
-
-	await writeFile(
 		path.join(tempRoot, 'vite.config.js'),
 		[
 			"import { sveltekit } from '@sveltejs/kit/vite';",
+			"import adapter from 'sveltekit-php/adapter';",
 			'',
 			'/** @type {import("vite").UserConfig} */',
 			'const config = {',
-			'  plugins: [sveltekit()]',
+			'  plugins: [sveltekit({',
+			'    adapter: adapter({ mode: "php-static", out: "build", assets: "build", strict: true }),',
+			'    paths: { relative: false },',
+			'    prerender: { entries: ["/"] }',
+			'  })]',
 			'};',
 			'',
 			'export default config;',
@@ -166,7 +147,7 @@ async function writeFixture(tempRoot, tarballPath, packageJson, versions) {
 			'',
 			'<main data-latest-same-major-smoke="sveltekit-php">',
 			'  <h1>latest same-major smoke</h1>',
-			'  <p>adapter build output verified with latest Svelte 5 and SvelteKit 2.</p>',
+			'  <p>adapter build output verified with latest Svelte 5 and SvelteKit 3.</p>',
 			'</main>',
 			''
 		].join('\n')
@@ -205,7 +186,9 @@ async function assertBuildOutput(tempRoot, versions) {
 	console.log(
 		`PASS latest-same-major-smoke: built php-static fixture with svelte@${versions.svelte} and @sveltejs/kit@${versions['@sveltejs/kit']}.`
 	);
-	console.log('PASS latest-same-major-smoke: output includes index.php, .htaccess, router.php, compat.php, and route manifest.');
+	console.log(
+		'PASS latest-same-major-smoke: output includes index.php, .htaccess, router.php, compat.php, and route manifest.'
+	);
 }
 
 async function main() {
@@ -217,7 +200,9 @@ async function main() {
 
 	try {
 		await writeFixture(tempRoot, packManifest.tarballPath, packageJson, versions);
-		await run('npm', ['install', '--no-audit', '--no-fund', '--package-lock=false'], { cwd: tempRoot });
+		await run('npm', ['install', '--no-audit', '--no-fund', '--package-lock=false'], {
+			cwd: tempRoot
+		});
 		await run('npm', ['run', 'build'], {
 			cwd: tempRoot,
 			env: {

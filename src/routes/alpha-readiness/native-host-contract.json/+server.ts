@@ -1,5 +1,5 @@
-import { buildAlphaNativeHostContract } from '$lib/alpha-native-host-contract';
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
+import { buildAlphaNativeHostContract } from '#lib/alpha-native-host-contract.ts';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
 
 export const prerender = true;
 

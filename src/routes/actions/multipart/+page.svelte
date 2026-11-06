@@ -1,21 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { ActionResult } from '@sveltejs/kit';
-
-	type MultipartActionForm = {
-		type: ActionResult['type'];
-		data?: {
-			success?: boolean;
-			error?: string;
-			uploadedFile?: {
-				name: string;
-				size: number;
-				type: string;
-			};
-			title?: string;
-			description?: string;
-		};
-	};
+	import { enhance, type SubmitFunction } from '$app/forms';
 
 	type MultipartActionResult = {
 		success?: boolean;
@@ -43,10 +27,9 @@
 		}
 	}
 
-	function handleSubmit() {
+	const handleSubmit: SubmitFunction = () => {
 		loading = true;
-		return async (opts: { result: MultipartActionForm; [key: string]: unknown }) => {
-			const { result } = opts;
+		return async ({ result, update }) => {
 			loading = false;
 			if (result.type === 'success') {
 				selectedFile = null;
@@ -55,8 +38,9 @@
 					previewUrl = null;
 				}
 			}
+			await update();
 		};
-	}
+	};
 </script>
 
 <svelte:head>

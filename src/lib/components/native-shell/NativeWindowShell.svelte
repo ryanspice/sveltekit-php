@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { installNativeHostEventBridge } from '$lib/native-shell/native-host-event-bridge';
+	import { installNativeHostEventBridge } from '#lib/native-shell/native-host-event-bridge.ts';
 
 	type NativeShellTheme = 'theme-alpha' | 'theme-light' | 'theme-dark' | 'theme-ultragear';
 	type WindowEffect = 'mica' | 'acrylic' | 'none';

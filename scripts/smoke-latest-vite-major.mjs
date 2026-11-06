@@ -10,7 +10,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const keep = process.argv.includes('--keep');
 const expectedMajors = {
 	svelte: 5,
-	'@sveltejs/kit': 2,
+	'@sveltejs/kit': 3,
 	'@sveltejs/vite-plugin-svelte': 7,
 	vite: 8
 };
@@ -48,11 +48,6 @@ function run(command, args, options = {}) {
 }
 
 async function npmLatestVersion(packageName) {
-	if (packageName === '@sveltejs/kit') {
-		const result = await run('npm', ['view', '@sveltejs/kit@2', 'version', '--json', '--silent']);
-		const versions = JSON.parse(result.stdout);
-		return Array.isArray(versions) ? versions.at(-1) : versions;
-	}
 	const result = await run('npm', ['view', packageName, 'version', '--silent']);
 	return result.stdout.trim();
 }
@@ -110,32 +105,18 @@ async function writeFixture(tempRoot, tarballPath, packageJson, versions) {
 	);
 
 	await writeFile(
-		path.join(tempRoot, 'svelte.config.js'),
-		[
-			"import adapter from 'sveltekit-php/adapter';",
-			'',
-			'/** @type {import("@sveltejs/kit").Config} */',
-			'const config = {',
-			'  kit: {',
-			'    adapter: adapter({ mode: "php-static", out: "build", assets: "build", strict: true }),',
-			'    paths: { relative: false },',
-			'    prerender: { entries: ["/"] }',
-			'  }',
-			'};',
-			'',
-			'export default config;',
-			''
-		].join('\n')
-	);
-
-	await writeFile(
 		path.join(tempRoot, 'vite.config.js'),
 		[
 			"import { sveltekit } from '@sveltejs/kit/vite';",
+			"import adapter from 'sveltekit-php/adapter';",
 			'',
 			'/** @type {import("vite").UserConfig} */',
 			'const config = {',
-			'  plugins: [sveltekit()]',
+			'  plugins: [sveltekit({',
+			'    adapter: adapter({ mode: "php-static", out: "build", assets: "build", strict: true }),',
+			'    paths: { relative: false },',
+			'    prerender: { entries: ["/"] }',
+			'  })]',
 			'};',
 			'',
 			'export default config;',
@@ -168,7 +149,7 @@ async function writeFixture(tempRoot, tarballPath, packageJson, versions) {
 			'',
 			'<main data-latest-vite-major-smoke="sveltekit-php">',
 			'  <h1>latest Vite-major smoke</h1>',
-			'  <p>adapter build output verified with latest Svelte 5, SvelteKit 2, Vite 8, and vite-plugin-svelte 7.</p>',
+			'  <p>adapter build output verified with latest Svelte 5, SvelteKit 3, Vite 8, and vite-plugin-svelte 7.</p>',
 			'</main>',
 			''
 		].join('\n')
@@ -207,7 +188,9 @@ async function assertBuildOutput(tempRoot, versions) {
 	console.log(
 		`PASS latest-vite-major-smoke: built php-static fixture with svelte@${versions.svelte}, @sveltejs/kit@${versions['@sveltejs/kit']}, @sveltejs/vite-plugin-svelte@${versions['@sveltejs/vite-plugin-svelte']}, and vite@${versions.vite}.`
 	);
-	console.log('PASS latest-vite-major-smoke: output includes index.php, .htaccess, router.php, compat.php, and route manifest.');
+	console.log(
+		'PASS latest-vite-major-smoke: output includes index.php, .htaccess, router.php, compat.php, and route manifest.'
+	);
 }
 
 async function main() {
@@ -219,7 +202,9 @@ async function main() {
 
 	try {
 		await writeFixture(tempRoot, packManifest.tarballPath, packageJson, versions);
-		await run('npm', ['install', '--no-audit', '--no-fund', '--package-lock=false'], { cwd: tempRoot });
+		await run('npm', ['install', '--no-audit', '--no-fund', '--package-lock=false'], {
+			cwd: tempRoot
+		});
 		await run('npm', ['run', 'build'], {
 			cwd: tempRoot,
 			env: {

@@ -159,7 +159,8 @@ foreach ($guard_segments as $index => $segment) {
     }
 }
 
-if (preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)) {
+// Windows and other case-insensitive filesystems resolve case aliases to the same directory.
+if (preg_match('#(^|/)_protected(?:/|$)#i', $uri_raw)) {
 	http_response_code(403);
 	echo "Access Denied";
 	return;
@@ -210,7 +211,7 @@ if ($base !== '' && $uri !== $base && strpos($uri, $base . '/') !== 0) {
 	return;
 }
 
-if (preg_match('#^/_protected(?:/|$)#', $uri) || ($base !== '' && preg_match('#^' . preg_quote($base, '#') . '/_protected(?:/|$)#', $uri))) {
+if (preg_match('#^/_protected(?:/|$)#i', $uri) || ($base !== '' && preg_match('#^' . preg_quote($base, '#') . '/_protected(?:/|$)#i', $uri))) {
 	http_response_code(403);
     echo "Access Denied";
 	return;

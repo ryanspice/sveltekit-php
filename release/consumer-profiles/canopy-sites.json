@@ -12,7 +12,7 @@
       "id": "lancasterfbc.ca",
       "mode": "php-static",
       "baseUrl": "https://canopydigital.ca/sites/lancasterfbc.ca/",
-      "mirrorUrl": "https://lancasterfbc.ca/",
+      "provenancePath": "sveltekit-php.json",
       "identityMarker": "LancasterFBC",
       "representativePaths": ["about/", "contact/"]
     },
@@ -20,7 +20,7 @@
       "id": "519troughandexterior.ca",
       "mode": "php-static",
       "baseUrl": "https://canopydigital.ca/sites/519troughandexterior.ca/",
-      "mirrorUrl": "https://519troughandexterior.ca/",
+      "provenancePath": "sveltekit-php.json",
       "identityMarker": "519 Trough",
       "representativePaths": ["services/", "contact/"]
     }

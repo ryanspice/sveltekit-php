@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	type UploadForm = {
 		filename?: string;
 		size?: number;
+		file?: { original_name: string; size: number };
+		error?: string;
 	};
 
 	let { form }: { form?: UploadForm | null } = $props();
@@ -24,13 +26,17 @@
 	{#if form}
 		<div class="result">
 			<h3>Result:</h3>
-			<p>Filename: {form.filename}</p>
-			<p>Size: {form.size} bytes</p>
+			{#if form.error}
+				<p>{form.error}</p>
+			{:else}
+				<p>Filename: {form.file?.original_name ?? form.filename}</p>
+				<p>Size: {form.file?.size ?? form.size} bytes</p>
+			{/if}
 		</div>
 	{/if}
 
 	<br />
-	<a href="{base}/">Back to Home</a>
+	<a href={resolve('/')}>Back to Home</a>
 </div>
 
 <style>

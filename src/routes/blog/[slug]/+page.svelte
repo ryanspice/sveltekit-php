@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SafeHtml from '$lib/components/SafeHtml.svelte';
+	import SafeHtml from '#lib/components/SafeHtml.svelte';
 
 	type Props = {
 		data: {

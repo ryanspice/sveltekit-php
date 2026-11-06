@@ -1,5 +1,5 @@
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
-import { renderAlphaReadinessSvg } from '$lib/alpha-readiness-svg';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
+import { renderAlphaReadinessSvg } from '#lib/alpha-readiness-svg.ts';
 
 export const prerender = true;
 

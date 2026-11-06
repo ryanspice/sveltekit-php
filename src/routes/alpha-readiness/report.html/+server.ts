@@ -1,5 +1,5 @@
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
-import { renderAlphaReadinessHtml } from '$lib/alpha-readiness-html';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
+import { renderAlphaReadinessHtml } from '#lib/alpha-readiness-html.ts';
 
 export const prerender = true;
 

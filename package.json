@@ -67,6 +67,16 @@
     ]
   },
   "type": "module",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=22.17.0",
+      "onFail": "error"
+    }
+  },
+  "imports": {
+    "#lib/*": "./src/lib/*"
+  },
   "types": "./adapter/declarations/index.d.ts",
   "exports": {
     ".": {
@@ -106,7 +116,7 @@
     "dev": "node scripts/dev-php.mjs",
     "build": "vite build",
     "preview": "vite preview",
-    "prepare": "svelte-kit sync || echo ''",
+    "prepare": "svelte-kit sync",
     "prepack": "bun run verify:artifacts -- --strict",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
@@ -125,6 +135,7 @@
     "test:php": "bun run check:runtime && php -d display_errors=1 tests/unit/redeclare_test.php",
     "test:sanity": "bun scripts/verify-all.mjs --mode=all --skipUnit --skipE2E",
     "test:e2e": "playwright test",
+    "test:e2e:kit3": "playwright test --config playwright.kit3.config.ts",
     "test:verify-output": "bun scripts/verify-build-output.mjs",
     "pw": "playwright test",
     "pw:ui": "playwright test --ui",
@@ -171,30 +182,30 @@
     "@eslint/compat": "^1.4.0",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.57.0",
-    "@sveltejs/adapter-auto": "^7.0.0",
-    "@sveltejs/kit": "^2.70.3",
-    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@sveltejs/adapter-auto": "^8.0.0",
+    "@sveltejs/kit": "^3.1.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/node": "^22",
     "concurrently": "^9.2.1",
     "devalue": "^5.9.4",
     "dotenv": "^17.2.3",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-svelte": "^3.13.1",
+    "eslint-plugin-svelte": "^3.23.1",
     "globals": "^16.5.0",
     "prettier": "^3.7.4",
     "prettier-plugin-svelte": "^3.4.0",
     "svelte": "^5.57.2",
-    "svelte-check": "^4.3.4",
+    "svelte-check": "^4.7.7",
     "tiny-glob": "^0.2.9",
-    "typescript": "^5.9.3",
-    "typescript-eslint": "^8.48.1",
-    "vite": "^7.3.7",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vite": "^8.3.5",
     "vite-plugin-devtools-json": "^1.0.0",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.12"
   },
   "overrides": {
-    "vite": "^7.3.7"
+    "vite": "^8.3.5"
   },
   "peerDependencies": {
     "@sveltejs/kit": "^2.0.0 || ^3.0.0"

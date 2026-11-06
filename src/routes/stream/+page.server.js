@@ -1,4 +1,4 @@
-import { getPhpData } from '$lib/server/php-dev';
+import { getPhpData } from '#lib/server/php-dev.ts';
 
 export const prerender = true;
 

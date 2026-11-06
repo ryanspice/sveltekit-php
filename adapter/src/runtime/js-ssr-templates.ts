@@ -177,8 +177,120 @@ http.createServer(async (req, res) => {
 `;
 }
 
+function getPhpProxyRequestBody() {
+	return String.raw`
+function sk_proxy_body_fail(int $status): never {
+    http_response_code($status);
+    exit($status === 413 ? 'Payload Too Large' : 'Invalid request body');
+}
+function sk_proxy_ini_bytes(string $value): int {
+    // Keep the PHP 8.1 code floor; ini_parse_quantity was added in PHP 8.2.
+    if (trim($value) === '-1') return 0;
+    if (!preg_match('/^([0-9]+)\s*([KMG]?)$/iD', trim($value), $parts)) sk_proxy_body_fail(500);
+    $quantity = (int)$parts[1];
+    $factor = ['' => 1, 'K' => 1024, 'M' => 1048576, 'G' => 1073741824][strtoupper($parts[2])];
+    return $quantity > intdiv(PHP_INT_MAX, $factor) ? PHP_INT_MAX : $quantity * $factor;
+}
+function sk_proxy_body_append($stream, string $bytes, int &$size, int $limit): void {
+    $length = strlen($bytes);
+    if ($length > $limit - $size) sk_proxy_body_fail(413);
+    if ($length > 0 && fwrite($stream, $bytes) !== $length) sk_proxy_body_fail(500);
+    $size += $length;
+}
+function sk_proxy_part_parameter(string $value): string {
+    return preg_replace_callback('/[\x00-\x1f\x7f"\\\\]/',
+        static fn($match) => sprintf('%%%02X', ord($match[0])), $value);
+}
+function sk_proxy_form_fields($stream, string $name, $value, string $boundary, int &$size, int $limit, int $depth = 0): void {
+    if ($depth > 64) sk_proxy_body_fail(400);
+    if (is_array($value)) {
+        $list = array_is_list($value);
+        foreach ($value as $key => $child) {
+            $suffix = $list && !is_array($child) ? '[]' : '[' . $key . ']';
+            sk_proxy_form_fields($stream, $name . $suffix, $child, $boundary, $size, $limit, $depth + 1);
+        }
+        return;
+    }
+    if (!is_string($value)) sk_proxy_body_fail(400);
+    sk_proxy_body_append($stream, '--' . $boundary . "\r\nContent-Disposition: form-data; name=\"" . sk_proxy_part_parameter($name) . "\"\r\n\r\n", $size, $limit);
+    sk_proxy_body_append($stream, $value, $size, $limit);
+    sk_proxy_body_append($stream, "\r\n", $size, $limit);
+}
+function sk_proxy_form_files($stream, string $name, array $file, string $boundary, int &$size, int $limit, int $depth = 0): void {
+    if ($depth > 64 || !array_key_exists('error', $file)) sk_proxy_body_fail(400);
+    if (is_array($file['error'])) {
+        $list = array_is_list($file['error']);
+        foreach ($file['error'] as $key => $error) {
+            $child = [];
+            foreach (['name', 'type', 'tmp_name', 'error', 'size'] as $property) {
+                if (!isset($file[$property]) || !is_array($file[$property]) || !array_key_exists($key, $file[$property])) sk_proxy_body_fail(400);
+                $child[$property] = $file[$property][$key];
+            }
+            $suffix = $list && !is_array($error) ? '[]' : '[' . $key . ']';
+            sk_proxy_form_files($stream, $name . $suffix, $child, $boundary, $size, $limit, $depth + 1);
+        }
+        return;
+    }
+    $error = $file['error'];
+    if ($error === UPLOAD_ERR_INI_SIZE || $error === UPLOAD_ERR_FORM_SIZE) sk_proxy_body_fail(413);
+    if ($error !== UPLOAD_ERR_OK && $error !== UPLOAD_ERR_NO_FILE) sk_proxy_body_fail(400);
+    if (!is_string($file['name'] ?? null) || !is_string($file['type'] ?? null)) sk_proxy_body_fail(400);
+    $type = $file['type'] ?: 'application/octet-stream';
+    if (!preg_match('~^[a-zA-Z0-9!#$&^_.+-]+/[a-zA-Z0-9!#$&^_.+-]+$~D', $type)) sk_proxy_body_fail(400);
+    sk_proxy_body_append($stream, '--' . $boundary . "\r\nContent-Disposition: form-data; name=\"" . sk_proxy_part_parameter($name) . "\"; filename=\"" . sk_proxy_part_parameter($file['name']) . "\"\r\nContent-Type: " . $type . "\r\n\r\n", $size, $limit);
+    if ($error === UPLOAD_ERR_OK) {
+        $tmp = $file['tmp_name'] ?? null;
+        if (!is_string($tmp) || !is_uploaded_file($tmp)) sk_proxy_body_fail(400);
+        $input = @fopen($tmp, 'rb');
+        if ($input === false) sk_proxy_body_fail(400);
+        while (!feof($input)) {
+            $bytes = fread($input, 8192);
+            if ($bytes === false) sk_proxy_body_fail(400);
+            sk_proxy_body_append($stream, $bytes, $size, $limit);
+        }
+        fclose($input);
+    }
+    sk_proxy_body_append($stream, "\r\n", $size, $limit);
+}
+
+$requestBody = null;
+$requestBodySize = 0;
+$requestContentType = $_SERVER['CONTENT_TYPE'] ?? '';
+if ($hasBody) {
+    $requestBody = fopen('php://temp/maxmemory:2097152', 'w+b');
+    $input = @fopen('php://input', 'rb');
+    if ($requestBody === false || $input === false) sk_proxy_body_fail(500);
+    while (!feof($input)) {
+        $bytes = fread($input, 8192);
+        if ($bytes === false) sk_proxy_body_fail(400);
+        sk_proxy_body_append($requestBody, $bytes, $requestBodySize, $maxBodyBytes);
+    }
+    fclose($input);
+    if ($requestBodySize === 0 && preg_match('~^multipart/form-data(?:\s*;|\s*$)~i', $requestContentType)) {
+        if ($method !== 'POST' || !filter_var(ini_get('enable_post_data_reading'), FILTER_VALIDATE_BOOLEAN) || $contentLength === 0) sk_proxy_body_fail(400);
+        // PHP consumes POST multipart bodies before this script. Rebuild only its parsed semantics.
+        // Bare duplicate names, original name spelling, and cross-field ordering cannot be recovered.
+        if (!preg_match('~;\s*boundary=(?:"[^"\r\n]+"|[^\s;"\r\n]+)~i', $requestContentType)) sk_proxy_body_fail(400);
+        $postLimit = sk_proxy_ini_bytes((string)ini_get('post_max_size'));
+        if ($postLimit > 0 && $contentLength !== null && $contentLength > $postLimit) sk_proxy_body_fail(413);
+        if ($proxyParseError !== null && preg_match('~(?:POST Content-Length|input variables exceeded|input variable nesting|multipart|file upload|upload.*error)~i', $proxyParseError['message'] ?? '')) sk_proxy_body_fail(400);
+        $boundary = 'sk-proxy-' . bin2hex(random_bytes(16));
+        foreach ($_POST as $name => $value) sk_proxy_form_fields($requestBody, (string)$name, $value, $boundary, $requestBodySize, $maxBodyBytes);
+        foreach ($_FILES as $name => $file) {
+            if (!is_array($file)) sk_proxy_body_fail(400);
+            sk_proxy_form_files($requestBody, (string)$name, $file, $boundary, $requestBodySize, $maxBodyBytes);
+        }
+        sk_proxy_body_append($requestBody, '--' . $boundary . "--\r\n", $requestBodySize, $maxBodyBytes);
+        $requestContentType = 'multipart/form-data; boundary=' . $boundary;
+    }
+    rewind($requestBody);
+}
+`;
+}
+
 export function getPhpProxy(sidecarUrl: string, base: string = '') {
 	return `<?php
+$proxyParseError = error_get_last();
 require_once __DIR__ . '/_runtime/compat.php';
 ${getPhpRequestSecurity()}
 /**
@@ -192,7 +304,13 @@ ${getPhpRequestSecurity()}
 // Configuration
 $timeoutMs = getenv('PROXY_TIMEOUT_MS') ?: 10000;
 $connectTimeoutMs = getenv('PROXY_CONNECT_TIMEOUT_MS') ?: 500;
-$maxBodyBytes = getenv('MAX_BODY_BYTES') ?: 10485760; // 10MB default
+$configuredMaxBodyBytes = getenv('MAX_BODY_BYTES');
+$maxBodyBytes = $configuredMaxBodyBytes === false || $configuredMaxBodyBytes === '' ? '10485760' : $configuredMaxBodyBytes; // 10MB default
+if (!ctype_digit((string)$maxBodyBytes) || (int)$maxBodyBytes < 1 || (int)$maxBodyBytes >= PHP_INT_MAX) {
+    http_response_code(500);
+    exit('Invalid MAX_BODY_BYTES');
+}
+$maxBodyBytes = (int)$maxBodyBytes;
 
 // Disable output buffering for streaming
 ini_set('output_buffering', '0');
@@ -339,6 +457,8 @@ if ($hasBody && $contentLength !== null && $contentLength > (int)$maxBodyBytes) 
 
 $url = $sidecar . $uri;
 
+${getPhpProxyRequestBody()}
+
 if (!function_exists('getallheaders')) {
     function getallheaders() {
         $headers = [];
@@ -358,7 +478,7 @@ $headers = [];
 $headersToIgnore = [
     'x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-host', 'x-forwarded-prefix',
     'forwarded', 'x-request-id', 'connection', 'keep-alive', 'proxy-authenticate',
-    'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'host', 'content-length'
+    'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'host', 'content-length', 'content-type'
 ];
 
 // Reuse existing ID if valid, else generate (User requirement: generate if missing)
@@ -376,6 +496,8 @@ foreach (getallheaders() as $name => $value) {
     if (in_array(strtolower($name), $headersToIgnore) || str_starts_with(strtolower($name), 'x-forwarded-')) continue;
     $headers[] = "$name: $value";
 }
+if ($requestContentType !== '') $headers[] = 'Content-Type: ' . $requestContentType;
+if ($hasBody) $headers[] = 'Content-Length: ' . $requestBodySize;
 
 $headers[] = "X-Forwarded-For: " . sk_client_address();
 $headers[] = "X-Forwarded-Proto: " . parse_url($publicOrigin, PHP_URL_SCHEME);
@@ -400,9 +522,9 @@ if (function_exists('curl_init')) {
     curl_setopt($ch, CURLOPT_TIMEOUT_MS, (int)$timeoutMs);
 
     if ($hasBody) {
-        $input = @fopen('php://input', 'r');
         curl_setopt($ch, CURLOPT_UPLOAD, true);
-        curl_setopt($ch, CURLOPT_INFILE, $input);
+        curl_setopt($ch, CURLOPT_INFILE, $requestBody);
+        curl_setopt($ch, CURLOPT_INFILESIZE, $requestBodySize);
     }
 
     if ($method === 'HEAD') {
@@ -521,19 +643,7 @@ $opts = [
 ];
 
 if ($hasBody) {
-    if ($contentLength === null) {
-        proxy_log("Length Required: missing or invalid Content-Length for fallback proxy");
-        http_response_code(411);
-        echo "Length Required";
-        exit;
-    }
-    if ($contentLength > (int)$maxBodyBytes) {
-        proxy_log("Payload Too Large: " . $contentLength);
-        http_response_code(413);
-        echo "Payload Too Large";
-        exit;
-    }
-    $opts['http']['content'] = file_get_contents('php://input');
+    $opts['http']['content'] = stream_get_contents($requestBody, $maxBodyBytes);
 }
 
 $context = stream_context_create($opts);

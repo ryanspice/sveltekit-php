@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { ActionResult } from '@sveltejs/kit';
+	import { enhance, type SubmitFunction } from '$app/forms';
 
 	type NamedActionResult = {
 		success?: boolean;
@@ -14,17 +13,14 @@
 	let activeAction = $state('process');
 	let loading = $state(false);
 
-	function handleSubmit() {
+	const handleSubmit: SubmitFunction = () => {
 		loading = true;
 		// The form action will be set by the selected button
-		return async (opts: {
-			result: { type: ActionResult['type']; data?: Record<string, unknown> };
-		}) => {
-			const { result } = opts;
+		return async ({ update }) => {
 			loading = false;
-			// Handle the result
+			await update();
 		};
-	}
+	};
 
 	function setActiveAction(action: string) {
 		activeAction = action;

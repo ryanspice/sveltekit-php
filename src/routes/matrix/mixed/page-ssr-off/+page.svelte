@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { data } = $props<{ data?: { message?: string } }>();
+	let { data }: { data?: { message?: string } } = $props();
 </script>
 
 <h1>Mixed SSR OFF</h1>

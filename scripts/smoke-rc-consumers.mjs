@@ -50,15 +50,17 @@ export async function probeConsumer(consumer, candidate) {
 		}
 	}
 	checks.push(safeCheck(await observe(new URL('__rc-proof-missing__/', consumer.baseUrl).href, 404, 'unknown-route')));
-	const mirror = await observe(consumer.mirrorUrl, 301, 'mirror-redirect');
-	if (mirror.actualStatus === 308) mirror.ok = true;
-	if (mirror.response) {
-		const location = mirror.response.headers.get('location');
-		mirror.ok &&= Boolean(location && new URL(location, consumer.mirrorUrl).href === consumer.baseUrl);
+	if (consumer.mirrorUrl) {
+		const mirror = await observe(consumer.mirrorUrl, 301, 'mirror-redirect');
+		if (mirror.actualStatus === 308) mirror.ok = true;
+		if (mirror.response) {
+			const location = mirror.response.headers.get('location');
+			mirror.ok &&= Boolean(location && new URL(location, consumer.mirrorUrl).href === consumer.baseUrl);
+		}
+		checks.push(safeCheck(mirror));
 	}
-	checks.push(safeCheck(mirror));
 
-	const provenance = await observe(new URL('.well-known/sveltekit-php.json', consumer.baseUrl).href, 200, 'deployment-provenance');
+	const provenance = await observe(new URL(consumer.provenancePath, consumer.baseUrl).href, 200, 'deployment-provenance');
 	if (provenance.response && provenance.ok) {
 		try {
 			const data = await provenance.response.json();

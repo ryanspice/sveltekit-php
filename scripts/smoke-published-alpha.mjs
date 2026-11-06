@@ -67,8 +67,8 @@ async function assertPublishedAlphaVersion(expectedVersion) {
 async function writeFixture(tempRoot, packageJson) {
 	const svelteVersion = await npmView('svelte', 'version');
 	const kitVersion = await npmView('@sveltejs/kit', 'version');
-	const viteRange = packageJson.devDependencies?.vite ?? '^7.2.6';
-	const pluginRange = packageJson.devDependencies?.['@sveltejs/vite-plugin-svelte'] ?? '^6.2.1';
+	const viteRange = packageJson.devDependencies?.vite ?? '^8.3.5';
+	const pluginRange = packageJson.devDependencies?.['@sveltejs/vite-plugin-svelte'] ?? '^7.3.1';
 
 	await writeFile(
 		path.join(tempRoot, 'package.json'),
@@ -94,32 +94,18 @@ async function writeFixture(tempRoot, packageJson) {
 	);
 
 	await writeFile(
-		path.join(tempRoot, 'svelte.config.js'),
-		[
-			"import adapter from 'sveltekit-php/adapter';",
-			'',
-			'/** @type {import("@sveltejs/kit").Config} */',
-			'const config = {',
-			'  kit: {',
-			'    adapter: adapter({ mode: "php-static", out: "build", assets: "build", strict: true }),',
-			'    paths: { relative: false },',
-			'    prerender: { entries: ["/"] }',
-			'  }',
-			'};',
-			'',
-			'export default config;',
-			''
-		].join('\n')
-	);
-
-	await writeFile(
 		path.join(tempRoot, 'vite.config.js'),
 		[
 			"import { sveltekit } from '@sveltejs/kit/vite';",
+			"import adapter from 'sveltekit-php/adapter';",
 			'',
 			'/** @type {import("vite").UserConfig} */',
 			'const config = {',
-			'  plugins: [sveltekit()]',
+			'  plugins: [sveltekit({',
+			'    adapter: adapter({ mode: "php-static", out: "build", assets: "build", strict: true }),',
+			'    paths: { relative: false },',
+			'    prerender: { entries: ["/"] }',
+			'  })]',
 			'};',
 			'',
 			'export default config;',
@@ -139,7 +125,10 @@ async function writeFixture(tempRoot, packageJson) {
 			''
 		].join('\n')
 	);
-	await writeFile(path.join(tempRoot, 'src', 'routes', '+page.js'), ['export const prerender = true;', 'export const csr = false;', ''].join('\n'));
+	await writeFile(
+		path.join(tempRoot, 'src', 'routes', '+page.js'),
+		['export const prerender = true;', 'export const csr = false;', ''].join('\n')
+	);
 	await writeFile(
 		path.join(tempRoot, 'src', 'routes', '+page.svelte'),
 		[
@@ -184,12 +173,20 @@ async function assertBuildOutput(tempRoot, publishedVersion) {
 	}
 
 	if (html.includes('sveltekit:start') || html.includes('data-sveltekit-hydrate')) {
-		throw new Error('Published alpha csr=false fixture should not include hydration bootstrap markers.');
+		throw new Error(
+			'Published alpha csr=false fixture should not include hydration bootstrap markers.'
+		);
 	}
 
-	console.log(`PASS published-alpha-smoke: installed sveltekit-php@alpha (${publishedVersion}) from npm.`);
-	console.log('PASS published-alpha-smoke: output includes index.php, .htaccess, router.php, compat.php, and route manifest.');
-	console.log('PASS published-alpha-smoke: prerendered csr=false page has no SvelteKit hydration bootstrap markers.');
+	console.log(
+		`PASS published-alpha-smoke: installed sveltekit-php@alpha (${publishedVersion}) from npm.`
+	);
+	console.log(
+		'PASS published-alpha-smoke: output includes index.php, .htaccess, router.php, compat.php, and route manifest.'
+	);
+	console.log(
+		'PASS published-alpha-smoke: prerendered csr=false page has no SvelteKit hydration bootstrap markers.'
+	);
 }
 
 async function main() {
@@ -199,7 +196,9 @@ async function main() {
 
 	try {
 		await writeFixture(tempRoot, packageJson);
-		await run('npm', ['install', '--no-audit', '--no-fund', '--package-lock=false'], { cwd: tempRoot });
+		await run('npm', ['install', '--no-audit', '--no-fund', '--package-lock=false'], {
+			cwd: tempRoot
+		});
 		await run('npm', ['run', 'build'], {
 			cwd: tempRoot,
 			env: {

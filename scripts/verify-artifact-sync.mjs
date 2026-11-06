@@ -17,8 +17,8 @@ const generatedArtifacts = [
 		requiredMarkers: [
 			"preg_match('/[\\\\x00-\\\\x1f\\\\x7f]/', $decoded)",
 			"$segment === '..' || $segment === '.'",
-			"preg_match('#(^|/)_protected(?:/|$)#', $uri_raw)",
-			"preg_quote($base, '#') . '/_protected(?:/|$)#'",
+			"preg_match('#(^|/)_protected(?:/|$)#i', $uri_raw)",
+			"preg_quote($base, '#') . '/_protected(?:/|$)#i'",
 			'router_safe_path($root',
 			'router_safe_path(__DIR__',
 			'Build identity contract',

@@ -27,6 +27,17 @@ describe('Kit builder compatibility', () => {
 		expect(builder.config).toBe(config);
 		expect(normalized.generateServerInstance?.('instance.js')).toBe('.svelte-kit');
 	});
+	it('does not invoke the deprecated Kit 3 config.kit compatibility getter', () => {
+		const config = { paths: { base: '/base' }, files: { routes: 'src/marketing' } };
+		Object.defineProperty(config, 'kit', {
+			get() {
+				throw new Error('Deprecated config.kit getter invoked');
+			}
+		});
+		const normalized = normalizeBuilder({ config });
+		expect(normalized.config.kit).toBe(config);
+		expect(normalized.config.kit.paths.base).toBe('/base');
+	});
 	it('uses generated server instance on Kit 3 and retains Kit 2 bootstrap', () => {
 		expect(getNodeHandlerMjs('', true)).toContain("import { server } from './instance.js'");
 		expect(getNodeHandlerMjs('', true)).not.toContain('new Server');

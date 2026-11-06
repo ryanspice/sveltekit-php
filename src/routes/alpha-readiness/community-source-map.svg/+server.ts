@@ -1,5 +1,5 @@
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
-import { renderAlphaCommunitySourceMapSvg } from '$lib/alpha-community-source-map-svg';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
+import { renderAlphaCommunitySourceMapSvg } from '#lib/alpha-community-source-map-svg.ts';
 
 export const prerender = true;
 

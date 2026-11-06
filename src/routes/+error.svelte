@@ -1,11 +1,13 @@
 <script lang="ts">
-	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
+
+	let { error }: { error: App.Error } = $props();
 </script>
 
 <main class="error-page">
-	<h1>{page.status}</h1>
-	<p>{page.error?.message ?? 'Something went wrong.'}</p>
-	<a href="/">Return home</a>
+	<h1>{error.status}</h1>
+	<p>{error.message}</p>
+	<a href={resolve('/')}>Return home</a>
 </main>
 
 <style>

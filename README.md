@@ -8,7 +8,7 @@ PHP hosting is widely available, and many sites already have PHP endpoints, form
 
 The interesting engineering work lives at the boundary: matching routes, protecting server files, preserving cookies and base paths, and producing a package consumers can verify. The fixtures and hosting contract make those choices inspectable.
 
-**Current status:** local `1.1.0-alpha.0` candidate, unpublished. October 23 registry inspection found only `latest → 1.0.1`, with no `alpha` tag. Private sidecar output, PHP action-origin checks, and sidecar proxy/body boundaries are implemented in source. The [implementation receipt](docs/security/implementation-20261023.md) records current local checks; hosted proof and publication remain open.
+**Current status:** local `1.1.0-alpha.0` candidate, unpublished. October 23 registry inspection found only `latest → 1.0.1`, with no `alpha` tag. Private sidecar output, PHP action-origin checks, and sidecar proxy/body boundaries are implemented in source. The working tree contains a Kit 3 development-app migration candidate; final multipart, generated-artifact and browser acceptance remain pending. See the [migration receipt](docs/security/kit3-migration-20261025.md) and earlier [security implementation receipt](docs/security/implementation-20261023.md). Hosted proof and publication remain open.
 
 ## Choose the host you actually need
 
@@ -96,7 +96,7 @@ Mode choice:
 
 ### Prerequisites
 
-- **Node.js** (or Bun)
+- **Development checkout:** Node.js >=22.17 and Bun. The checkout uses Kit 3, Vite 8, Svelte 5 and TypeScript 6. Consumers follow their selected Kit version's runtime requirements; the adapter retains its Kit 2/3 peer range.
 - **PHP 8.1+** (Available in your system PATH)
 
 ### Select a source-candidate package
@@ -145,9 +145,11 @@ function GET($event) {
 }
 ```
 
-For `php-static`, build with your project package manager, verify the generated output locally, and deploy the reviewed public output to the PHP web root after the required security/host checks. Current `js-ssr` deployment must wait for private server-output isolation and its host acceptance checks (A-01 in the modernization plan); its complete output is not an acceptable public document root. Both `sveltekit-php` and the compatibility import `sveltekit-php/adapter` are supported and typed.
+For `php-static`, build with your project package manager, verify the generated output locally, and deploy the reviewed public output to the PHP web root after the required security/host checks. Current `js-ssr` output separates its private server bundle into `<out>-server/`; keep that sibling outside every document root and complete host acceptance before deployment. Both `sveltekit-php` and the compatibility import `sveltekit-php/adapter` are supported and typed.
 
 ### Contributing to this adapter
+
+The checkout keeps flat Kit 3 application options in `app.config.mjs`, passed explicitly to `sveltekit(...)` in `vite.config.ts`. Source imports use exact-extension `#lib/*` package imports. Environment controls for modes, output, fixed/automatic bases and fallback remain available. The development watcher excludes generated fixture outputs while retaining the current Kit-generated modules needed for HMR.
 
 Install this repository with `bun install`, then start the hybrid development server:
 

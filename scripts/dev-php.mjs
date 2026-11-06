@@ -14,7 +14,14 @@ if (!existsSync(resolvedRouter)) {
 }
 
 // What to rebuild. Adjust if your adapter uses other dirs.
-const WATCH_DIRS = ['src', 'adapter/src', 'static', 'svelte.config.js'];
+const WATCH_DIRS = [
+	'src',
+	'adapter/src',
+	'static',
+	'vite.config.ts',
+	'app.config.mjs',
+	'scripts/utils/config.mjs'
+];
 
 let building = false;
 let pending = false;

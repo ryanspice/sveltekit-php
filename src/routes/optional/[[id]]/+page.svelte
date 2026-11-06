@@ -1,5 +1,5 @@
 <script>
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	let { data } = $props();
 
@@ -32,9 +32,9 @@
 	<div class="examples">
 		<h3>Try these URLs:</h3>
 		<ul>
-			<li><a href="{base}/optional">/optional</a> (no parameter)</li>
-			<li><a href="{base}/optional/123">/optional/123</a> (with parameter)</li>
-			<li><a href="{base}/optional/abc">/optional/abc</a> (with string parameter)</li>
+			<li><a href={resolve('/optional/[[id]]', {})}>/optional</a> (no parameter)</li>
+			<li><a href={resolve('/optional/[[id]]', { id: '123' })}>/optional/123</a> (with parameter)</li>
+			<li><a href={resolve('/optional/[[id]]', { id: 'abc' })}>/optional/abc</a> (with string parameter)</li>
 		</ul>
 	</div>
 

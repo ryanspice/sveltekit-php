@@ -4,7 +4,7 @@
 		type NativeHostCommandResult,
 		type NativeWindowAction,
 		type NativeWindowActionDetail
-	} from '$lib/native-shell/native-host-event-bridge';
+	} from '#lib/native-shell/native-host-event-bridge.ts';
 
 	type Props = {
 		contractHref: string;
@@ -201,8 +201,11 @@
 	</div>
 
 	<div class="status-links">
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The parent already resolves this URL with its deployment base. -->
 		<a href={contractHref}>Open native host contract</a>
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The parent already resolves this URL with its deployment base. -->
 		<a href={guideHref}>Open native host guide</a>
+		<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- The parent already resolves this URL with its deployment base. -->
 		<a href={bridgeReuseHref}>Open bridge reuse map</a>
 	</div>
 </section>

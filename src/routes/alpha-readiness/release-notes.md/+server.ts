@@ -1,6 +1,6 @@
-import { buildAlphaReadinessReport } from '$lib/alpha-readiness';
-import { buildReleaseManifest } from '$lib/alpha-release-manifest';
-import { renderAlphaReleaseNotes } from '$lib/alpha-release-notes';
+import { buildAlphaReadinessReport } from '#lib/alpha-readiness.ts';
+import { buildReleaseManifest } from '#lib/alpha-release-manifest.ts';
+import { renderAlphaReleaseNotes } from '#lib/alpha-release-notes.ts';
 
 export const prerender = true;
 

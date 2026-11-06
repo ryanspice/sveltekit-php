@@ -1,6 +1,6 @@
 <script>
 	import { enhance } from '$app/forms';
-	import { base } from '$app/paths';
+	import { resolve } from '$app/paths';
 
 	let { form } = $props();
 </script>
@@ -31,7 +31,7 @@
 	{/if}
 
 	<br />
-	<a href="{base}/">Back to Home</a>
+	<a href={resolve('/')}>Back to Home</a>
 </div>
 
 <style>

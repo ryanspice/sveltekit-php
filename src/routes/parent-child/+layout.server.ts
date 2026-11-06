@@ -1,5 +1,5 @@
 import type { LayoutServerLoad } from './$types';
-import { getPhpData } from '$lib/server/php-dev';
+import { getPhpData } from '#lib/server/php-dev.ts';
 
 export const load: LayoutServerLoad = async ({ fetch, url }) => {
 	const nodes = await getPhpData(fetch, url.pathname);
