@@ -27,3 +27,17 @@ The inactive `.codegraph` directory and two empty sidecar outputs were removed. 
 The older local skill is superseded by current repository guidance. July/August plans retain their original evidence with historical labels; their version, npm authentication, gate-count, and hosted claims are not current acceptance. [MODERNIZATION.md](MODERNIZATION.md) records the source dispositions and archive paths.
 
 Open follow-ups include a focused reproduction of the historical sibling-output concern, actual host/proxy cookie acceptance, the Bun prepack tooling dependency, and the limited prose coverage of version-drift checks. They remain explicit questions for the next feature/performance/security plan rather than inferred completed work.
+
+## Next acceptance decisions
+
+The four skipped Kit 3 PHP-static no-JavaScript cases are one `js-ssr` native-form
+test across root/subdirectory and desktop/mobile configurations. Their test bodies
+did not run, so they establish neither four failures nor native PHP-static form
+support. Characterize native GET and POST on a disposable, pinned candidate before
+choosing explicit boundary assertions. Request-time Svelte rendering remains the
+`js-ssr` boundary; changing it is a separate product decision.
+
+Reproduce the possible `js-ssr` sibling-output collision with generated-output and
+HTTP evidence before changing its generator. Retain existing behavior if no material
+divergence is established. Real-host security and human UI acceptance remain open;
+collect representative synthetic measurements before selecting optimizations.
