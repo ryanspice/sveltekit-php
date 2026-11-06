@@ -50,8 +50,8 @@ describe('JS SSR generated PHP execution over loopback', () => {
 		it(`${layout} preserves static bytes and denies private and traversal paths before handler execution`, async () => {
 			const probe = await createRouterProbe(layout);
 			probes.push(probe);
-			const expectedAsset = readFileSync(`${probe.root}/index.html`);
-			const asset = await probe.request(`${probe.base}/index.html`);
+			const expectedAsset = readFileSync(`${probe.root}/asset.txt`);
+			const asset = await probe.request(`${probe.base}/asset.txt`);
 			expect(asset.status).toBe(200);
 			expect(Buffer.from(await asset.arrayBuffer())).toEqual(expectedAsset);
 
