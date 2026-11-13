@@ -31,6 +31,7 @@ These option names are the 1.x public adapter surface. New options can be added 
 | Option | Accepted values | Contract |
 | --- | --- | --- |
 | `mode` | `'php-static'` or `'js-ssr'` | Selects generated runtime mode. |
+| `omitUnusedBridges` | `boolean`, default `false` | Opt-in omission for proven no-CSR static pages in `php-static` with fixed base and adapter SSR enabled. Server modules, loads, unknown/computed options, resets, endpoint overlaps, Kit data/bootstrap output and other modes retain existing generation. See [eligibility and deployment requirements](../README.md#omitting-unused-page-bridges-opt-in). Eligible documents allow GET/HEAD and reject other methods with 405 and `Allow: GET, HEAD`. |
 | `ssr` | `boolean` | Legacy/compatibility SSR toggle; prefer explicit `mode` for release claims. |
 | `out` | `string` | Output directory for generated PHP/static build files. |
 | `assets` | `string` | Asset output path when separate from `out`. |

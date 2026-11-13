@@ -153,6 +153,38 @@ function GET($event) {
 
 For `php-static`, build with your project package manager, verify the generated output locally, and deploy the reviewed public output to the PHP web root after the required security/host checks. Current `js-ssr` output separates its private server bundle into `<out>-server/`; keep that sibling outside every document root and complete host acceptance before deployment. Both `sveltekit-php` and the compatibility import `sveltekit-php/adapter` are supported and typed.
 
+### Omitting unused page bridges (opt-in)
+
+For static pages that need no data or action bridge, set `omitUnusedBridges: true`
+in the adapter options. The default is `false`, preserving existing generation.
+
+```js
+adapter({ mode: 'php-static', omitUnusedBridges: true });
+```
+
+Omission currently requires `php-static`, fixed `baseMode`, the adapter's `ssr`
+enabled, and a fully prerendered route whose inherited page options establish
+`csr = false` and SSR enabled. The adapter accepts only option-only `+layout.js/ts`
+and `+page.js/ts` modules with literal `csr`, `ssr`, `prerender`, or `trailingSlash`
+exports. Imports, loads, re-exports, computed options, layout resets, server
+modules in either language, and page/endpoint overlaps retain bridges. So do
+Kit-emitted data files and HTML containing a Kit bootstrap marker. These checks
+are deliberately conservative; `prerender = true` or `csr = false` alone is
+insufficient. Unsupported configurations retain their existing output.
+
+Eligible pages omit `__data.php`, `__action.php`, and adapter data templates.
+They keep a small `index.php` that serves GET, sends an empty HEAD response, and
+rejects other methods with 405 and `Allow: GET, HEAD`. Required runtime files,
+including `_runtime/compat.php`, remain. Bridge rewrites are removed when no
+bridges are generated; mixed builds rewrite only to existing bridge files.
+`js-ssr` retains its existing proxy/sidecar behavior and output.
+
+Eligibility is recalculated on every build. Adding a server module, load or CSR
+re-emits the normal files. Deploy the complete fresh output with your reviewed
+deployment process: uploading over an older deployment without removing stale
+files can leave obsolete bridges accessible. This option does not perform remote
+cleanup or establish acceptance for your Apache/Nginx host.
+
 ### Contributing to this adapter
 
 The checkout keeps flat Kit 3 application options in `app.config.mjs`, passed explicitly to `sveltekit(...)` in `vite.config.ts`. Source imports use exact-extension `#lib/*` package imports. Environment controls for modes, output, fixed/automatic bases and fallback remain available. The development watcher excludes generated fixture outputs while retaining the current Kit-generated modules needed for HMR.

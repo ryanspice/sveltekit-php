@@ -19,7 +19,8 @@ export function getHtaccessPhpStatic(
 	base: string,
 	precompress = false,
 	fallback?: string | boolean,
-	trailingSlash: 'always' | 'never' | 'ignore' = 'ignore'
+	trailingSlash: 'always' | 'never' | 'ignore' = 'ignore',
+	bridgeRewrites: boolean | 'existing' = true
 ) {
 	const normalizedBase = normalizeBasePathOption(base) ?? '';
 	const normalizedFallback = normalizeFallbackOption(fallback);
@@ -119,12 +120,19 @@ ${guardRules}
 
 	# stop rewrite loops / direct hits
 	RewriteRule ^${baseOptional}(?:index\\.php|router\\.php)$ - [L]
-	RewriteRule ^${baseOptional}__data\\.php$ - [L]
-	RewriteRule ^${baseOptional}__action\\.php$ - [L]
 
+	${
+		bridgeRewrites
+			? `RewriteRule ^${baseOptional}__data\\.php$ - [L]
+	RewriteRule ^${baseOptional}__action\\.php$ - [L]
 	# ALWAYS resolve SvelteKit data/action first
+	${bridgeRewrites === 'existing' ? 'RewriteCond %{REQUEST_FILENAME} ^(.*)/__data\\.json$\n\tRewriteCond %1/__data.php -f' : ''}
 	RewriteRule ^${baseOptional}(.*/)?__data\\.json$ ${rootPrefix}$1__data.php [QSA,L]
+	${bridgeRewrites === 'existing' ? 'RewriteCond %{REQUEST_FILENAME} ^(.*)/__action$\n\tRewriteCond %1/__action.php -f' : ''}
 	RewriteRule ^${baseOptional}(.*/)?__action$    ${rootPrefix}$1__action.php [QSA,L]
+	`
+			: ''
+	}
 
 ${precompressRules}
 	# normalize nested /_app asset hits to rootPrefix/_app

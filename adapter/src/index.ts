@@ -34,6 +34,7 @@ import { getHtaccess } from './runtime/htaccess-templates.js';
 import type { AdapterMode, AdapterOptions } from './types.js';
 import type { Adapter } from '@sveltejs/kit';
 import { normalizeBuilder } from './utils/builder.js';
+import { canOmitPageBridges, getBridgeFreePageGuard } from './utils/bridges.js';
 import {
 	normalizeAdapterOptions,
 	normalizeBasePathOption,
@@ -83,6 +84,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 		out = './build',
 		assets = './build',
 		precompress = false,
+		omitUnusedBridges = false,
 		fallback,
 		strict = true,
 		baseMode,
@@ -199,6 +201,12 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 			};
 
 			builder.log.minor(`Adapting for mode: ${mode}`);
+			if (omitUnusedBridges && (mode !== 'php-static' || baseMode !== 'fixed' || !ssr)) {
+				builder.log.warn(
+					'omitUnusedBridges retains bridges outside php-static with fixed baseMode and ssr enabled.'
+				);
+			}
+			let emittedPageBridges = false;
 			builder.log.minor('Cleaning output/temp');
 			await assertRemoteFunctionsUnsupported(builder);
 			validateReservedRouteIds(builder.routes, strict, builder);
@@ -818,6 +826,25 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				html = rewriteAssetUrls(html);
 				html = patchBootConfig(html);
 
+				if (
+					omitUnusedBridges &&
+					ssr &&
+					baseMode === 'fixed' &&
+					!html.includes('__sveltekit_') &&
+					!(await Promise.all(candidates.map(exists))).some(Boolean) &&
+					(await canOmitPageBridges(route, routesBaseFs))
+				) {
+					// Keep a tiny PHP document for method enforcement, including direct hits.
+					// Pages with Kit-emitted data output retain the existing bridge path.
+					targetDir = path.join(prerenderedRoot, stripLeadingSlash(navPath));
+					builder.mkdirp(targetDir);
+					const targetPhp = path.join(targetDir, 'index.php');
+					await writeFile(targetPhp, getBridgeFreePageGuard() + html, 'utf8');
+					if (htmlFs !== targetPhp) await builder.rimraf(htmlFs);
+					builder.log.minor('Omitted unused page bridges: ' + navPath);
+					continue;
+				}
+
 				let templateJsonFs: string | null = null;
 				let templateJson = '{"type":"data","nodes":[]}';
 				let nodeCount = 0;
@@ -967,6 +994,7 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 
 				await writeFile(path.join(dataDir, '__data.php'), dataPhp, 'utf8');
 				await writeFile(path.join(dataDir, '__action.php'), actionPhp, 'utf8');
+				emittedPageBridges = true;
 
 				// Patch HTML to PHP
 				if (ssr) {
@@ -1773,6 +1801,7 @@ if (is_file($fallback_200)) {
 
 					await writeFile(path.join(outDirForRoute, '__data.php'), dataPhp, 'utf8');
 					await writeFile(path.join(outDirForRoute, '__action.php'), actionPhp, 'utf8');
+					emittedPageBridges = true;
 				}
 
 				// 4.5) Handle API endpoints (+server.php, +server.js, +server.ts)
@@ -2237,7 +2266,8 @@ if (sk_prefers_html($accept)) {
 					basePath || '',
 					precompress,
 					'router.php',
-					trailingSlash
+					trailingSlash,
+					omitUnusedBridges ? (emittedPageBridges ? 'existing' : false) : true
 				);
 				await writeFile(path.join(outDir, '.htaccess'), htaccess.trim(), 'utf8');
 

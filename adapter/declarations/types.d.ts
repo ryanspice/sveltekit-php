@@ -1,6 +1,8 @@
 export interface AdapterOptions {
     /** Production runtime strategy. Defaults to `php-static`. */
     mode?: AdapterMode;
+    /** Omit bridges for proven static, no-CSR pages in php-static mode. Defaults to false. */
+    omitUnusedBridges?: boolean;
     /** @deprecated Runtime mode is selected with `mode`; retained for platform metadata compatibility. */
     ssr?: boolean;
     /** Generated route/runtime output directory. */

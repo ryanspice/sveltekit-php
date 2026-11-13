@@ -16,8 +16,9 @@ export function getHtaccess(
 	base: string,
 	precompress = false,
 	fallback?: string | boolean,
-	trailingSlash: 'always' | 'never' | 'ignore' = 'ignore'
+	trailingSlash: 'always' | 'never' | 'ignore' = 'ignore',
+	bridgeRewrites: boolean | 'existing' = true
 ) {
 	void mode;
-	return getHtaccessPhpStatic(base, precompress, fallback, trailingSlash);
+	return getHtaccessPhpStatic(base, precompress, fallback, trailingSlash, bridgeRewrites);
 }
