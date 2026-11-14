@@ -152,6 +152,7 @@ export function normalizeAdapterOptions(options: AdapterOptions = {}): AdapterOp
 	assertBoolean(options.ssr, 'ssr');
 	assertBoolean(options.precompress, 'precompress');
 	assertBoolean(options.strict, 'strict');
+	assertBoolean(options.omitUnusedBridges, 'omitUnusedBridges');
 	assertOptionalString(options.out, 'out');
 	assertOptionalString(options.assets, 'assets');
 

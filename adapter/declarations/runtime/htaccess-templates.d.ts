@@ -8,4 +8,4 @@
  * the browser may request /dev/_app/... (missing your base). That cannot be fixed
  * from /dev/sveltekit/.htaccess. Fix by removing <base> OR disabling paths.relative.
  */
-export declare function getHtaccess(mode: string, base: string, precompress?: boolean, fallback?: string | boolean, trailingSlash?: 'always' | 'never' | 'ignore'): string;
+export declare function getHtaccess(mode: string, base: string, precompress?: boolean, fallback?: string | boolean, trailingSlash?: 'always' | 'never' | 'ignore', bridgeRewrites?: boolean | 'existing'): string;
