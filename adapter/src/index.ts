@@ -18,7 +18,7 @@ import {
 	readTrailingSlashFromRoute,
 	type RouteManifestEntry
 } from './utils/routing.js';
-import { detectInlineDataModeFromHtml, replaceInlineConstData } from './utils/html.js';
+import { rewriteInlineData } from './utils/html.js';
 import { cleanBuildDirectory, exists } from './utils/fs.js';
 import {
 	getDataPhp,
@@ -747,7 +747,6 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				candidates.push(path.join(htmlDir, '__data.json'));
 
 				let html = await readFile(htmlFs, 'utf8');
-				const inlineMode = detectInlineDataModeFromHtml(html);
 				const injectBaseHref = (html: string, basePath: string) => {
 					if (baseMode === 'auto') {
 						// Remove existing base tag if present to allow PHP injection
@@ -825,6 +824,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				html = injectBaseHref(html, basePath);
 				html = rewriteAssetUrls(html);
 				html = patchBootConfig(html);
+				const inlineData = rewriteInlineData(html);
+				const inlineMode = inlineData?.mode ?? 'unknown';
 
 				if (
 					omitUnusedBridges &&
@@ -1000,13 +1001,8 @@ export default function sveltekitPhpAdapter(options: AdapterOptions = {}): Adapt
 				if (ssr) {
 					debug(`DEBUG: SSR is enabled for ${navPath}. Converting HTML to PHP.`);
 					// Detect if the page has inline data (meaning it was SSR'd with data)
-					const replaced = replaceInlineConstData(html);
-
-					if (replaced) {
-						// Detect how data is inlined (SvelteKit 1.0 vs 2.0 styles vary, plus `inlineBody` option)
-						const inlineMode = detectInlineDataModeFromHtml(html); // 'nodes' | 'payload' | 'unknown'
-
-						html = replaced;
+					if (inlineData) {
+						html = inlineData.html;
 
 						html = html.replace(
 							/<script>__sveltekit_[A-Za-z0-9_]+\.resolve\([\s\S]*?<\/script>\s*/g,

@@ -53,6 +53,22 @@ The npm package export contract is:
 
 The package allowlist intentionally contains only runtime adapter code plus release/user documentation: `adapter/index.js`, `adapter/src/runtime/php-compat.php`, `LICENSE`, `README.md`, `package.json`, `docs/ADAPTER-FEATURE-CATALOG.md`, `docs/ADAPTER-LANDSCAPE.md`, `docs/ALPHA-LATEST-SVELTEKIT-AUDIT.md`, `docs/ALPHA-READINESS.md`, `docs/ALPHA-RELEASE-CHECKLIST.md`, `docs/DEV-ADAPTER-BOUNDARY.md`, `docs/HOSTING-CONTRACT.md`, `docs/REMOTE-FUNCTIONS-ALPHA-POLICY.md`, `docs/recipes/composer-bootstrap.md`, and `docs/recipes/wordpress.md`.
 
+## Inline hydration data selection
+
+In `php-static`, PHP data embedding targets the array/object literal supplied to
+SvelteKit's inline `.start(..., options)` call with `node_ids` and `data` fields.
+Mode detection and replacement use the same selected bootstrap. Visible code
+samples, unrelated data variables, fetched JSON scripts, comments, raw-text
+elements, external scripts and inert templates are not replacement targets.
+Unrecognized or ambiguous bootstraps are left unchanged rather than guessing.
+
+This is a build-time correctness boundary, not a general HTML or JavaScript
+sanitizer. It does not change `__data.json`, action envelopes, bridge-omission
+eligibility or `js-ssr` delivery. Kit's split, single and inline start-call forms
+are covered by focused fixtures; actual browser and host acceptance remain
+separate checks. The primary contracts are [Kit loading data](https://svelte.dev/docs/kit/load)
+and [writing adapters](https://svelte.dev/docs/kit/writing-adapters).
+
 ## Streaming and deferred data boundary
 
 `php-static` does not claim exact SvelteKit/devalue streaming-deferred parity for request-time Svelte documents. Treat `php-static` as the shared-hosting mode for prerendered documents plus PHP data/action/endpoint helpers. If a route requires exact streamed Svelte document output, deferred chunk semantics, or request-time SSR parity, deploy it through `js-ssr` so the PHP entrypoint can proxy to the JavaScript SSR sidecar.
